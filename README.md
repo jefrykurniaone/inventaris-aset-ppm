@@ -43,6 +43,11 @@ Development needs no cloud account: the database is local Postgres and photos ar
 git-ignored local directory. Supabase is introduced only at the deployment cutover — see
 [`docs/adr/0003-local-postgres-development-supabase-deployment.md`](docs/adr/0003-local-postgres-development-supabase-deployment.md).
 
+The `overrides` block in `package.json` pins `postcss` and `sharp` past advisories that
+`next@15.5.23` still depends on. It is not decoration — do not drop it during a dependency bump.
+The reason, and the condition for removing it, are in
+[`docs/adr/0004-pinned-transitive-overrides-for-postcss-and-sharp.md`](docs/adr/0004-pinned-transitive-overrides-for-postcss-and-sharp.md).
+
 ## Scripts
 
 | Command | Purpose |
