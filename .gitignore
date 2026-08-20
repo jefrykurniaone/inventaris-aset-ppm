@@ -17,6 +17,9 @@ src/generated/
 .env.local
 .env.*.local
 
+# Local object storage (development photo uploads)
+.storage/
+
 # Testing
 coverage/
 playwright-report/

@@ -1,6 +1,9 @@
 # 0001 — Stack selection for the PPM asset inventory prototype
 
-- **Status**: Accepted
+- **Status**: Accepted, partially superseded by
+  [0003](0003-local-postgres-development-supabase-deployment.md) — the database, photo storage, and
+  driver adapter choices below were replaced on 2026-08-21 by local Postgres for development and
+  Supabase for deployment. Everything else here stands.
 - **Date**: 2026-08-20
 - **Deciders**: Jefry Kurniawan
 

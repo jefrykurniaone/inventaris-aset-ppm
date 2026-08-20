@@ -14,10 +14,16 @@ resolves to a public page describing that item. Signed-in staff see the full rec
 - Prisma 7 with the `prisma-client` generator, output `src/generated/prisma`,
   `importFileExtension = ""`. The datasource URL lives in `prisma.config.ts`, not in
   `schema.prisma`. `prisma-client-js` is legacy — do not use it.
-- Neon Postgres through `@prisma/adapter-neon`. `DATABASE_URL` is pooled and used at runtime;
-  `DIRECT_URL` is direct and used by migrations.
-- Better Auth: `emailAndPassword`, `admin()` plugin, `nextCookies()`
-- Vercel Blob, client-direct upload with a server-issued signed token
+- Postgres through `@prisma/adapter-pg` — the **same adapter in both environments**. Local
+  PostgreSQL 17 in development, Supabase Postgres in deployment. `DATABASE_URL` is used by Prisma
+  Client at runtime; `DIRECT_URL` is used by migrations. On Supabase these differ: transaction
+  pooler on port 6543 with `?pgbouncer=true&connection_limit=1` for the former, session mode on
+  port 5432 for the latter. Locally they are the same string.
+- Better Auth: `emailAndPassword`, `admin()` plugin, `nextCookies()`. Supabase is used as Postgres
+  and object storage only — **not** as the auth provider. Do not reach for Supabase Auth.
+- Object storage behind one interface: local filesystem in development, Supabase Storage
+  (`createSignedUploadUrl` / `uploadToSignedUrl`) in deployment. Browser uploads directly; image
+  bytes never pass through a serverless function.
 - Tailwind CSS v4 + shadcn/ui
 - `next-intl`, default locale `id`
 - Vitest + Playwright
@@ -27,13 +33,17 @@ Look up library APIs before using them. Do not write third-party API calls from 
 
 ## Architectural seams — respect these
 
-Two files exist specifically so that a dependency swap stays cheap:
+Three seams exist specifically so that a dependency or environment swap stays cheap:
 
 - `src/lib/db.ts` — the only place the generated Prisma client is imported. Everything else
   imports `db` from here.
 - `src/lib/auth.ts` and `src/lib/auth-client.ts` — the only places Better Auth is configured.
+- `src/lib/storage.ts` — the only place object storage is touched. One interface, two
+  implementations selected by environment: local filesystem in development, Supabase Storage in
+  deployment. Calling code must never know which is active, and must never import a Supabase client
+  directly.
 
-Do not import `@/generated/prisma` or `better-auth` anywhere else.
+Do not import `@/generated/prisma`, `better-auth`, or a Supabase client anywhere else.
 
 `prisma`, `@prisma/client`, and `better-auth` are pinned to exact versions. Do not widen the
 version range and do not upgrade them without an ADR.

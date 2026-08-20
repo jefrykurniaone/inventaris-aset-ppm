@@ -17,10 +17,10 @@ scope boundaries, and delivery plan.
 | Concern | Choice |
 |---|---|
 | Framework | Next.js 15 (App Router), TypeScript |
-| Database | Neon Postgres via `@prisma/adapter-neon` |
+| Database | Local PostgreSQL 17 in development, Supabase Postgres in deployment — one adapter, `@prisma/adapter-pg` |
 | ORM | Prisma 7 (`prisma-client` generator) |
 | Auth | Better Auth (email/password, `admin()` plugin) |
-| Photos | Vercel Blob, client-direct signed upload |
+| Photos | Local filesystem in development, Supabase Storage in deployment, client-direct signed upload |
 | UI | Tailwind CSS v4 + shadcn/ui |
 | i18n | `next-intl` — Indonesian (default) and English |
 | Tests | Vitest (unit), Playwright (smoke) |
@@ -30,14 +30,18 @@ scope boundaries, and delivery plan.
 
 ```bash
 npm install
-cp .env.example .env.local     # fill in DATABASE_URL, DIRECT_URL, BLOB_READ_WRITE_TOKEN, BETTER_AUTH_SECRET
+cp .env.example .env.local     # fill in DATABASE_URL, DIRECT_URL, BETTER_AUTH_SECRET
 npx prisma generate
 npx prisma migrate dev
 npm run db:seed
 npm run dev
 ```
 
-Requires Node.js 24 or later. The project uses **npm**, not pnpm.
+Requires Node.js 24 or later and a local PostgreSQL 17 instance. The project uses **npm**, not pnpm.
+
+Development needs no cloud account: the database is local Postgres and photos are written to a
+git-ignored local directory. Supabase is introduced only at the deployment cutover — see
+[`docs/adr/0003-local-postgres-development-supabase-deployment.md`](docs/adr/0003-local-postgres-development-supabase-deployment.md).
 
 ## Scripts
 
@@ -55,12 +59,16 @@ Requires Node.js 24 or later. The project uses **npm**, not pnpm.
 
 | Variable | Purpose |
 |---|---|
-| `DATABASE_URL` | Neon **pooled** connection string, used at runtime |
-| `DIRECT_URL` | Neon **direct** connection string, used by migrations |
+| `DATABASE_URL` | Used by Prisma Client at runtime. Local instance in development; Supabase **transaction pooler** (port 6543, `?pgbouncer=true&connection_limit=1`) in deployment |
+| `DIRECT_URL` | Used by `prisma migrate`. Same as above locally; Supabase **session mode** (port 5432) in deployment. Migrations must not run through the transaction pooler |
 | `BETTER_AUTH_SECRET` | Session signing secret |
-| `BETTER_AUTH_URL` | Absolute base URL of the deployment |
-| `BLOB_READ_WRITE_TOKEN` | Vercel Blob access token |
+| `BETTER_AUTH_URL` | Absolute base URL of this deployment |
 | `NEXT_PUBLIC_APP_URL` | Absolute base URL, used to build QR payload URLs |
+| `STORAGE_DRIVER` | `local` or `supabase`. Selects the implementation behind `src/lib/storage.ts` |
+| `LOCAL_STORAGE_DIR` | Development only. Git-ignored directory for uploaded photos |
+| `SUPABASE_URL` | Deployment only |
+| `SUPABASE_SERVICE_ROLE_KEY` | Deployment only. Server-side, used to issue signed upload URLs. Never exposed to the browser |
+| `SUPABASE_STORAGE_BUCKET` | Deployment only. Bucket holding asset photos |
 
 ## Documentation
 

@@ -6,8 +6,10 @@
 
 ## Context
 
-ADR 0001 selects Prisma 7 and Better Auth together. This combination is the least-proven seam in
-the stack:
+ADR 0001 selects Prisma 7 and Better Auth together, and
+[ADR 0003](0003-local-postgres-development-supabase-deployment.md) settles the database as local
+Postgres for development with Supabase for deployment, accessed through `@prisma/adapter-pg`. This
+combination is the least-proven seam in the stack:
 
 - Prisma 7 replaces `prisma-client-js` with the `prisma-client` generator, which emits a client
   into a project directory rather than into `node_modules/@prisma/client`, and moves the datasource

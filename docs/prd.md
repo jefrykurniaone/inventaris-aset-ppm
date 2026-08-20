@@ -151,14 +151,17 @@ mistaken for oversights:
 - **FR-4.3** — Images are resized and re-encoded in the browser before upload. Target: longest
   edge 1600 px, approximately 400 KB, WebP. A second 400 px derivative is produced and stored as
   the thumbnail.
-- **FR-4.4** — Files are uploaded from the browser directly to blob storage using a
-  server-issued signed token. Image bytes never pass through a serverless function.
-- **FR-4.5** — The signed-token endpoint enforces an allowlist of content types
+- **FR-4.4** — Files are uploaded from the browser directly to object storage using a
+  server-issued signed upload URL. Image bytes never pass through a serverless function.
+- **FR-4.5** — Storage is reached through a single interface at `src/lib/storage.ts` with two
+  implementations: the local filesystem in development, Supabase Storage in deployment. Calling
+  code is unaware of which is active.
+- **FR-4.6** — The signed-URL endpoint enforces an allowlist of content types
   (`image/jpeg`, `image/png`, `image/webp`) and a maximum size of 1.5 MB, independently of any
   client-side compression.
-- **FR-4.6** — Lists and dashboards render thumbnails. Full-size images are served only on the
+- **FR-4.7** — Lists and dashboards render thumbnails. Full-size images are served only on the
   asset detail page and the scan page.
-- **FR-4.7** — Unsupported formats, HEIC in particular, produce a clear localised error message,
+- **FR-4.8** — Unsupported formats, HEIC in particular, produce a clear localised error message,
   not a silent failure.
 
 ### 6.5 QR codes and labels
@@ -345,16 +348,19 @@ Binding for all code in this repository, prototype included:
 | Framework | Next.js 15, App Router, TypeScript | The public scan page wants server rendering; one repository and one deployment suits the delivery model |
 | ORM | Prisma 7 with the `prisma-client` generator, output to `src/generated/prisma`, `importFileExtension = ""` | Current generator; `prisma-client-js` is legacy and the coding standard forbids starting on a deprecated API |
 | Configuration | `prisma.config.ts` via `defineConfig` | Prisma 7 moves the datasource URL out of `schema.prisma` |
-| Database | Neon Postgres, accessed through `@prisma/adapter-neon` | Every server action is a fresh serverless invocation; a plain TCP pool exhausts connections. Pooled `DATABASE_URL` at runtime, `DIRECT_URL` for migrations |
-| Auth | Better Auth — `emailAndPassword`, `admin()` plugin, `nextCookies()` | Self-hosted, so client data stays with the client; owns its tables in our own schema; the `admin()` plugin covers the two-role model without a hand-rolled RBAC layer |
-| Photo storage | Vercel Blob, client-direct upload with a signed token | Removes the serverless request body limit from the upload path |
+| Database — development | Local PostgreSQL 17, database `inventaris_aset_ppm` | Already installed on the development machine. No cloud account, no connection cap, no cold start; seeding and iteration are faster than against any free-tier hosted database |
+| Database — deployment | Supabase Postgres | Provides the database and the object store under one account. See ADR 0003 |
+| Driver adapter | `@prisma/adapter-pg` for both environments | Local and Supabase are both plain Postgres over TCP, so one adapter covers both and no environment-branching driver configuration is needed |
+| Connection strings | `DATABASE_URL` at runtime, `DIRECT_URL` for migrations. On Supabase: transaction pooler on port 6543 with `?pgbouncer=true&connection_limit=1` for the former, session mode on port 5432 for the latter | Prepared statements are unsupported in Supavisor transaction mode; migrations must not run through the transaction pooler |
+| Auth | Better Auth — `emailAndPassword`, `admin()` plugin, `nextCookies()` | Self-hosted, so client data stays with the client; owns its tables in our own schema; the `admin()` plugin covers the two-role model without a hand-rolled RBAC layer. Supabase is used as Postgres and storage only, not as the auth provider |
+| Photo storage | One interface at `src/lib/storage.ts`: local filesystem in development, Supabase Storage in deployment via `createSignedUploadUrl` / `uploadToSignedUrl` | Browser uploads directly to storage, so the serverless request body limit never applies to an image |
 | Image processing | `browser-image-compression`, self-hosted worker script | Browser-side resize; the library's default worker URL points at a public CDN and is overridden |
 | UI | Tailwind CSS v4 with shadcn/ui, light and dark themes | Components live in our repository, so the coding and accessibility standards apply to code we control |
 | i18n | `next-intl`, default locale `id` | |
 | QR rendering | Server-side SVG, error correction level M | |
 | Migrations | `prisma migrate dev` locally, migrations committed, `prisma migrate deploy` on build | Migration history is what makes the schema auditable |
 | Seeding | `prisma.config.ts` → `migrations.seed` → `tsx prisma/seed.ts`, idempotent | Re-running must not duplicate the demo data |
-| Hosting | Vercel, preview deployment per pull request | |
+| Hosting | Vercel, preview deployment per pull request | Supabase does not host the Next.js application |
 | CI | GitHub Actions: typecheck, lint, unit tests, build, on every pull request | |
 | Package manager | npm | pnpm is not installed on the build machine |
 
@@ -386,26 +392,60 @@ Mitigations:
    support Prisma.
 6. The Playwright smoke test performs a real sign-in, so a regression in this seam fails CI.
 
-### R2 — Photo storage and transfer on the free hosting tier
+### R2 — Photo storage and egress on the free tier
 
-The free tier provides 1 GB of blob storage and 10 GB of monthly data transfer, and that transfer
-allowance is shared with the rest of the project's usage. The binding constraint, however, is not
-storage: sixty unprocessed phone photos is roughly 300 MB, comfortably inside 1 GB. The real walls
-are the serverless request body limit — approximately 4.5 MB, with Next.js server actions
-defaulting to 1 MB, which a raw phone photo simply exceeds — and the monthly transfer allowance.
+The Supabase free tier provides 500 MB of database, 1 GB of file storage, and 5 GB of monthly
+egress. The binding constraint is not storage volume: sixty unprocessed phone photos is roughly
+300 MB, inside 1 GB. The real walls are the serverless request body limit — approximately 4.5 MB,
+with Next.js server actions defaulting to 1 MB, which a raw phone photo simply exceeds — and the
+egress allowance.
 
 Mitigations:
 
-1. Uploads go from the browser straight to blob storage with a server-issued signed token, so the
+1. Uploads go from the browser straight to storage using a server-issued signed upload URL, so the
    request body limit never applies to an image.
 2. Browser-side resize to 1600 px / ~400 KB WebP, plus a 400 px thumbnail.
 3. Thumbnails in every list and dashboard view; full images only on detail and scan pages.
 4. Immutable cache headers on stored images.
-5. A server-side content-type allowlist and a 1.5 MB hard cap in the signed-token callback. Client
+5. A server-side content-type allowlist and a 1.5 MB hard cap on the signed-URL endpoint. Client
    compression is a usability measure; the server cap is the control.
+6. Development uses the local filesystem, so iteration and repeated seeding consume no hosted
+   storage or egress at all.
 
-Expected footprint at prototype scale: approximately 7 MB of storage, with monthly transfer well
+Expected footprint at prototype scale: approximately 7 MB of stored images, with egress well
 outside reach of a demonstration workload.
+
+### R4 — Free Supabase projects pause after a week of inactivity
+
+A free-tier Supabase project receiving no API requests for one week is paused automatically. Data
+is retained, but the project must be resumed manually. With no demonstration date fixed, the
+realistic failure is: deploy, wait two or three weeks, then arrive at the demonstration to a paused
+database and a scan page erroring in front of the client.
+
+Mitigations:
+
+1. Do not create the Supabase project until the deployment cutover ticket is actually started. An
+   unused project is exactly the thing that pauses.
+2. Once deployed, keep a scheduled request against a cheap health endpoint so the project stays
+   awake.
+3. Confirm the deployment is awake and responding the day before any demonstration. This belongs on
+   a demonstration checklist, not in someone's memory.
+4. If the demonstration slips repeatedly, the paid tier removes the behaviour. That is a cost
+   question for the client conversation, not an engineering problem.
+
+### R5 — The Supabase path is unverified until an account exists
+
+Development runs against local Postgres, so the wave 0 spike can only prove the local path. Prisma
+against the Supabase transaction pooler has known sharp edges — prepared statements are unsupported,
+which is why `pgbouncer=true` is required — and driver adapters change which layer issues those
+statements. The photo pipeline is likewise exercised locally against the filesystem implementation
+rather than the Supabase Storage one.
+
+Mitigation: a dedicated deployment cutover ticket carries this explicitly rather than assuming the
+wave 0 spike covers it. That ticket creates the Supabase project, verifies both connection modes,
+runs migrations through the session-mode connection, exercises a real signed upload against
+Supabase Storage, and confirms the public scan page works from a phone on the deployed URL. Until
+it closes, no claim is made that the application runs on Supabase.
 
 ### R3 — No fixed demonstration date
 
@@ -417,20 +457,25 @@ can be cut without leaving a partial feature on screen.
 
 ## 11. Delivery plan
 
-Work is decomposed into 16 tickets, filed as GitHub issues, grouped into five waves. A wave is
+Work is decomposed into 17 tickets, filed as GitHub issues, grouped into six waves. A wave is
 released for work only when the preceding wave has closed. Within a wave, at most three tickets
 proceed concurrently.
 
 | Wave | Contents | Concurrency |
 |---|---|---|
-| **W0** | Project scaffold and tooling; authentication spike | Serial — both tickets gate everything |
+| **W0** | Project scaffold and tooling; authentication spike against local Postgres | Serial — both tickets gate everything |
 | **W1** | Prisma schema and migrations; authentication UI and route guards; i18n setup; master data screens | Parallel |
 | **W2** | Asset CRUD and code generation; asset list with filters; photo pipeline; asset detail page and timeline | Parallel |
 | **W3** | QR token, rendering, and public scan page; label sheet printing | Parallel |
 | **W4** | Dashboard and charts; XLSX export; loan module; seed data | Parallel |
+| **W5** | Supabase deployment cutover: project creation, both connection modes, Supabase Storage, deployed phone scan | Serial — single ticket |
 
-Each ticket is one pull request against `main`. A wave closes only when every pull request in it
-is CI-green, has passed a review pass, and the deployed preview has been inspected.
+Everything through wave 4 runs against local PostgreSQL and local filesystem storage. Wave 5 is
+where the application first runs on hosted infrastructure; see risk R5.
+
+Each ticket is one pull request against `main`. A wave closes only when every pull request in it is
+CI-green, has passed a review pass, and — from wave 5 onward, once a deployment exists — the
+deployed preview has been inspected.
 
 ### 11.1 Execution model
 
@@ -445,11 +490,13 @@ fixed, fully specified target goes to the faster one.
 - **Sonnet executor** — CRUD screens and forms, list and filter interfaces, i18n extraction, print
   CSS, dashboard presentation, seed script, and tests written against an existing specification.
 
-Ticket labels carry this routing: `wave:0`–`wave:4` and `exec:opus` / `exec:sonnet`.
+Ticket labels carry this routing: `wave:0`–`wave:5` and `exec:opus` / `exec:sonnet`.
 
 ## 12. Acceptance criteria for the client demonstration
 
-The prototype is ready to show when all of the following hold on the deployed environment:
+The prototype is ready to show when all of the following hold **on the deployed Supabase-backed
+environment**, not merely locally. Criteria 1 to 9 are verifiable locally during waves 0 to 4;
+criterion 10 is what wave 5 exists to establish.
 
 1. An admin and a staff account can each sign in, and each sees only what their role permits.
 2. An asset can be created on a phone, photographed with the device camera, and saved.
@@ -463,6 +510,8 @@ The prototype is ready to show when all of the following hold on the deployed en
    to XLSX with the applied filters respected.
 8. The interface switches between Indonesian and English with no untranslated string.
 9. CI is green: typecheck, lint, unit tests, build, and the end-to-end smoke test.
+10. All of the above hold against the deployed application backed by Supabase Postgres and Supabase
+    Storage, reached over HTTPS from a phone on mobile data, with the project confirmed awake.
 
 ## 13. Open items
 
@@ -472,3 +521,6 @@ The prototype is ready to show when all of the following hold on the deployed en
 | Label stock actually available to the directorate | Jefry | Layout defaults to 63.5 × 38.1 mm, 3 × 7 on A4; switching stock is a one-constant change |
 | Real (non-confidential) asset list for seeding | Jefry | Seed uses realistic synthetic data until provided |
 | Which escalation level R1 lands on | Orchestrator | Recorded as an ADR at the end of wave 0 |
+| Supabase account and project | Jefry | Deliberately not created until wave 5 starts, per risk R4 |
+| Whether to run Supabase locally via its CLI instead of plain local Postgres | Jefry | Would make development and production identical; needs Docker, which is not installed. Revisit before wave 5 |
+| Printed QR codes encode `NEXT_PUBLIC_APP_URL` | Orchestrator | No label may be printed for real use until the production URL is final, or the labels become dead |
