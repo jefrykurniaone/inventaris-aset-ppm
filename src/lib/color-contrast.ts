@@ -5,13 +5,24 @@
  *
  * Accessibility is a binding requirement (WCAG AA, 4.5:1), so the theme is
  * checked by a test rather than by eye. See `color-contrast.test.ts`.
+ *
+ * Only opaque colours are accepted. A translucent colour has no luminance of
+ * its own — it has one per backdrop — so `#rrggbbaa`, `#rgba` and
+ * `oklch(L C H / A)` are rejected instead of being silently treated as
+ * opaque. `globals.css` ships translucent tokens (`--border`, `--input`), and
+ * reading them as opaque overstates their contrast by more than an order of
+ * magnitude. Compositing is deliberately not implemented here: it needs a
+ * backdrop, which only the caller knows.
  */
 
 /** Linear-light sRGB, each channel in the range 0..1. */
 export type LinearRgb = readonly [number, number, number];
 
 const HEX_PATTERN = /^#([0-9a-f]{6})$/i;
-const OKLCH_PATTERN = /^oklch\(\s*([^)/]+?)\s*(?:\/.*)?\)$/i;
+/** `#rgba` and `#rrggbbaa` — the alpha-carrying hex forms. */
+const HEX_ALPHA_PATTERN = /^#(?:[0-9a-f]{4}|[0-9a-f]{8})$/i;
+const OKLCH_PATTERN = /^oklch\(([^)]*)\)$/i;
+const ALPHA_SEPARATOR = "/";
 
 const HEX_RADIX = 16;
 const HEX_CHANNEL_LENGTH = 2;
@@ -101,18 +112,35 @@ function parseOklch(match: RegExpExecArray): LinearRgb {
   return [linear[0], linear[1], linear[2]];
 }
 
-/** Converts a supported CSS colour string to linear-light sRGB. */
+function rejectAlpha(color: string): never {
+  throw new Error(
+    `Colour "${color}" carries an alpha channel. Contrast is defined only for ` +
+      `opaque colours; composite it over its backdrop and pass the result.`,
+  );
+}
+
+/**
+ * Converts a supported, fully opaque CSS colour string to linear-light sRGB.
+ *
+ * Throws on a colour carrying an alpha component, in either notation.
+ */
 export function toLinearRgb(color: string): LinearRgb {
   const value = color.trim();
+  if (HEX_ALPHA_PATTERN.test(value)) {
+    rejectAlpha(color);
+  }
   const hexMatch = HEX_PATTERN.exec(value);
   if (hexMatch) {
     return parseHex(hexMatch);
   }
   const oklchMatch = OKLCH_PATTERN.exec(value);
-  if (oklchMatch) {
-    return parseOklch(oklchMatch);
+  if (!oklchMatch) {
+    throw new Error(`Unsupported colour notation: "${color}"`);
   }
-  throw new Error(`Unsupported colour notation: "${color}"`);
+  if (oklchMatch[1].includes(ALPHA_SEPARATOR)) {
+    rejectAlpha(color);
+  }
+  return parseOklch(oklchMatch);
 }
 
 /** WCAG 2.1 relative luminance, 0 for black and 1 for white. */
