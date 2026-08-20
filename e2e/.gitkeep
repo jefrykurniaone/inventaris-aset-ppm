@@ -1,0 +1,2 @@
+# Playwright test directory. The smoke path lands with the ticket that ships
+# the screens it walks through; `playwright.config.ts` already points here.

@@ -38,8 +38,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate Prisma client
-        run: npx prisma generate
+      # Prisma is not a dependency yet; the client-generation step is restored
+      # by the ticket that adds the schema (issue #2).
 
       - name: Typecheck
         run: npm run typecheck

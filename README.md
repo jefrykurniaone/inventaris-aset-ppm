@@ -49,11 +49,17 @@ git-ignored local directory. Supabase is introduced only at the deployment cutov
 |---|---|
 | `npm run dev` | Development server |
 | `npm run build` | Production build |
-| `npm run lint` | ESLint |
+| `npm run start` | Serve the production build |
+| `npm run lint` | ESLint, zero warnings tolerated |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run test` | Vitest unit tests |
 | `npm run test:e2e` | Playwright smoke test |
 | `npm run db:seed` | Seed demo data (idempotent) |
+| `npm run format` | Prettier, check only |
+| `npm run format:write` | Prettier, rewrite in place |
+
+A Husky pre-commit hook runs ESLint and `tsc --noEmit` over staged files, so a
+lint or type error cannot be committed.
 
 ## Environment variables
 

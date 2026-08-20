@@ -1,0 +1,17 @@
+node_modules
+.next
+out
+build
+coverage
+playwright-report
+test-results
+.storage
+src/generated
+package-lock.json
+next-env.d.ts
+*.ico
+*.svg
+
+# Prose documentation is hand-wrapped to a fixed column and its tables are
+# written unpadded. Prettier reflows both, which buries real edits in noise.
+*.md
