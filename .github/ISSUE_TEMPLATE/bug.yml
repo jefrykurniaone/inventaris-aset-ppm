@@ -1,0 +1,61 @@
+name: Bug
+description: Something behaves differently from what the PRD or the specification requires.
+title: "[bug] "
+labels: ["type:bug"]
+body:
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What should happen, and which requirement says so.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: What happens instead. Quote the shortest decisive error line rather than a full log.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Deployment or local, browser, device, user role.
+      placeholder: "Preview deployment, Chrome Android, staff role"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - "p0 — blocks the client demonstration"
+        - "p1 — wrong behaviour, workaround exists"
+        - "p2 — cosmetic or edge case"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: executor
+    attributes:
+      label: Executor model
+      options:
+        - opus
+        - sonnet
+    validations:
+      required: false
