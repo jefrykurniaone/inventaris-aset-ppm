@@ -1,3 +1,6 @@
+# Sub-agent git worktrees, each carrying its own node_modules and .next.
+.claude
+
 node_modules
 .next
 out
