@@ -1,4 +1,38 @@
 {
+  "AdminUsersPage": {
+    "columnActions": "Actions",
+    "columnEmail": "Email",
+    "columnName": "Name",
+    "columnRole": "Role",
+    "columnStatus": "Status",
+    "createHeading": "Add user",
+    "createSubmit": "Create user",
+    "createSubmitPending": "Creating…",
+    "deactivate": "Deactivate",
+    "deactivatePending": "Deactivating…",
+    "emailInvalid": "Enter a valid email address.",
+    "emailLabel": "Email",
+    "nameLabel": "Name",
+    "nameRequired": "Name is required.",
+    "passwordLabel": "Password",
+    "passwordTooShort": "Password must be at least 8 characters.",
+    "reactivate": "Reactivate",
+    "reactivatePending": "Reactivating…",
+    "roleLabel": "Role",
+    "roleOptionAdmin": "Admin",
+    "roleOptionStaff": "Staff",
+    "statusActive": "Active",
+    "statusDeactivated": "Deactivated",
+    "title": "User Management",
+    "unexpectedError": "Something went wrong. Please try again.",
+    "userAlreadyExists": "A user with this email already exists."
+  },
+  "AppShell": {
+    "mainNavLabel": "Main navigation",
+    "navAdminUsers": "User Management",
+    "navHome": "Home",
+    "signedInAs": "Signed in as"
+  },
   "HomePage": {
     "accentAsText": "Accent as text",
     "accentOnSurface": "Accent on surface",
@@ -13,8 +47,39 @@
     "id": "Indonesian",
     "label": "Language"
   },
+  "NotAuthorizedPage": {
+    "backHome": "Back to home",
+    "message": "You do not have permission to access this page.",
+    "title": "Not authorised"
+  },
+  "Role": {
+    "admin": "Admin",
+    "staff": "Staff"
+  },
   "RootLayout": {
     "description": "QR-based asset inventory for Direktorat PPM, Telkom University.",
     "title": "Inventaris Aset — Direktorat PPM"
+  },
+  "SignInForm": {
+    "emailInvalid": "Enter a valid email address.",
+    "emailLabel": "Email",
+    "invalidCredentials": "Incorrect email or password.",
+    "passwordLabel": "Password",
+    "passwordRequired": "Password is required.",
+    "submit": "Sign in",
+    "submitPending": "Signing in…",
+    "unexpectedError": "Something went wrong. Please try again."
+  },
+  "SignInPage": {
+    "description": "Sign in with the email and password an admin gave you.",
+    "title": "Sign in"
+  },
+  "SignOutButton": {
+    "label": "Sign out",
+    "pending": "Signing out…"
+  },
+  "ThemeToggle": {
+    "labelToDark": "Switch to dark theme",
+    "labelToLight": "Switch to light theme"
   }
 }
