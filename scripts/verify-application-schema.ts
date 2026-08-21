@@ -26,6 +26,7 @@
  * script creates its own fixtures, removes them before and after the run, and
  * is safe to run repeatedly.
  */
+import { describeError as describeThrown } from "@/lib/log-error";
 
 /** Development environment file. Prisma does not load it by itself. */
 const DEV_ENV_FILE = ".env.local";
@@ -66,7 +67,7 @@ function loadDevEnv(): void {
   try {
     process.loadEnvFile(DEV_ENV_FILE);
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
+    const reason = describeThrown(error);
     console.info(
       `verify-application-schema: ${DEV_ENV_FILE} not loaded (${reason}); using the ambient environment.`,
     );
@@ -116,12 +117,11 @@ function readErrorConstraint(error: unknown): string {
 }
 
 function describeError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = describeThrown(error);
   const cause = message
     .split("\n")
     .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .at(-1);
+    .findLast((line) => line.length > 0);
 
   return `${readErrorCode(error)}${readErrorConstraint(error)}: ${cause ?? message}`;
 }

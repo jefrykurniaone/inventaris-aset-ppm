@@ -8,6 +8,7 @@ import {
   INITIAL_DELETE_STATE,
   type DeleteState,
 } from "@/app/(app)/admin/delete-state";
+import { createActionErrorLogger } from "@/lib/log-error";
 import { requireAdmin } from "@/lib/require-user";
 
 import {
@@ -30,12 +31,7 @@ type Translate = Awaited<
   ReturnType<typeof getTranslations<"AdminCategoriesPage">>
 >;
 
-function logActionError(action: string, input: unknown, error: unknown): void {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(
-    `admin/categories/actions.${action}: input=${JSON.stringify(input)} — ${message}`,
-  );
-}
+const logActionError = createActionErrorLogger("admin/categories/actions");
 
 type CategoryFieldName = keyof CategoryFieldErrors;
 

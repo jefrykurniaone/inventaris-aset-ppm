@@ -28,6 +28,8 @@
  */
 import { randomBytes } from "node:crypto";
 
+import { describeError as describeThrown } from "@/lib/log-error";
+
 /** Development environment file. Better Auth and Prisma do not load it. */
 const DEV_ENV_FILE = ".env.local";
 
@@ -52,7 +54,7 @@ function loadDevEnv(): void {
   try {
     process.loadEnvFile(DEV_ENV_FILE);
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
+    const reason = describeThrown(error);
     console.info(
       `verify-admin-role-model: ${DEV_ENV_FILE} not loaded (${reason}); using the ambient environment.`,
     );
@@ -100,7 +102,7 @@ function isForbiddenError(error: unknown): boolean {
 
 function describeError(error: unknown): string {
   const status = readErrorStatus(error);
-  const message = error instanceof Error ? error.message : String(error);
+  const message = describeThrown(error);
   return status ? `${status}: ${message}` : message;
 }
 
