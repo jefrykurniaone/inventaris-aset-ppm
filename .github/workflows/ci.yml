@@ -32,9 +32,9 @@ jobs:
     name: Typecheck, lint, test, build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -103,7 +103,7 @@ jobs:
       # SONAR_TOKEN never enters the environment of a job that runs `npm ci`
       # and therefore third-party install scripts.
       - name: Upload coverage for analysis
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: coverage/lcov.info
@@ -119,13 +119,13 @@ jobs:
     env:
       HAS_SONAR_TOKEN: ${{ secrets.SONAR_TOKEN != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # A shallow clone degrades new-code detection, which is what the
           # pull-request gate is measured on.
           fetch-depth: 0
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: coverage
           path: coverage
