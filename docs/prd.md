@@ -319,7 +319,7 @@ Binding for all code in this repository, prototype included:
 | `building`, `room` | Location hierarchy; an asset sits in a room |
 | `funding_source` | Origin of the funds used to acquire the asset |
 | `asset` | The register itself |
-| `asset_photo` | Photo per asset: full URL, thumbnail URL, dimensions, size, primary flag, order |
+| `asset_photo` | Photo per asset: object path, thumbnail object path, dimensions, size, primary flag, order |
 | `loan` | Loan / return records |
 | `asset_activity` | Append-only audit trail |
 
