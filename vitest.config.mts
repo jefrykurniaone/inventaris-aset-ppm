@@ -36,7 +36,21 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "lcov"],
       include: ["src/lib/**/*.ts", "src/lib/**/*.tsx"],
-      exclude: ["src/**/*.test.ts", "src/**/*.test.tsx", "src/generated/**"],
+      exclude: [
+        "src/**/*.test.ts",
+        "src/**/*.test.tsx",
+        "src/generated/**",
+        // The three architectural seams. Each is configuration wiring with no
+        // branching logic of its own — a Prisma client behind a driver adapter,
+        // and the two Better Auth configurations — so a unit test could only
+        // assert that the library was called with the object it was given. That
+        // buys a coverage number, not confidence. The behaviour these modules
+        // carry is proven end to end instead: by the Playwright smoke path,
+        // which performs a real sign-in.
+        "src/lib/db.ts",
+        "src/lib/auth.ts",
+        "src/lib/auth-client.ts",
+      ],
       thresholds: {
         "src/lib/**": {
           statements: LIB_COVERAGE_THRESHOLD,
