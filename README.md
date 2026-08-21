@@ -20,7 +20,7 @@ scope boundaries, and delivery plan.
 | Database | Local PostgreSQL 17 in development, Supabase Postgres in deployment — one adapter, `@prisma/adapter-pg` |
 | ORM | Prisma 7 (`prisma-client` generator) |
 | Auth | Better Auth (email/password, `admin()` plugin) |
-| Photos | Local filesystem in development, Supabase Storage in deployment, client-direct signed upload |
+| Photos | Supabase Storage in **every** environment, client-direct signed upload — see ADR 0005 |
 | UI | Tailwind CSS v4 + shadcn/ui |
 | i18n | `next-intl` — Indonesian (default) and English |
 | Tests | Vitest (unit), Playwright (smoke) |
@@ -31,13 +31,25 @@ scope boundaries, and delivery plan.
 ```bash
 npm install
 cp .env.example .env.local     # fill in DATABASE_URL, DIRECT_URL, BETTER_AUTH_SECRET
+                               # and SEED_ADMIN_PASSWORD — see below
 npx prisma generate
 npx prisma migrate dev
-npm run db:seed
+npm run db:seed                # creates the first administrator
 npm run dev
 ```
 
 Requires Node.js 24 or later and a local PostgreSQL 17 instance. The project uses **npm**, not pnpm.
+
+**`npm run db:seed` is not optional.** A freshly migrated database has no users; public sign-up is
+closed and creating a user requires an existing admin session, so without the seed there is no way
+to sign in at all. The seed creates one administrator using `SEED_ADMIN_EMAIL`, `SEED_ADMIN_NAME`
+and `SEED_ADMIN_PASSWORD`.
+
+`SEED_ADMIN_PASSWORD` has no default and the seed refuses to run without it — a default password
+would survive into whatever environment the seed ran in next. Generate one with
+`openssl rand -base64 24`. Running the seed again changes nothing and says so; it never rewrites an
+existing account's password. It also refuses any `DATABASE_URL` that is not local unless
+`SEED_ALLOW_REMOTE=true` is set deliberately.
 
 Development runs the database locally, but **photos need a Supabase project**: object storage is
 Supabase Storage in every environment, writing to an `asset-photos-dev` bucket locally and
