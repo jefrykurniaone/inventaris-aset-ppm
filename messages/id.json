@@ -1,0 +1,20 @@
+{
+  "HomePage": {
+    "accentAsText": "Aksen sebagai teks",
+    "accentOnSurface": "Aksen di atas permukaan",
+    "subtitle": "Placeholder scaffold. Fitur produk akan hadir lewat tiketnya masing-masing.",
+    "themeDark": "Gelap",
+    "themeDescription": "Warna dasar netral, aksen merah Telkom University.",
+    "themeLight": "Terang",
+    "title": "Inventaris Aset PPM"
+  },
+  "LocaleSwitcher": {
+    "en": "Inggris",
+    "id": "Indonesia",
+    "label": "Bahasa"
+  },
+  "RootLayout": {
+    "description": "Inventaris aset berbasis QR untuk Direktorat PPM, Telkom University.",
+    "title": "Inventaris Aset — Direktorat PPM"
+  }
+}
