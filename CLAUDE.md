@@ -101,6 +101,19 @@ means the CLI wrote somewhere it should not have. `npx auth migrate` does not su
 
 Not "fix when reported". Clean on the first write.
 
+**Where this is checked: SonarQube Cloud, in CI, on every pull request.** The `sonar` job in
+`.github/workflows/ci.yml` runs the analysis with `sonar.qualitygate.wait=true`, so a failing quality
+gate fails the build. That is the authority, and `docs/sonarcloud-analysis.md` explains the parts of
+it that are not obvious — including why Automatic Analysis must stay off and why the coverage
+exclusions have to move in step with `vitest.config.mts`.
+
+The VS Code SonarLint extension is a convenience, not a gate. **Do not treat its output as
+verification and do not ask for it as evidence.** It reports a materially different set from the
+server — workflow YAML is server-only, and each has caught TypeScript issues the other missed — and
+its diagnostics channel returns an empty result both for a clean file and for a file the editor has
+never opened, which are not the same thing. Neither is a superset of the other; CI is the one that
+runs on every commit regardless of who has which editor open.
+
 - Zero warnings, zero vulnerabilities, zero deprecated components
 - Functions at most 40 lines. Files at most 300 lines. Split rather than exceed.
 - Nesting depth at most 3. Prefer early return.
