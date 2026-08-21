@@ -189,8 +189,8 @@ function photoData(id: string, isPrimary: boolean) {
   return {
     id,
     assetId: ASSET_ID,
-    url: `assets/${ASSET_ID}/${id}.webp`,
-    thumbUrl: `assets/${ASSET_ID}/${id}-thumb.webp`,
+    objectPath: `assets/${ASSET_ID}/${id}.webp`,
+    thumbObjectPath: `assets/${ASSET_ID}/${id}-thumb.webp`,
     width: PHOTO_WIDTH,
     height: PHOTO_HEIGHT,
     sizeBytes: PHOTO_SIZE_BYTES,
