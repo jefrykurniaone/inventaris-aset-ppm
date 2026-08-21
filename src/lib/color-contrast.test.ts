@@ -1,21 +1,34 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
-import { contrastRatio, relativeLuminance } from "./color-contrast";
+import {
+  contrastRatio,
+  luminanceFromLinearRgb,
+  relativeLuminance,
+  toLinearRgb,
+} from "./color-contrast";
+import { compositeOver, contrastFromLuminances } from "./color-contrast-alpha";
+import {
+  readRingRenderedAlpha,
+  readThemeTokens,
+  tokenValue,
+} from "./globals-css-tokens";
 
-const GLOBALS_CSS_PATH = join(process.cwd(), "src", "app", "globals.css");
-
-/** WCAG AA minimum for body text, and the project-wide floor. */
+/** WCAG 2.1 SC 1.4.3 minimum for text: body copy and any text-bearing surface. */
 const WCAG_AA_TEXT = 4.5;
+/**
+ * WCAG 2.1 SC 1.4.11 minimum for a non-text UI indicator — a focus ring is
+ * the case in this file. Deliberately lower than `WCAG_AA_TEXT`: SC 1.4.11
+ * does not require text-grade contrast for something that is a shape, not a
+ * glyph.
+ */
+const WCAG_AA_NON_TEXT = 3;
 const MAX_CONTRAST = 21;
 
 /** Telkom University brand colours, per the university's logo colour codes. */
 const TELKOM_MAROON = "#b6252a";
 const TELKOM_RED = "#ed1e28";
 
-/** Token pairs that must stay legible in every theme. */
+/** Token pairs that must stay legible (WCAG_AA_TEXT) in every theme. */
 const CONTRAST_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ["--foreground", "--background"],
   ["--primary", "--primary-foreground"],
@@ -26,137 +39,23 @@ const CONTRAST_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ["--accent-foreground", "--accent"],
   ["--muted-foreground", "--muted"],
   ["--muted-foreground", "--background"],
+  ["--destructive", "--destructive-foreground"],
 ];
 
-const CSS_COMMENT = /\/\*[\s\S]*?\*\//g;
-const CUSTOM_PROPERTY = /^\s*(--[\w-]+)\s*:\s*(.+?)\s*$/;
-
-const BLOCK_OPEN = "{";
-const BLOCK_CLOSE = "}";
-const DECLARATION_END = ";";
-const TOP_LEVEL_DEPTH = 0;
-const SINGLE_BLOCK = 1;
-
-function readGlobalsCss(): string {
-  return readFileSync(GLOBALS_CSS_PATH, "utf8").replace(CSS_COMMENT, "");
-}
-
-interface OpenBlock {
-  readonly prelude: string;
-  readonly bodyStart: number;
-  readonly depth: number;
-}
-
-function bodyIfSelectorMatches(
-  css: string,
-  selector: string,
-  closed: OpenBlock | undefined,
-  parent: OpenBlock | undefined,
-  closeIndex: number,
-): string | null {
-  if (!closed || closed.prelude !== selector) {
-    return null;
-  }
-  if (closed.depth !== TOP_LEVEL_DEPTH) {
-    throw new Error(
-      `Selector "${selector}" is nested inside "${parent?.prelude ?? "an at-rule"}". ` +
-        `This reader does not evaluate at-rules, so it cannot tell which ` +
-        `declarations apply. Flatten the block or teach the reader about it.`,
-    );
-  }
-  return css.slice(closed.bodyStart, closeIndex);
-}
-
 /**
- * Bodies of every top-level block whose prelude is exactly `selector`, in
- * document order. Brace-aware, so a block containing nested rules (`@layer
- * base { … }`) is skipped rather than mis-parsed, and a matching selector
- * found inside an at-rule throws instead of silently hijacking the read.
+ * Non-text indicators, checked against `WCAG_AA_NON_TEXT` instead.
+ * `--ring` renders at full opacity (the `outline-ring/50` alpha modifier
+ * shadcn ships by default was removed from `globals.css` — see the comment
+ * at the top of that file): halved, the ring fails 3:1 in both themes, and
+ * no colour close to the brand red survives being blended 50% toward either
+ * theme's background and still clearing 3:1, so raising the token instead
+ * of dropping the alpha was not a workable alternative. Asserted below at
+ * its actual rendered alpha (see `readRingRenderedAlpha`), not at full
+ * opacity, via `color-contrast-alpha.ts`'s compositing.
  */
-function collectSelectorBlocks(
-  css: string,
-  selector: string,
-): readonly string[] {
-  const bodies: string[] = [];
-  const stack: OpenBlock[] = [];
-  let tokenStart = 0;
-  for (let index = 0; index < css.length; index += 1) {
-    const char = css[index];
-    if (char === BLOCK_OPEN) {
-      stack.push({
-        prelude: css.slice(tokenStart, index).trim(),
-        bodyStart: index + 1,
-        depth: stack.length,
-      });
-    } else if (char === BLOCK_CLOSE) {
-      const closed = stack.pop();
-      const body = bodyIfSelectorMatches(
-        css,
-        selector,
-        closed,
-        stack.at(-1),
-        index,
-      );
-      if (body !== null) {
-        bodies.push(body);
-      }
-    } else if (char !== DECLARATION_END) {
-      continue;
-    }
-    // `{`, `}` and `;` all end whatever preceded them, so the next prelude
-    // starts here. Without this, a prelude would swallow the declarations
-    // above it.
-    tokenStart = index + 1;
-  }
-  return bodies;
-}
-
-/** Merges block bodies in document order, so the last declaration wins. */
-function mergeDeclarations(
-  bodies: readonly string[],
-): ReadonlyMap<string, string> {
-  const tokens = new Map<string, string>();
-  for (const body of bodies) {
-    for (const line of body.split(DECLARATION_END)) {
-      const declaration = CUSTOM_PROPERTY.exec(line);
-      if (declaration) {
-        tokens.set(declaration[1], declaration[2]);
-      }
-    }
-  }
-  return tokens;
-}
-
-/**
- * Custom properties a selector resolves to, merged across every one of its
- * blocks. `expectedBlocks` has to be stated, so a block appearing that this
- * gate was not told about fails loudly rather than being read past.
- */
-function readThemeTokens(
-  selector: string,
-  expectedBlocks: number = SINGLE_BLOCK,
-): ReadonlyMap<string, string> {
-  const bodies = collectSelectorBlocks(readGlobalsCss(), selector);
-  if (bodies.length === 0) {
-    throw new Error(`No "${selector}" block in ${GLOBALS_CSS_PATH}`);
-  }
-  if (bodies.length !== expectedBlocks) {
-    throw new Error(
-      `Expected ${expectedBlocks} "${selector}" block(s) in ${GLOBALS_CSS_PATH}, ` +
-        `found ${bodies.length}. Later blocks override earlier ones, so the ` +
-        `merge has to be intentional: state the new count here once it is.`,
-    );
-  }
-  return mergeDeclarations(bodies);
-}
-
-function tokenValue(tokens: ReadonlyMap<string, string>, name: string): string {
-  const value = tokens.get(name);
-  if (!value) {
-    throw new Error(`Token ${name} is not declared`);
-  }
-  return value;
-}
+const NON_TEXT_CONTRAST_PAIRS: ReadonlyArray<readonly [string, string]> = [
+  ["--ring", "--background"],
+];
 
 const THEMES = [
   { name: "light", selector: ":root", accent: TELKOM_MAROON },
@@ -233,37 +132,52 @@ describe("relativeLuminance", () => {
   });
 });
 
-describe("theme token reader", () => {
-  it("sees every occurrence of a selector, not just the first", () => {
-    const css = ".dark { --a: 1; }\n.dark { --b: 2; }";
-    expect(collectSelectorBlocks(css, ".dark")).toHaveLength(2);
-  });
-
-  it("merges repeated blocks so the last declaration wins", () => {
-    const css = ":root { --primary: #b6252a; }\n:root { --primary: #4a0d10; }";
-    expect(mergeDeclarations(collectSelectorBlocks(css, ":root"))).toEqual(
-      new Map([["--primary", "#4a0d10"]]),
+/**
+ * `--ring` is asserted below at its actual rendered alpha, which relies on
+ * `contrastRatio`/`relativeLuminance` handling opaque hex and oklch colours
+ * correctly and on alpha-bearing colours never being silently treated as
+ * opaque. This block confirms both, independently of the design tokens:
+ * every expected number here was computed from the public WCAG
+ * relative-luminance formula and the public OKLab->sRGB matrices (Björn
+ * Ottosson), not by reading `color-contrast.ts`, so a match is real
+ * evidence the module is right rather than the test mirroring the
+ * implementation. `color-contrast-alpha.test.ts` separately verifies the
+ * compositing pipeline the ring assertion also depends on.
+ */
+describe("alpha handling is verified before it is relied on", () => {
+  it("matches independently computed contrast ratios for opaque colours", () => {
+    // The pre-fix dark --destructive value: oklch(0.704 0.191 22.216)
+    // against white. Kept as a literal (not read from globals.css) so this
+    // stays a pure check of the maths, unaffected by future token changes.
+    expect(contrastRatio("oklch(0.704 0.191 22.216)", "#ffffff")).toBeCloseTo(
+      2.8922,
+      3,
     );
-  });
-
-  it("skips a block whose body contains nested rules", () => {
-    const css =
-      "@layer base { * { color: red; } }\n:root { --primary: #b6252a; }";
-    expect(mergeDeclarations(collectSelectorBlocks(css, ":root"))).toEqual(
-      new Map([["--primary", "#b6252a"]]),
+    expect(contrastRatio("oklch(0.577 0.245 27.325)", "#ffffff")).toBeCloseTo(
+      4.7647,
+      3,
     );
+    expect(contrastRatio(TELKOM_MAROON, "#ffffff")).toBeCloseTo(6.3887, 3);
+    expect(contrastRatio(TELKOM_RED, "#ffffff")).toBeCloseTo(4.3593, 3);
+    expect(contrastRatio(TELKOM_RED, "#0a0a0a")).toBeCloseTo(4.5416, 3);
+    // oklch(0.145 0 0) is the --background value dark mode actually ships;
+    // confirms the oklch parser and the hex parser agree on the same colour.
+    expect(contrastRatio("oklch(0.145 0 0)", "#0a0a0a")).toBeCloseTo(1, 2);
   });
 
-  it("refuses a selector nested inside an at-rule", () => {
-    const css =
-      "@media (prefers-color-scheme: dark) { :root { --primary: #4a0d10; } }";
-    expect(() => collectSelectorBlocks(css, ":root")).toThrow(/nested inside/);
-  });
-
-  it("refuses to read a theme whose block count is not the expected one", () => {
-    expect(() => readThemeTokens(":root", SINGLE_BLOCK + 1)).toThrow(
-      /Expected 2 ":root" block\(s\)/,
-    );
+  it("rejects every alpha-bearing notation the tokens could use, rather than discarding the alpha", () => {
+    const alphaBearingColours = [
+      "#ffffff1a",
+      "#fff1",
+      "oklch(1 0 0 / 10%)",
+      "oklch(1 0 0/50%)",
+      "OKLCH(1 0 0 / 50%)",
+    ];
+    for (const colour of alphaBearingColours) {
+      expect(() => relativeLuminance(colour)).toThrow(
+        /carries an alpha channel/,
+      );
+    }
   });
 });
 
@@ -276,13 +190,31 @@ describe.each(THEMES)("$name theme tokens", ({ selector, accent }) => {
   });
 
   it.each(CONTRAST_PAIRS)(
-    "holds %s against %s at WCAG AA",
+    "holds %s against %s at WCAG AA for text (SC 1.4.3, 4.5:1)",
     (foreground, background) => {
       const ratio = contrastRatio(
         tokenValue(tokens, foreground),
         tokenValue(tokens, background),
       );
       expect(ratio).toBeGreaterThanOrEqual(WCAG_AA_TEXT);
+    },
+  );
+
+  it.each(NON_TEXT_CONTRAST_PAIRS)(
+    "holds %s against %s at WCAG AA for a non-text indicator (SC 1.4.11, 3:1), at its rendered alpha",
+    (foreground, background) => {
+      const alpha = readRingRenderedAlpha();
+      const backgroundLinear = toLinearRgb(tokenValue(tokens, background));
+      const rendered = compositeOver(
+        toLinearRgb(tokenValue(tokens, foreground)),
+        backgroundLinear,
+        alpha,
+      );
+      const ratio = contrastFromLuminances(
+        luminanceFromLinearRgb(rendered),
+        luminanceFromLinearRgb(backgroundLinear),
+      );
+      expect(ratio).toBeGreaterThanOrEqual(WCAG_AA_NON_TEXT);
     },
   );
 });

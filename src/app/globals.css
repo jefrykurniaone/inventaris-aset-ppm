@@ -8,8 +8,19 @@
  * Colour tokens come from `shadcn` init with the `neutral` base. The only
  * departure from those defaults is the accent, which is Telkom University's
  * brand red: maroon #b6252a on light surfaces, red #ed1e28 on dark ones.
- * Both directions are held above WCAG AA (4.5:1) by
+ * `--destructive` pairs with `--destructive-foreground` (white, both
+ * themes); `--ring` reuses the accent. Every one of those pairings is held
+ * at or above the WCAG floor that applies to it (4.5:1 for text, per SC
+ * 1.4.3; 3:1 for the non-text focus ring, per SC 1.4.11) by
  * `src/lib/color-contrast.test.ts`, which reads this file.
+ *
+ * `--ring` renders at full opacity. `outline-ring/50` — shadcn's stock
+ * default, which halves the ring's alpha — was dropped: blended 50% toward
+ * either theme's background, no colour close to the brand red clears 3:1,
+ * so keeping the halved alpha would have meant a near-black ring with no
+ * brand identity left. Full opacity reuses the accent's already-tracked
+ * margin over 3:1 (light 6.39:1, dark 4.54:1) instead of chasing a thinner
+ * one under a translucent constraint that has no workable solution here.
  *
  * No web font is fetched at build time; the stacks below are system faces.
  */
@@ -40,6 +51,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -80,6 +92,7 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: #ffffff;
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: #b6252a;
@@ -113,7 +126,10 @@
   --muted-foreground: oklch(0.708 0 0);
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
+  /* Darkened from the shadcn default oklch(0.704 0.191 22.216), which
+     reaches only 2.8922:1 against the white text drawn on it. */
+  --destructive: oklch(0.55 0.191 22.216);
+  --destructive-foreground: #ffffff;
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: #ed1e28;
@@ -134,7 +150,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
 
   body {

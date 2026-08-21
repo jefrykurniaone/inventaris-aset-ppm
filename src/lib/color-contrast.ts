@@ -143,14 +143,24 @@ export function toLinearRgb(color: string): LinearRgb {
   return parseOklch(oklchMatch);
 }
 
-/** WCAG 2.1 relative luminance, 0 for black and 1 for white. */
-export function relativeLuminance(color: string): number {
-  const [red, green, blue] = toLinearRgb(color);
+/**
+ * WCAG 2.1 relative luminance of an already-linear-light colour, 0 for black
+ * and 1 for white. Exported so a caller who has composited a translucent
+ * colour over its backdrop (see the module doc above — that step is
+ * deliberately not done here) can finish the calculation without
+ * re-serialising the result back into a colour string first.
+ */
+export function luminanceFromLinearRgb([red, green, blue]: LinearRgb): number {
   return (
     LUMINANCE_WEIGHT_RED * red +
     LUMINANCE_WEIGHT_GREEN * green +
     LUMINANCE_WEIGHT_BLUE * blue
   );
+}
+
+/** WCAG 2.1 relative luminance, 0 for black and 1 for white. */
+export function relativeLuminance(color: string): number {
+  return luminanceFromLinearRgb(toLinearRgb(color));
 }
 
 /** WCAG 2.1 contrast ratio between two colours, from 1 to 21. */
