@@ -42,6 +42,8 @@
  */
 import { randomBytes } from "node:crypto";
 
+import { describeError } from "@/lib/log-error";
+
 const DEV_ENV_FILE = ".env.local";
 const FIXTURE_PREFIX = "mdck-";
 const PASSWORD_BYTES = 24;
@@ -79,7 +81,7 @@ function loadDevEnv(): void {
   try {
     process.loadEnvFile(DEV_ENV_FILE);
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
+    const reason = describeError(error);
     console.info(
       `verify-master-data-rules: ${DEV_ENV_FILE} not loaded (${reason}); using the ambient environment.`,
     );
@@ -88,10 +90,6 @@ function loadDevEnv(): void {
 
 function freshPassword(): string {
   return randomBytes(PASSWORD_BYTES).toString("base64url");
-}
-
-function describeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 function report(label: string, isPass: boolean, detail: string): boolean {

@@ -36,4 +36,4 @@ export const roomBuildingFilterSchema = z
   .string()
   .trim()
   .optional()
-  .transform((value) => (value ? value : undefined));
+  .transform((value) => value || undefined);

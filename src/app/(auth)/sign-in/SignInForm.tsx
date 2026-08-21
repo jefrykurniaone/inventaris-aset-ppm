@@ -73,6 +73,21 @@ function resolveCredentialsErrorMessage(
 }
 
 /**
+ * Reads a text field out of a `FormData`.
+ *
+ * `String(formData.get(name) ?? "")` is the shorter way to write this and it
+ * is wrong: `get` returns `string | File | null`, and a `File` stringifies to
+ * `[object File]` — which would then be handed to `signInSchema` as though it
+ * were a credential (SonarQube `typescript:S6551`). An entry that is not a
+ * string is not a text field, so it reads as absent and the schema rejects it
+ * for being empty, which is what it is.
+ */
+function readTextField(formData: FormData, name: string): string {
+  const value = formData.get(name);
+  return typeof value === "string" ? value : "";
+}
+
+/**
  * Validates, then calls `authClient.signIn.email` directly — there is no
  * server action of this project's own here, because the authoritative
  * validation for this request already lives inside Better Auth's own
@@ -84,8 +99,8 @@ async function resolveSignInState(
   formData: FormData,
   t: Translate,
 ): Promise<SignInFormState> {
-  const email = String(formData.get("email") ?? "");
-  const password = String(formData.get("password") ?? "");
+  const email = readTextField(formData, "email");
+  const password = readTextField(formData, "password");
 
   const parsed = signInSchema.safeParse({ email, password });
   if (!parsed.success) {

@@ -8,6 +8,7 @@ import {
   INITIAL_DELETE_STATE,
   type DeleteState,
 } from "@/app/(app)/admin/delete-state";
+import { createActionErrorLogger } from "@/lib/log-error";
 import { requireAdmin } from "@/lib/require-user";
 
 import {
@@ -28,12 +29,7 @@ const ROOMS_PATH = "/admin/rooms";
 
 type Translate = Awaited<ReturnType<typeof getTranslations<"AdminRoomsPage">>>;
 
-function logActionError(action: string, input: unknown, error: unknown): void {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(
-    `admin/rooms/actions.${action}: input=${JSON.stringify(input)} — ${message}`,
-  );
-}
+const logActionError = createActionErrorLogger("admin/rooms/actions");
 
 type RoomFieldName = keyof RoomFieldErrors;
 

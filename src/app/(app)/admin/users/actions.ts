@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
 import { auth } from "@/lib/auth";
+import { createActionErrorLogger } from "@/lib/log-error";
 import { requireAdmin } from "@/lib/require-user";
 
 import {
@@ -35,12 +36,7 @@ function readErrorCode(error: unknown): string | undefined {
   return typeof code === "string" ? code : undefined;
 }
 
-function logActionError(action: string, input: unknown, error: unknown): void {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(
-    `admin/users/actions.${action}: input=${JSON.stringify(input)} — ${message}`,
-  );
-}
+const logActionError = createActionErrorLogger("admin/users/actions");
 
 const USER_ALREADY_EXISTS_CODES = new Set([
   "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
