@@ -39,9 +39,14 @@ npm run dev
 
 Requires Node.js 24 or later and a local PostgreSQL 17 instance. The project uses **npm**, not pnpm.
 
-Development needs no cloud account: the database is local Postgres and photos are written to a
-git-ignored local directory. Supabase is introduced only at the deployment cutover — see
-[`docs/adr/0003-local-postgres-development-supabase-deployment.md`](docs/adr/0003-local-postgres-development-supabase-deployment.md).
+Development runs the database locally, but **photos need a Supabase project**: object storage is
+Supabase Storage in every environment, writing to an `asset-photos-dev` bucket locally and
+`asset-photos` in deployment. There is no local-filesystem fallback, so photo upload requires
+network access. Everything else works offline. See
+[`docs/adr/0003-local-postgres-development-supabase-deployment.md`](docs/adr/0003-local-postgres-development-supabase-deployment.md)
+for the database split and
+[`docs/adr/0005-supabase-storage-in-all-environments.md`](docs/adr/0005-supabase-storage-in-all-environments.md)
+for storage.
 
 The `overrides` block in `package.json` pins `postcss` and `sharp` past advisories that
 `next@15.5.23` still depends on. It is not decoration — do not drop it during a dependency bump.
@@ -75,11 +80,9 @@ lint or type error cannot be committed.
 | `BETTER_AUTH_SECRET` | Session signing secret |
 | `BETTER_AUTH_URL` | Absolute base URL of this deployment |
 | `NEXT_PUBLIC_APP_URL` | Absolute base URL, used to build QR payload URLs |
-| `STORAGE_DRIVER` | `local` or `supabase`. Selects the implementation behind `src/lib/storage.ts` |
-| `LOCAL_STORAGE_DIR` | Development only. Git-ignored directory for uploaded photos |
-| `SUPABASE_URL` | Deployment only |
-| `SUPABASE_SERVICE_ROLE_KEY` | Deployment only. Server-side, used to issue signed upload URLs. Never exposed to the browser |
-| `SUPABASE_STORAGE_BUCKET` | Deployment only. Bucket holding asset photos |
+| `SUPABASE_URL` | Required in every environment. One project serves both |
+| `SUPABASE_SERVICE_ROLE_KEY` | Required in every environment. Server-side only, used to issue signed upload URLs after the Better Auth session check. Never exposed to the browser |
+| `SUPABASE_STORAGE_BUCKET` | Required in every environment. `asset-photos-dev` in development, `asset-photos` in deployment |
 
 ## Documentation
 
