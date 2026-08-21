@@ -1,0 +1,20 @@
+{
+  "HomePage": {
+    "accentAsText": "Accent as text",
+    "accentOnSurface": "Accent on surface",
+    "subtitle": "Scaffold placeholder. Product surfaces arrive with their own tickets.",
+    "themeDark": "Dark",
+    "themeDescription": "Neutral base, Telkom University red accent.",
+    "themeLight": "Light",
+    "title": "Inventaris Aset PPM"
+  },
+  "LocaleSwitcher": {
+    "en": "English",
+    "id": "Indonesian",
+    "label": "Language"
+  },
+  "RootLayout": {
+    "description": "QR-based asset inventory for Direktorat PPM, Telkom University.",
+    "title": "Inventaris Aset — Direktorat PPM"
+  }
+}

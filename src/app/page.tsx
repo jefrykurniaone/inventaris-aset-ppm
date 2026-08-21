@@ -1,52 +1,67 @@
+import { getTranslations } from "next-intl/server";
+
 /**
- * Placeholder home page. No product UI ships in the scaffold ticket; the only
- * job here is to prove the Tailwind + shadcn token layer renders in both
- * themes. Strings are placeholders — every user-facing string moves behind
- * `next-intl` in the internationalisation ticket.
+ * Placeholder home page. No product UI ships in this ticket; the only job
+ * here is to prove the Tailwind + shadcn token layer renders in both
+ * themes, and that every string on the page — including this demo
+ * copy — goes through `next-intl` rather than being hardcoded.
  */
 
-type ThemePreview = Readonly<{
-  id: string;
-  label: string;
-  wrapperClassName: string;
-}>;
+interface ThemeCardProps {
+  readonly label: string;
+  readonly wrapperClassName: string;
+  readonly description: string;
+  readonly accentOnSurface: string;
+  readonly accentAsText: string;
+}
 
-const THEME_PREVIEWS: readonly ThemePreview[] = [
-  { id: "light", label: "Light", wrapperClassName: "" },
-  { id: "dark", label: "Dark", wrapperClassName: "dark" },
-];
-
-function ThemeCard({ label, wrapperClassName }: ThemePreview) {
+function ThemeCard({
+  label,
+  wrapperClassName,
+  description,
+  accentOnSurface,
+  accentAsText,
+}: Readonly<ThemeCardProps>) {
   return (
     <div className={wrapperClassName}>
       <section className="bg-background text-foreground border-border rounded-lg border p-5">
         <h2 className="text-sm font-medium tracking-wide uppercase">{label}</h2>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Neutral base, Telkom University red accent.
-        </p>
+        <p className="text-muted-foreground mt-1 text-sm">{description}</p>
         <p className="bg-primary text-primary-foreground mt-4 rounded-md px-3 py-2 text-sm font-medium">
-          Accent on surface
+          {accentOnSurface}
         </p>
-        <p className="text-primary mt-3 text-sm font-medium">Accent as text</p>
+        <p className="text-primary mt-3 text-sm font-medium">{accentAsText}</p>
       </section>
     </div>
   );
 }
 
-export default function HomePage() {
+export default async function HomePage() {
+  const t = await getTranslations("HomePage");
+  const sharedCardText = {
+    description: t("themeDescription"),
+    accentOnSurface: t("accentOnSurface"),
+    accentAsText: t("accentAsText"),
+  };
+  const themePreviews = [
+    { id: "light", label: t("themeLight"), wrapperClassName: "" },
+    { id: "dark", label: t("themeDark"), wrapperClassName: "dark" },
+  ];
+
   return (
     <main className="mx-auto flex min-h-dvh max-w-3xl flex-col justify-center gap-8 p-8">
       <header>
-        <h1 className="text-3xl font-semibold tracking-tight">
-          Inventaris Aset PPM
-        </h1>
-        <p className="text-muted-foreground mt-2 text-sm">
-          Scaffold placeholder. Product surfaces arrive with their own tickets.
-        </p>
+        <h1 className="text-3xl font-semibold tracking-tight">{t("title")}</h1>
+        <p className="text-muted-foreground mt-2 text-sm">{t("subtitle")}</p>
       </header>
       <div className="grid gap-4 sm:grid-cols-2">
-        {THEME_PREVIEWS.map((preview) => (
-          <ThemeCard key={preview.id} {...preview} />
+        {themePreviews.map((preview) => (
+          <ThemeCard
+            key={preview.id}
+            label={preview.label}
+            wrapperClassName={preview.wrapperClassName}
+            {...sharedCardText}
+          />
         ))}
       </div>
     </main>
