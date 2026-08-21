@@ -2,8 +2,71 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies, toNextJsHandler } from "better-auth/next-js";
 import { admin } from "better-auth/plugins";
+import { createAccessControl } from "better-auth/plugins/access";
 
 import { db } from "@/lib/db";
+import { ADMIN_ROLE, STAFF_ROLE } from "@/lib/roles";
+
+/**
+ * Access-control statements for the admin plugin, under this project's own
+ * role names rather than the plugin's built-in `admin`/`user` defaults (see
+ * `src/lib/roles.ts`). The permission sets are copied unchanged from
+ * `better-auth/plugins/admin`'s own `defaultStatements`/`adminAc`/`userAc` —
+ * `ADMIN_ROLE` keeps every default admin permission, `STAFF_ROLE` keeps the
+ * default non-admin's (none).
+ *
+ * Spelling this out explicitly, instead of leaving `admin()`'s `roles`
+ * option unset and relying on its built-in defaults, does two things the
+ * defaults alone would not:
+ *
+ *   1. Types `auth.api.createUser`'s `role` field (and every other
+ *      role-accepting call) as `"admin" | "staff"` — with no custom `roles`
+ *      map, `InferAdminRolesFromOption` stays anchored to the built-in
+ *      `"admin" | "user"`, and `role: "staff"` fails to type-check.
+ *   2. Turns on `/admin/create-user`'s own validation that a requested role
+ *      actually exists (`opts.roles && !opts.roles[role]`): with no `roles`
+ *      map configured, that check does not run at all, and the endpoint
+ *      would silently accept any string as a role.
+ */
+const accessControlStatements = {
+  user: [
+    "create",
+    "list",
+    "set-role",
+    "ban",
+    "impersonate",
+    "impersonate-admins",
+    "delete",
+    "set-password",
+    "set-email",
+    "get",
+    "update",
+  ],
+  session: ["list", "revoke", "delete"],
+} as const;
+
+const accessControl = createAccessControl(accessControlStatements);
+
+const adminAccess = accessControl.newRole({
+  user: [
+    "create",
+    "list",
+    "set-role",
+    "ban",
+    "impersonate",
+    "delete",
+    "set-password",
+    "set-email",
+    "get",
+    "update",
+  ],
+  session: ["list", "revoke", "delete"],
+});
+
+const staffAccess = accessControl.newRole({
+  user: [],
+  session: [],
+});
 
 /**
  * Server-side Better Auth configuration. Together with `auth-client.ts` this is
@@ -18,15 +81,41 @@ import { db } from "@/lib/db";
  *
  * `secret` and `baseURL` are read from `BETTER_AUTH_SECRET` and
  * `BETTER_AUTH_URL` by the library, so they are not restated here.
+ *
+ * `emailAndPassword.disableSignUp` closes the public `/sign-up/email`
+ * endpoint (FR-1.1: no public self-registration). It does not touch the
+ * admin plugin's own `/admin/create-user` endpoint — that route has no
+ * reference to this flag at all — which is how an admin still creates
+ * accounts through `auth.api.createUser`.
+ *
+ * `admin({ ac, roles, defaultRole, adminRoles })` maps this product's two
+ * roles (`src/lib/roles.ts`) onto the plugin's own role model rather than
+ * adding a parallel one. `adminRoles` says `ADMIN_ROLE` is the elevated
+ * role; `defaultRole` says an admin-created account with no explicit role
+ * starts as `STAFF_ROLE`. Because `STAFF_ROLE` carries no permissions in the
+ * `roles` map above, every permission check the plugin runs against it
+ * fails closed — a staff caller is refused by the library itself, before
+ * `src/lib/require-user.ts`'s own check ever runs. See
+ * `scripts/verify-admin-role-model.ts` for the empirical proof against the
+ * installed `better-auth@1.7.1`.
  */
 export const auth = betterAuth({
   database: prismaAdapter(db, { provider: "postgresql" }),
   emailAndPassword: {
     enabled: true,
+    disableSignUp: true,
   },
   // `nextCookies` has to stay last in the list: it converts the cookies the
   // preceding plugins set into Next.js cookie writes.
-  plugins: [admin(), nextCookies()],
+  plugins: [
+    admin({
+      ac: accessControl,
+      roles: { [ADMIN_ROLE]: adminAccess, [STAFF_ROLE]: staffAccess },
+      defaultRole: STAFF_ROLE,
+      adminRoles: [ADMIN_ROLE],
+    }),
+    nextCookies(),
+  ],
 });
 
 /**
