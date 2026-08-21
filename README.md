@@ -88,6 +88,8 @@ lint or type error cannot be committed.
 
 - [`docs/prd.md`](docs/prd.md) — product requirements
 - [`docs/adr/`](docs/adr/) — architecture decision records
+- [`docs/supabase-storage-provisioning.md`](docs/supabase-storage-provisioning.md) — how the storage
+  buckets and their access policies were created, and how to recreate them
 - [`CLAUDE.md`](CLAUDE.md) — coding standards and conventions binding on all contributors
 
 Work is tracked as GitHub issues in three kinds, distinguished by the title prefix:
