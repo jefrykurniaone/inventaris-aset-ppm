@@ -1,3 +1,6 @@
+# Agent working directories — one git worktree per ticket while it is in flight
+.claude/
+
 # Dependencies
 node_modules/
 .pnp

@@ -16,6 +16,12 @@ const eslintConfig = [
     ignores: [
       "node_modules/**",
       ".next/**",
+      // Sub-agent git worktrees live here while a ticket is in flight, each
+      // with its own `node_modules` and `.next`. The patterns above anchor to
+      // the repository root, so without this ESLint walks into a neighbouring
+      // worktree's build output and reports thousands of findings against
+      // compiled webpack chunks.
+      ".claude/**",
       "out/**",
       "build/**",
       "coverage/**",
