@@ -1,0 +1,141 @@
+// The register itself, and the two tables that hang off it. Deletion is a soft
+// delete (FR-2.5): a printed label outlives the row's usefulness, so a scan of
+// a retired asset has to reach a page rather than a dead end, and `deletedAt`
+// is what every list query filters on.
+//
+// Field order follows `docs/prd.md` §8.2 exactly, including its split between
+// the public half and the restricted half. That split is enforced at the
+// data-fetch layer, not in the component: a public query selects the columns
+// above the RESTRICTED marker and no others, so custodian and pricing data
+// never leaves the database on an anonymous request. The comment markers below
+// are the reference for which side a column is on.
+
+model Asset {
+  id String @id @default(uuid(7))
+
+  // PUBLIC — rendered on an anonymous scan.
+  assetCode           String         @unique
+  name                String
+  categoryId          String
+  category            Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  photos              AssetPhoto[]
+  condition           AssetCondition
+  status              AssetStatus    @default(active)
+  roomId              String
+  room                Room           @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  brand               String?
+  model               String?
+  serialNumber        String?
+  universityAssetCode String?
+  acquisitionYear     Int
+  notes               String?
+  qrToken             String         @unique
+
+  // RESTRICTED — a session is required. `purchasePrice` is money, so `Decimal`.
+  purchasePrice    Decimal?       @db.Decimal(14, 2)
+  fundingSourceId  String?
+  fundingSource    FundingSource? @relation(fields: [fundingSourceId], references: [id], onDelete: Restrict)
+  procurementDocNo String?
+  vendor           String?
+  warrantyUntil    DateTime?
+  custodianName    String?
+  custodianEmail   String?
+  createdById      String
+  createdBy        User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  deletedAt        DateTime?
+
+  loans      Loan[]
+  activities AssetActivity[]
+
+  // The asset list query (FR-2.6); `assetCode` and `qrToken` are unique already.
+  @@index([categoryId])
+  @@index([roomId])
+  @@index([status])
+  @@index([condition])
+  @@index([acquisitionYear])
+  @@index([fundingSourceId])
+  @@index([deletedAt])
+  @@index([createdById])
+  @@map("asset")
+}
+
+// Up to five photos per asset, at most one primary (FR-4.1). The "at most one
+// primary" half is a partial unique index on `("assetId") WHERE "isPrimary"`,
+// which Prisma cannot express, so it is written by hand into the migration and
+// enforced by Postgres rather than by application code.
+//
+// `objectPath` and `thumbObjectPath` hold the storage object path, never a full
+// URL (FR-4.9). The bucket differs per environment — `asset-photos-dev` locally,
+// `asset-photos` in deployment — so a stored URL would pin the row to one
+// bucket and force a data rewrite at the cutover. Signed URLs are minted at
+// read time from these paths by `src/lib/storage.ts`. See
+// `docs/supabase-storage-provisioning.md`.
+
+model AssetPhoto {
+  id              String   @id @default(uuid(7))
+  assetId         String
+  asset           Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  objectPath      String
+  thumbObjectPath String
+  width           Int
+  height          Int
+  sizeBytes       Int
+  isPrimary       Boolean  @default(false)
+  sortOrder       Int      @default(0)
+  uploadedById    String
+  uploadedBy      User     @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  createdAt       DateTime @default(now())
+
+  @@index([assetId, sortOrder])
+  @@index([uploadedById])
+  @@map("asset_photo")
+}
+
+// The loan register (FR-6). An open loan is one with `returnedAt` null; overdue
+// is an open loan whose `dueAt` has passed, which is why `dueAt` is indexed on
+// its own. Borrower details are personal data and are restricted: they are
+// never selected by a public query.
+
+model Loan {
+  id            String    @id @default(uuid(7))
+  assetId       String
+  asset         Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  borrowerName  String
+  borrowerEmail String
+  borrowerUnit  String
+  checkedOutAt  DateTime  @default(now())
+  dueAt         DateTime
+  returnedAt    DateTime?
+  notes         String?
+  handledById   String
+  handledBy     User      @relation(fields: [handledById], references: [id], onDelete: Restrict)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([assetId])
+  @@index([handledById])
+  @@index([dueAt])
+  @@map("loan")
+}
+
+// Append-only audit trail (FR-8.3). A row is written and never amended, so the
+// model carries no `updatedAt` — the absence is deliberate, not an oversight.
+// `payload` holds the shape belonging to `type`, so a new activity kind needs a
+// new `ActivityType` member and no migration.
+
+model AssetActivity {
+  id        String       @id @default(uuid(7))
+  assetId   String
+  asset     Asset        @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  actorId   String
+  actor     User         @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  type      ActivityType
+  payload   Json
+  createdAt DateTime     @default(now())
+
+  @@index([assetId, createdAt])
+  @@index([actorId])
+  @@map("asset_activity")
+}

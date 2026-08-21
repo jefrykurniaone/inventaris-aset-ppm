@@ -1,0 +1,56 @@
+// Administrator-editable master data (FR-3.1): the four lookup tables an
+// administrator maintains through the management screens, as opposed to the
+// fixed enumerations in `enums.prisma`.
+//
+// Every relation *into* these tables is `onDelete: Restrict`. A record an asset
+// references can only be deactivated, never deleted (FR-3.4), so `isActive` is
+// the retirement mechanism and the row survives to keep historical assets
+// readable. Deactivation hides a record from the pickers on the asset form; it
+// does not touch assets that already point at it.
+
+model Category {
+  id        String   @id @default(uuid(7))
+  code      String   @unique
+  name      String
+  nameEn    String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  assets    Asset[]
+
+  @@map("category")
+}
+
+model Building {
+  id       String  @id @default(uuid(7))
+  code     String  @unique
+  name     String
+  isActive Boolean @default(true)
+  rooms    Room[]
+
+  @@map("building")
+}
+
+model Room {
+  id         String   @id @default(uuid(7))
+  buildingId String
+  building   Building @relation(fields: [buildingId], references: [id], onDelete: Restrict)
+  code       String
+  name       String
+  isActive   Boolean  @default(true)
+  assets     Asset[]
+
+  // Room codes repeat between buildings, and the index also covers the key.
+  @@unique([buildingId, code])
+  @@map("room")
+}
+
+model FundingSource {
+  id       String  @id @default(uuid(7))
+  name     String  @unique
+  notes    String?
+  isActive Boolean @default(true)
+  assets   Asset[]
+
+  @@map("funding_source")
+}

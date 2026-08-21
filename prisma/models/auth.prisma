@@ -1,0 +1,104 @@
+// Better Auth's tables — `user`, `session`, `account` and `verification`, plus
+// the `admin()` plugin's columns. This file is generated, and it is also the
+// file the generator reads:
+//
+//     npx --no auth generate --adapter prisma --yes --output prisma/models/auth.prisma
+//
+// `--no` is what keeps that reproducible: the CLI is pinned as
+// `auth@1.7.1` in `devDependencies`, and `--no` makes npx run that local
+// binary and fail loudly rather than quietly fetching a different version.
+//
+// `--output` is not optional under the folder layout, and it is not merely a
+// destination. The Prisma generator uses that same path as the *existing*
+// schema it parses: it reads the file, walks the AST, adds only the models and
+// fields it cannot already find, and writes the result back. With `--output`
+// omitted the path defaults to `prisma/schema.prisma`, so the CLI would read
+// the schema root, find no auth models there, and append a fresh set —
+// colliding with the ones below (`P1012`, model already defined) and producing
+// a `User` that never had the relation fields.
+//
+// Because the generator only ever adds, hand-written additions survive a run.
+// That is what makes the four reverse relation fields on `User` safe, and they
+// have to live here: a Prisma model block exists in exactly one file and cannot
+// be reopened from another, and a Prisma relation must be declared from both
+// sides, so `Asset.createdBy` has no other field to point at. Everything else
+// in this file is the CLI's. Do not hand-edit a column — regenerate.
+//
+// The blank line before each documented declaration is the formatting the CLI
+// emits, so a rerun changes nothing and `prisma format` agrees with it.
+
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  role          String?
+  banned        Boolean?  @default(false)
+  banReason     String?
+  banExpires    DateTime?
+  sessions      Session[]
+  accounts      Account[]
+
+  // Reverse sides of the application relations. Relation fields only.
+  createdAssets  Asset[]
+  uploadedPhotos AssetPhoto[]
+  handledLoans   Loan[]
+  activities     AssetActivity[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id             String   @id
+  expiresAt      DateTime
+  token          String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  impersonatedBy String?
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  issuer                String
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([issuer, accountId], map: "account_issuer_accountId_uidx")
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
