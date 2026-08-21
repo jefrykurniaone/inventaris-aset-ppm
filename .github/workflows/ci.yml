@@ -39,16 +39,44 @@ jobs:
           node-version: 24
           cache: npm
 
+      # `--ignore-scripts` keeps every dependency's `preinstall`/`postinstall`
+      # out of the runner (githubactions:S6505). Two packages here declare one,
+      # and neither turns out to be load-bearing:
+      #
+      #   - `prisma@7.9.1` (`preinstall`) and its `@prisma/engines@7.9.1`
+      #     (`postinstall`) place the engine binaries. Skipping them only defers
+      #     that: `@prisma/fetch-engine` is a plain runtime dependency, so the
+      #     CLI fetches the engine on first use instead — inside the generate
+      #     step below rather than inside this one.
+      #   - `unrs-resolver@1.12.2` (`postinstall`) is `napi-postinstall`, a
+      #     fallback for when the platform binding did not resolve. On this
+      #     runner it does resolve: `@unrs/resolver-binding-linux-x64-gnu` is an
+      #     optional dependency in `package-lock.json` and installs as an
+      #     ordinary package, with no lifecycle script of its own.
+      #
+      # This repository's own `prepare` script (husky) is skipped too, which is
+      # wanted: git hooks are for a developer's checkout, not for a runner.
+      #
+      # Verified empirically from a checkout with no `node_modules`, not
+      # inferred: see the pull request for #50.
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       # The generated Prisma client is not committed, so typecheck and build
       # have nothing to import until it exists. Generation reads the schema
       # only: it opens no connection, which is why the placeholder URLs above
       # are enough. `prisma migrate dev` does not generate as a side effect in
       # Prisma 7, so this step is not redundant.
+      #
+      # `--no` runs the `prisma` binary `npm ci` just installed, or fails.
+      # Without it `npx` silently fetches a package when the local one is
+      # missing and runs its lifecycle scripts (githubactions:S6505), and the
+      # version it fetches is whatever `latest` resolves to rather than a pinned
+      # one (githubactions:S8543). With it, the version that runs is the exact
+      # one `package-lock.json` resolved, so no separate pin is needed. Same
+      # reasoning as `auth:generate` in `package.json`; see `CLAUDE.md`.
       - name: Generate Prisma client
-        run: npx prisma generate
+        run: npx --no prisma generate
 
       - name: Typecheck
         run: npm run typecheck

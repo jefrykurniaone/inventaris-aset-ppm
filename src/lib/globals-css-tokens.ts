@@ -24,7 +24,18 @@ export const GLOBALS_CSS_PATH = join(
 // alternation-free repetition consumes at least one character it never
 // gives back.
 const CSS_COMMENT = /\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\//g;
-const CUSTOM_PROPERTY = /^\s*(--[\w-]+)\s*:\s*(.+?)\s*$/;
+
+// The value group is `\S(?:.*\S)?` — a non-whitespace character, optionally
+// followed by anything ending in one — rather than the lazy `(.+?)` it
+// replaces. `(.+?)\s*$` has super-linear worst-case backtracking
+// (typescript:S8786) because `.` matches a space too, so trailing whitespace
+// can be split between the group and `\s*` in as many ways as there are
+// spaces, and every one is tried before the match fails. `--font-sans` in
+// `globals.css` is exactly that input: a declaration whose value spans lines,
+// so no split ever succeeds. Anchoring both ends of the group on `\S` leaves
+// one split per length, because `\S` cannot overlap the `\s*` beside it.
+// Captures the same trimmed value; see the pull request for #50.
+const CUSTOM_PROPERTY = /^\s*(--[\w-]+)\s*:\s*(\S(?:.*\S)?)\s*$/;
 
 const BLOCK_OPEN = "{";
 const BLOCK_CLOSE = "}";
