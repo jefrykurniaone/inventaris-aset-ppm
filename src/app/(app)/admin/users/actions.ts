@@ -49,6 +49,24 @@ const USER_ALREADY_EXISTS_CODES = new Set([
 
 type Translate = Awaited<ReturnType<typeof getTranslations<"AdminUsersPage">>>;
 
+type CreateUserFieldName = keyof CreateUserState["fieldErrors"];
+
+/** One message key per field, looked up rather than branched on (S121: a
+ * chain of bare `if (...) x;` statements is exactly the shape Sonar flags,
+ * and a lookup reads better besides). */
+const FIELD_ERROR_KEYS: Record<CreateUserFieldName, Parameters<Translate>[0]> =
+  {
+    name: "nameRequired",
+    email: "emailInvalid",
+    password: "passwordTooShort",
+  };
+
+function isCreateUserFieldName(
+  value: PropertyKey,
+): value is CreateUserFieldName {
+  return value === "name" || value === "email" || value === "password";
+}
+
 /** Maps zod's issue paths to this form's three fields, each with its own
  * localised message — kept separate from `createUserAction` so that
  * function stays inside the project's 40-line limit. */
@@ -59,9 +77,9 @@ function buildCreateUserFieldErrors(
   const fieldErrors: CreateUserState["fieldErrors"] = {};
   for (const issue of issues) {
     const field = issue.path[0];
-    if (field === "name") fieldErrors.name = t("nameRequired");
-    if (field === "email") fieldErrors.email = t("emailInvalid");
-    if (field === "password") fieldErrors.password = t("passwordTooShort");
+    if (isCreateUserFieldName(field)) {
+      fieldErrors[field] = t(FIELD_ERROR_KEYS[field]);
+    }
   }
   return fieldErrors;
 }
