@@ -15,7 +15,7 @@ export const fundingSourceSchema = z.object({
     .trim()
     .max(NOTES_MAX_LENGTH)
     .optional()
-    .transform((value) => (value ? value : null)),
+    .transform((value) => value || null),
 });
 
 export type FundingSourceFieldErrors = Partial<

@@ -3,7 +3,10 @@
 import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
-import { setTheme } from "@/lib/set-theme";
+// Aliased so the `useState` setter below can take its conventional name.
+// SonarQube `typescript:S6754` wants the setter for state named `theme` to be
+// called `setTheme`, and the server action was holding that name.
+import { setTheme as persistTheme } from "@/lib/set-theme";
 import type { Theme } from "@/lib/theme";
 
 /** Matches the class `src/app/globals.css`'s `@custom-variant dark` reads. */
@@ -23,23 +26,24 @@ interface ThemeToggleButtonProps {
  *
  * Toggling flips the `dark` class on `<html>` directly and immediately —
  * there is no client-side theme context to wait on — then persists the
- * choice with `setTheme` so the next full page load (or the next visit)
- * renders the same theme server-side, with no flash of the other one.
+ * choice with `persistTheme` (the `setTheme` server action) so the next full
+ * page load, or the next visit, renders the same theme server-side, with no
+ * flash of the other one.
  */
 export function ThemeToggleButton({
   initialTheme,
   labelToDark,
   labelToLight,
 }: Readonly<ThemeToggleButtonProps>) {
-  const [theme, setLocalTheme] = useState<Theme>(initialTheme);
+  const [theme, setTheme] = useState<Theme>(initialTheme);
   const [isPending, startTransition] = useTransition();
 
   function handleClick() {
     const nextTheme: Theme = theme === "dark" ? "light" : "dark";
     document.documentElement.classList.toggle(DARK_CLASS, nextTheme === "dark");
-    setLocalTheme(nextTheme);
+    setTheme(nextTheme);
     startTransition(() => {
-      void setTheme(nextTheme);
+      void persistTheme(nextTheme);
     });
   }
 

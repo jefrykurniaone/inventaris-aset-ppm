@@ -9,30 +9,21 @@ describe("categorySchema", () => {
     nameEn: "Laboratory",
   };
 
-  it("accepts a 2-4 uppercase-letter code", () => {
-    for (const code of ["IT", "LAB", "FURN"]) {
-      const result = categorySchema.safeParse({ ...validInput, code });
-      expect(result.success).toBe(true);
-    }
+  it.each(["IT", "LAB", "FURN"])("accepts the code %s", (code) => {
+    const result = categorySchema.safeParse({ ...validInput, code });
+    expect(result.success).toBe(true);
   });
 
-  it("rejects a lowercase code", () => {
-    const result = categorySchema.safeParse({ ...validInput, code: "lab" });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects a code containing digits", () => {
-    const result = categorySchema.safeParse({ ...validInput, code: "LAB1" });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects a code shorter than 2 characters", () => {
-    const result = categorySchema.safeParse({ ...validInput, code: "L" });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects a code longer than 4 characters", () => {
-    const result = categorySchema.safeParse({ ...validInput, code: "LABOR" });
+  // Parameterised rather than five near-identical `it` blocks (SonarQube
+  // `typescript:S5976`). The label carries what makes each case distinct, so a
+  // failure still names the rule that broke rather than just an input.
+  it.each([
+    { label: "a lowercase code", code: "lab" },
+    { label: "a code containing digits", code: "LAB1" },
+    { label: "a code shorter than 2 characters", code: "L" },
+    { label: "a code longer than 4 characters", code: "LABOR" },
+  ])("rejects $label", ({ code }) => {
+    const result = categorySchema.safeParse({ ...validInput, code });
     expect(result.success).toBe(false);
   });
 
