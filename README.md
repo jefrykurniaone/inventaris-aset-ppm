@@ -20,7 +20,7 @@ scope boundaries, and delivery plan.
 | Database | Local PostgreSQL 17 in development, Supabase Postgres in deployment — one adapter, `@prisma/adapter-pg` |
 | ORM | Prisma 7 (`prisma-client` generator) |
 | Auth | Better Auth (email/password, `admin()` plugin) |
-| Photos | Local filesystem in development, Supabase Storage in deployment, client-direct signed upload |
+| Photos | Supabase Storage in **every** environment, client-direct signed upload — see ADR 0005 |
 | UI | Tailwind CSS v4 + shadcn/ui |
 | i18n | `next-intl` — Indonesian (default) and English |
 | Tests | Vitest (unit), Playwright (smoke) |
