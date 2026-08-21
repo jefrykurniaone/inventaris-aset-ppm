@@ -14,6 +14,16 @@
  * 1.4.3; 3:1 for the non-text focus ring, per SC 1.4.11) by
  * `src/lib/color-contrast.test.ts`, which reads this file.
  *
+ * `--destructive` is a **surface** token only — it is the fill a filled
+ * destructive button or badge sits on, paired with `--destructive-foreground`
+ * for the white text drawn on it. It is not lightened for legibility as text
+ * on `--background`: in the dark theme that pairing measures 3.69:1, short
+ * of the 4.5:1 SC 1.4.3 requires, and no single colour can satisfy both
+ * pairings at once (issue #37). Destructive **text** — validation errors,
+ * warnings, anything red rendered directly on `--background` — reaches for
+ * `--destructive-text` instead, asserted at 4.5:1 against `--background` in
+ * both themes.
+ *
  * `--ring` renders at full opacity. `outline-ring/50` — shadcn's stock
  * default, which halves the ring's alpha — was dropped: blended 50% toward
  * either theme's background, no colour close to the brand red clears 3:1,
@@ -52,6 +62,7 @@
   --color-border: var(--border);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-text: var(--destructive-text);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -91,8 +102,16 @@
   --muted-foreground: oklch(0.52 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
+  /* Surface token: the fill of a filled destructive button/badge, paired
+     with --destructive-foreground. Not for text — see --destructive-text. */
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: #ffffff;
+  /* Destructive text on --background. Measured equal to --destructive in
+     this theme (4.7647:1 against the light --background, which is white,
+     same as --destructive-foreground) — an identical value that was
+     measured, not assumed. Differs from --destructive in the dark theme,
+     where the surface value fails 4.5:1 as text (see issue #37). */
+  --destructive-text: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: #b6252a;
@@ -126,10 +145,17 @@
   --muted-foreground: oklch(0.708 0 0);
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
-  /* Darkened from the shadcn default oklch(0.704 0.191 22.216), which
+  /* Surface token: the fill of a filled destructive button/badge, paired
+     with --destructive-foreground. Not for text — see --destructive-text.
+     Darkened from the shadcn default oklch(0.704 0.191 22.216), which
      reaches only 2.8922:1 against the white text drawn on it. */
   --destructive: oklch(0.55 0.191 22.216);
   --destructive-foreground: #ffffff;
+  /* Destructive text on --background. --destructive itself measures only
+     3.69:1 as text on this theme's near-black --background, short of the
+     4.5:1 SC 1.4.3 requires (issue #37) — same hue/chroma as --destructive,
+     lightened until it clears 4.5:1 (measured 4.9481:1). */
+  --destructive-text: oklch(0.62 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: #ed1e28;

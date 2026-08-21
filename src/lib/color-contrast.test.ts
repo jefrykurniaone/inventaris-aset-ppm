@@ -40,6 +40,7 @@ const CONTRAST_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ["--muted-foreground", "--muted"],
   ["--muted-foreground", "--background"],
   ["--destructive", "--destructive-foreground"],
+  ["--destructive-text", "--background"],
 ];
 
 /**
