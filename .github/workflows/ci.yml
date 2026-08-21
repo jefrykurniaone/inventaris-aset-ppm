@@ -70,3 +70,47 @@ jobs:
       # the typecheck, lint and test results, which are the actionable ones.
       - name: Audit production dependencies
         run: npm audit --audit-level=high --omit=dev
+
+      # Handed to the `sonar` job below rather than analysed here, so that
+      # SONAR_TOKEN never enters the environment of a job that runs `npm ci`
+      # and therefore third-party install scripts.
+      - name: Upload coverage for analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/lcov.info
+          retention-days: 1
+
+  sonar:
+    name: SonarQube Cloud
+    runs-on: ubuntu-latest
+    needs: verify
+    # Derived from the secret without exposing it: an expression in `env` is
+    # allowed to read `secrets`, a step-level `if` is not. Lets the workflow stay
+    # green before the secret exists, instead of failing on a missing token.
+    env:
+      HAS_SONAR_TOKEN: ${{ secrets.SONAR_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # A shallow clone degrades new-code detection, which is what the
+          # pull-request gate is measured on.
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage
+          path: coverage
+
+      # Pinned to a commit rather than a tag: this is the one third-party action
+      # in the workflow, and a tag can move. `v8.2.1`.
+      - name: Analyse
+        if: env.HAS_SONAR_TOKEN == 'true'
+        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Report that analysis was skipped
+        if: env.HAS_SONAR_TOKEN != 'true'
+        run: |
+          echo "::warning title=SonarQube Cloud not analysed::SONAR_TOKEN is not set, so this commit was not analysed. See docs/sonarcloud-analysis.md."
