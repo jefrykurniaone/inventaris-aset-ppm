@@ -12,8 +12,13 @@ resolves to a public page describing that item. Signed-in staff see the full rec
 
 - Next.js 15, App Router, TypeScript, server components by default
 - Prisma 7 with the `prisma-client` generator, output `src/generated/prisma`,
-  `importFileExtension = ""`. The datasource URL lives in `prisma.config.ts`, not in
-  `schema.prisma`. `prisma-client-js` is legacy — do not use it.
+  `importFileExtension = ""`. The schema is a folder: `prisma/schema.prisma` carries the
+  `generator` and `datasource` blocks and nothing else, and the models live in
+  `prisma/models/*.prisma`. `prisma.config.ts` says `schema: "prisma"` — the directory itself,
+  not a nested `prisma/schema`, because Prisma requires the file holding the `generator` block to
+  sit at the schema root *and* requires `migrations` to sit beside it, so going deeper would move
+  the migration history. The datasource URL lives in `prisma.config.ts`, not in `schema.prisma`.
+  `prisma-client-js` is legacy — do not use it.
 - Postgres through `@prisma/adapter-pg` — the **same adapter in both environments**. Local
   PostgreSQL 17 in development, Supabase Postgres in deployment. `DATABASE_URL` is used by Prisma
   Client at runtime; `DIRECT_URL` is used by migrations. On Supabase these differ: transaction
@@ -52,8 +57,37 @@ version range and do not upgrade them without an ADR.
 
 ## Auth tables
 
-Generated with `npx auth generate --adapter prisma`, then applied with `prisma migrate dev`.
-Never hand-write or hand-edit the auth models. `npx auth migrate` does not support Prisma.
+Generated with the pinned Better Auth CLI, then applied with `prisma migrate dev`:
+
+```
+npx --no auth generate --adapter prisma --yes --output prisma/models/auth.prisma
+```
+
+Every part of that line is load-bearing.
+
+- The CLI is the `auth` package, pinned exactly at `auth@1.7.1` in `devDependencies` to match
+  `better-auth@1.7.1` — it declares that exact version as a dependency, so npm dedupes rather than
+  installing a second copy. `@better-auth/cli` is the old name: it stops at 1.4.21 and npm reports
+  it deprecated.
+- `--no` makes npx run that pinned local binary and fail loudly rather than quietly fetching
+  whatever `latest` resolves to. "Regenerating produces a zero diff" is not a property an unpinned
+  tool can have.
+- `--output` is not merely a destination. It is also the file the Prisma generator **reads** as the
+  existing schema: it parses that file, adds only the models and fields it cannot already find, and
+  writes the result back. Omit it and the path defaults to `prisma/schema.prisma` — the schema root,
+  which holds no models — so the CLI writes a second set of auth models there and Prisma then fails
+  with `P1012`, `The model "User" cannot be defined because a model with that name already exists`.
+
+Because the generator only ever adds, a hand-written addition to a generated model survives a run.
+That is what keeps the four reverse relation fields on `User` — `createdAssets`, `uploadedPhotos`,
+`handledLoans`, `activities` — alive, and they have to live in `prisma/models/auth.prisma`: a Prisma
+model block exists in exactly one file and cannot be reopened from another, and a Prisma relation
+must be declared from both sides, so `Asset.createdBy` has nothing else to point at. Those four
+lines are the only hand-written ones in that file.
+
+Never hand-write or hand-edit an auth column — regenerate instead. A correct run prints
+`Your schema is already up to date.` and touches nothing; `Schema was overwritten successfully!`
+means the CLI wrote somewhere it should not have. `npx auth migrate` does not support Prisma.
 
 ## Code quality — zero SonarQube issues, first write
 
