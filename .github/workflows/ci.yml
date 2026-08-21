@@ -61,3 +61,12 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # Scoped to production dependencies on purpose. The `overrides` block in
+      # `package.json` exists to keep this at zero (ADR 0004), and `--omit=dev`
+      # decides which future advisory is allowed to break the build: anything
+      # reaching a user should, while a CLI-only path should not fail a pull
+      # request that did not cause it. Runs last so a finding here does not hide
+      # the typecheck, lint and test results, which are the actionable ones.
+      - name: Audit production dependencies
+        run: npm audit --audit-level=high --omit=dev

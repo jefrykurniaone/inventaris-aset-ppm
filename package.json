@@ -20,6 +20,7 @@
     "prepare": "husky"
   },
   "overrides": {
+    "deepmerge-ts": "^8.0.1",
     "postcss": "^8.5.26",
     "sharp": "^0.35.3"
   },

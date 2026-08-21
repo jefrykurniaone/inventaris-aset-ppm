@@ -1,7 +1,7 @@
-# 0004 — Pinned transitive overrides for `postcss` and `sharp`
+# 0004 — Pinned transitive overrides for `postcss`, `sharp`, and `deepmerge-ts`
 
 - **Status**: Accepted
-- **Date**: 2026-08-21
+- **Date**: 2026-08-21; amended 2026-08-21 for `deepmerge-ts` (issue #30)
 - **Deciders**: Jefry Kurniawan
 
 ## Context
@@ -67,3 +67,73 @@ bump; that is exactly how an unexplained override gets lost and an advisory quie
   unpatched CVE, and CI would carry three high-severity findings from day one.
 - **Fork or vendor `postcss`.** Rejected as disproportionate; an override achieves the same with
   one line and no maintenance surface.
+
+## Amendment — `deepmerge-ts`, reached through the Prisma CLI (issue #30)
+
+### Context
+
+Installing Prisma 7 added a third advisory, on the same shape of path:
+
+- [GHSA-ggr8-5vv4-36mx](https://github.com/advisories/GHSA-ggr8-5vv4-36mx) — `deepmerge-ts < 8.0.0`,
+  stack exhaustion on recursive object graphs (CWE-674), high severity.
+- Path: `prisma@7.9.1 → @prisma/config@7.9.1 → deepmerge-ts@7.1.5`.
+- `@prisma/config` declares `deepmerge-ts` at **exactly** `7.1.5`, so npm cannot resolve past it.
+- `npm audit fix --force` proposes `prisma@6.12.0` — abandoning Prisma 7, which ADR 0001 selects and
+  `CLAUDE.md` forbids substituting. That option was closed from the start.
+
+It was accepted rather than fixed inside the wave 0 spike (#2) because it is not attacker-reachable
+here: `@prisma/config` is what loads `prisma.config.ts` for `prisma generate` and `prisma migrate`,
+it is not in the runtime bundle, no user input reaches it, and triggering the advisory needs a
+self-referencing config object this repository does not have. But three high findings on every
+`npm audit` is the kind of noise that hides something real later.
+
+### Decision
+
+Add the override, and it works:
+
+```json
+"overrides": {
+  "deepmerge-ts": "^8.0.1",
+  "postcss": "^8.5.26",
+  "sharp": "^0.35.3"
+}
+```
+
+`deepmerge-ts` resolves to **8.0.2**, and `npm audit` reports **0 vulnerabilities at every severity**
+— down from 3 high.
+
+This is an override across a **major version** on the loader that reads `prisma.config.ts`, so the
+risk was that the Prisma CLI would silently stop reading its own configuration. It does not. Proven,
+rather than assumed:
+
+| Check | Result |
+|---|---|
+| `npx prisma validate` | `Prisma schema loaded from prisma` / `The schemas at prisma are valid` |
+| `npx prisma generate` | `Generated Prisma Client (7.9.1) to .\src\generated\prisma` |
+| `npx prisma migrate status` | `4 migrations found` / `Database schema is up to date!` |
+| `npx prisma migrate dev --create-only` | created a migration directory, then discarded |
+| `npm run auth:generate` | `Your schema is already up to date.` |
+| `npm run build` | `✓ Compiled successfully` |
+
+The first line is the load-bearing evidence, and it is worth spelling out why. **`schema: "prisma"`
+— a directory rather than a file — exists only in `prisma.config.ts`.** It is not a Prisma default
+and cannot be inferred. So `Prisma schema loaded from prisma` is direct proof that `@prisma/config`
+parsed the config file successfully under `deepmerge-ts@8`. Had the loader broken, the CLI would
+have fallen back to looking for a schema Prisma's defaults name, and found nothing.
+
+### Removal condition
+
+Delete the entry when `@prisma/config` itself depends on `deepmerge-ts >= 8.0.0`. Same mechanical
+check as the other two: remove the line, `npm install --package-lock-only`, `npm audit`. If it still
+reports zero, the override is dead weight.
+
+### Enforcement
+
+`npm audit --audit-level=high --omit=dev` now runs in CI, so this outcome is enforced rather than
+recorded. `--omit=dev` scopes the gate to what actually ships, which is consistent with the
+reachability argument above rather than in tension with it: a CLI-only advisory should not fail a
+pull request that did not cause it, while anything reaching a user should.
+
+Worth knowing for whoever revisits this: with all three overrides in place the tree is currently
+clean **even without** `--omit=dev`. The flag is about which future advisory is allowed to break the
+build, not about hiding a finding that exists today.
