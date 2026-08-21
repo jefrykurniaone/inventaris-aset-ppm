@@ -176,6 +176,13 @@ export async function deleteFundingSourceAction(
   return INITIAL_DELETE_STATE;
 }
 
+/**
+ * Shared body for deactivate/reactivate. Its own `requireAdmin()` call is
+ * deliberately redundant with the one at the top of each exported action
+ * below — a second session read, not a correctness problem, the same
+ * belt-and-suspenders `src/app/(app)/admin/layout.tsx` and each server
+ * action already apply together.
+ */
 async function setActiveAction(id: string, isActive: boolean): Promise<void> {
   await requireAdmin();
   try {
@@ -194,6 +201,7 @@ async function setActiveAction(id: string, isActive: boolean): Promise<void> {
 export async function deactivateFundingSourceAction(
   formData: FormData,
 ): Promise<void> {
+  await requireAdmin();
   const id = fundingSourceIdSchema.parse(formData.get("id"));
   await setActiveAction(id, false);
 }
@@ -201,6 +209,7 @@ export async function deactivateFundingSourceAction(
 export async function reactivateFundingSourceAction(
   formData: FormData,
 ): Promise<void> {
+  await requireAdmin();
   const id = fundingSourceIdSchema.parse(formData.get("id"));
   await setActiveAction(id, true);
 }
