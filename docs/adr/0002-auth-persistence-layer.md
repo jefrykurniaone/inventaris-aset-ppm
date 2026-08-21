@@ -1,6 +1,6 @@
 # 0002 — Better Auth persistence layer on Prisma 7
 
-- **Status**: Proposed — to be resolved by the wave 0 spike (issue: "Auth persistence spike")
+- **Status**: Proposed — to be resolved by the wave 0 spike (issue #2)
 - **Date**: 2026-08-20
 - **Deciders**: Jefry Kurniawan
 
@@ -33,7 +33,7 @@ following ladder, stopping at the first level that passes:
 |---|---|---|
 | 1 | Built-in `better-auth/adapters/prisma` with the client generated to `src/generated/prisma` | None |
 | 2 | Standalone `@better-auth/prisma-adapter` | One additional dependency |
-| 3 | Prisma 7 owns application tables; Better Auth owns auth tables through its built-in Kysely/Postgres adapter on the same Neon database | No Prisma types on the user table; joins need a read-only mapped model or raw SQL |
+| 3 | Prisma 7 owns application tables; Better Auth owns auth tables through its built-in Kysely/Postgres adapter on the same Postgres database | No Prisma types on the user table; joins need a read-only mapped model or raw SQL |
 | 4 | Prisma 6.19 with the legacy `prisma-client-js` generator | Project starts on a deprecated generator, against the coding standard |
 
 **Pass condition for the spike**: sign up, sign in, and read both the session and the user's role

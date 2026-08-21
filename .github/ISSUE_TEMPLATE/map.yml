@@ -1,0 +1,91 @@
+name: Map
+description: Execution plan for one spec — wave order, executor assignment, merge protocol.
+title: "map: "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A map is for the orchestrator. It holds the wave order, the executor assignment and the
+        merge protocol; the work itself lives in the sub-issues. Attach every ticket to this issue
+        as a sub-issue, and record blocking edges as GitHub issue dependencies so the frontier is
+        whichever open sub-issue reports zero open blockers.
+
+  - type: textarea
+    id: parent
+    attributes:
+      label: Parent
+      description: >
+        The spec this map executes, by issue number, plus any binding ADR. State plainly that this
+        issue is the map and not a ticket.
+      placeholder: "Spec: #NN — <title>. Decision records: docs/adr/..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: how
+    attributes:
+      label: How this is executed
+      description: >
+        Ticket count, orchestrator model, executor models, worktree isolation, and the merge
+        protocol. Name the known shared-file contention and how it is resolved at merge time —
+        message catalogues, the Prisma schema, theme tokens.
+      value: |
+        - **Orchestrator: Opus.** Never implements. Dispatches each wave, reviews and merges branches, arbitrates shared-file conflicts, enforces the completion gate.
+        - **Executors: Opus and Sonnet sub-agents**, one ticket each, labelled `executor:opus` / `executor:sonnet` on the ticket.
+        - **Isolation: one git worktree per ticket**, on its own `feat/`, `fix/` or `chore/` branch off `main`.
+        - **Merges are serial, never concurrent.** Within a wave, tickets run in parallel but land one after another.
+    validations:
+      required: true
+
+  - type: textarea
+    id: waves
+    attributes:
+      label: Wave order
+      description: >
+        One block per wave. Each entry: issue number, short title, executor in bold, and its
+        blockers.
+      value: |
+        **Wave 1 — no blockers**
+
+        - #NN — <title> — **Opus**
+    validations:
+      required: true
+
+  - type: textarea
+    id: split
+    attributes:
+      label: Why the executors split this way
+      description: >
+        The rule, applied. Opus takes work where a wrong decision propagates outward; Sonnet takes
+        work with a fully specified target.
+    validations:
+      required: true
+
+  - type: textarea
+    id: gate
+    attributes:
+      label: Completion gate — every ticket
+      description: >
+        The checks the orchestrator runs before merging. A sub-agent that cannot satisfy one reports
+        it rather than working around it.
+      value: |
+        - `npm run lint`, `npm run typecheck`, `npm run test` and `npm run build` pass.
+        - Every touched file clean in the editor diagnostics channel — TypeScript, ESLint, SonarLint — fixed rather than suppressed. No `// NOSONAR`.
+        - Every user-facing string through `next-intl`, `id` and `en` both complete in the same pull request.
+        - WCAG AA on every surface touched: 4.5:1 contrast in both themes, keyboard operable, descriptive `alt`, semantic elements before ARIA.
+        - Authorisation enforced server-side on every mutation; a public query does not select restricted columns at all.
+        - The three seams hold: `src/lib/db.ts`, `src/lib/auth.ts` / `src/lib/auth-client.ts`, `src/lib/storage.ts`.
+        - Conventional Commits, branch off `main`, no direct push to `main`, CI green.
+    validations:
+      required: true
+
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope for every ticket here
+      description: >
+        Carried straight from the spec. None of it is to be picked up opportunistically by a
+        sub-agent that happens to be nearby.
+    validations:
+      required: true

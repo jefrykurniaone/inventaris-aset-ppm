@@ -457,9 +457,15 @@ can be cut without leaving a partial feature on screen.
 
 ## 11. Delivery plan
 
-Work is decomposed into 17 tickets, filed as GitHub issues, grouped into six waves. A wave is
-released for work only when the preceding wave has closed. Within a wave, at most three tickets
-proceed concurrently.
+Work is filed as GitHub issues in three kinds. This document is the grilling output, mirrored as
+the `spec:` issue; the `map:` issue holds the execution plan and carries every ticket as a
+sub-issue; each ticket is titled with a conventional-commit prefix (`feat:`, `fix:`, `chore:`,
+`test:`, `refactor:`) and is one pull request.
+
+Eighteen tickets are grouped into six waves. A wave is released for work only when the preceding
+wave has closed. Within a wave, at most three tickets proceed concurrently. Blocking edges are
+recorded as GitHub issue dependencies rather than as prose, so the frontier is whichever open
+ticket reports zero open blockers.
 
 | Wave | Contents | Concurrency |
 |---|---|---|
@@ -490,7 +496,9 @@ fixed, fully specified target goes to the faster one.
 - **Sonnet executor** — CRUD screens and forms, list and filter interfaces, i18n extraction, print
   CSS, dashboard presentation, seed script, and tests written against an existing specification.
 
-Ticket labels carry this routing: `wave:0`–`wave:5` and `exec:opus` / `exec:sonnet`.
+Ticket labels carry this routing: `wave:0`–`wave:5`, `executor:opus` / `executor:sonnet`,
+`ready-for-agent` once the ticket is fully specified, and `spec:asset-inventory` tying it back to
+its spec.
 
 ## 12. Acceptance criteria for the client demonstration
 

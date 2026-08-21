@@ -43,17 +43,28 @@ Development needs no cloud account: the database is local Postgres and photos ar
 git-ignored local directory. Supabase is introduced only at the deployment cutover — see
 [`docs/adr/0003-local-postgres-development-supabase-deployment.md`](docs/adr/0003-local-postgres-development-supabase-deployment.md).
 
+The `overrides` block in `package.json` pins `postcss` and `sharp` past advisories that
+`next@15.5.23` still depends on. It is not decoration — do not drop it during a dependency bump.
+The reason, and the condition for removing it, are in
+[`docs/adr/0004-pinned-transitive-overrides-for-postcss-and-sharp.md`](docs/adr/0004-pinned-transitive-overrides-for-postcss-and-sharp.md).
+
 ## Scripts
 
 | Command | Purpose |
 |---|---|
 | `npm run dev` | Development server |
 | `npm run build` | Production build |
-| `npm run lint` | ESLint |
+| `npm run start` | Serve the production build |
+| `npm run lint` | ESLint, zero warnings tolerated |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run test` | Vitest unit tests |
 | `npm run test:e2e` | Playwright smoke test |
 | `npm run db:seed` | Seed demo data (idempotent) |
+| `npm run format` | Prettier, check only |
+| `npm run format:write` | Prettier, rewrite in place |
+
+A Husky pre-commit hook runs ESLint and `tsc --noEmit` over staged files, so a
+lint or type error cannot be committed.
 
 ## Environment variables
 
@@ -76,7 +87,18 @@ git-ignored local directory. Supabase is introduced only at the deployment cutov
 - [`docs/adr/`](docs/adr/) — architecture decision records
 - [`CLAUDE.md`](CLAUDE.md) — coding standards and conventions binding on all contributors
 
-Specifications and work items live as GitHub issues, grouped by `wave:*` labels.
+Work is tracked as GitHub issues in three kinds, distinguished by the title prefix:
+
+- `spec:` — the output of a grilling session over one coherent surface. Problem, solution, user
+  stories, decisions, testing, out of scope. Decided work, not a wish list.
+- `map:` — the execution plan for one spec, read by the orchestrator: wave order, executor
+  assignment, merge protocol, completion gate. Its tickets hang off it as sub-issues.
+- A conventional-commit prefix — `feat:`, `fix:`, `chore:`, `test:`, `refactor:` — is a ticket: one
+  unit of work, one sub-agent, one pull request. Labelled `wave:N` and `executor:opus` /
+  `executor:sonnet`, with blockers recorded as GitHub issue dependencies.
+
+Current work: spec [#20](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/20), map
+[#21](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/21).
 
 ## Contributing
 

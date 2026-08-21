@@ -11,3 +11,4 @@ would otherwise reasonably ask "why on earth was it done this way".
 | [0001](0001-stack-selection.md) | Stack selection for the PPM asset inventory prototype | Accepted, partially superseded by 0003 |
 | [0002](0002-auth-persistence-layer.md) | Better Auth persistence layer on Prisma 7 | Proposed |
 | [0003](0003-local-postgres-development-supabase-deployment.md) | Local Postgres for development, Supabase for deployment | Accepted |
+| [0004](0004-pinned-transitive-overrides-for-postcss-and-sharp.md) | Pinned transitive overrides for `postcss` and `sharp` | Accepted |
