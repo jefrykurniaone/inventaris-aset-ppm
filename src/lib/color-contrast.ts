@@ -89,7 +89,7 @@ function parseNumber(token: string): number {
     ? Number.parseFloat(token) / PERCENT_DIVISOR
     : Number.parseFloat(token);
   if (Number.isNaN(value)) {
-    throw new Error(`Unsupported oklch component: "${token}"`);
+    throw new TypeError(`Unsupported oklch component: "${token}"`);
   }
   return value;
 }

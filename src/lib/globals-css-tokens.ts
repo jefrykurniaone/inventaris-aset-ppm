@@ -16,7 +16,14 @@ export const GLOBALS_CSS_PATH = join(
   "globals.css",
 );
 
-const CSS_COMMENT = /\/\*[\s\S]*?\*\//g;
+// Linear in input length: a run of non-`*` characters, then one-or-more
+// `*`, repeated only while the char after the star-run isn't `/` or `*`.
+// `/\/\*[\s\S]*?\*\//g` (the lazy dot-all form) has super-linear worst-case
+// backtracking (typescript:S8786) on input with many near-miss `*/`-like
+// runs; this shape can't backtrack the same way because each branch of the
+// alternation-free repetition consumes at least one character it never
+// gives back.
+const CSS_COMMENT = /\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\//g;
 const CUSTOM_PROPERTY = /^\s*(--[\w-]+)\s*:\s*(.+?)\s*$/;
 
 const BLOCK_OPEN = "{";
@@ -42,7 +49,7 @@ function bodyIfSelectorMatches(
   parent: OpenBlock | undefined,
   closeIndex: number,
 ): string | null {
-  if (!closed || closed.prelude !== selector) {
+  if (closed?.prelude !== selector) {
     return null;
   }
   if (closed.depth !== TOP_LEVEL_DEPTH) {
