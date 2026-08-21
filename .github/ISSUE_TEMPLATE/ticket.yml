@@ -12,6 +12,10 @@ body:
         constraints, and make the acceptance criteria checkable. Attach it to its map as a
         sub-issue, and record every blocker as a GitHub issue dependency.
 
+        A ticket whose check fails comes back to the executor that wrote it, on the same branch, as
+        a further commit — the orchestrator reports the failure and does not repair it. The map's
+        rework protocol governs that round trip.
+
   - type: textarea
     id: parent
     attributes:
@@ -31,7 +35,7 @@ body:
         money, cutover. Sonnet for a fully specified target.
       value: |
         - **Wave N.**
-        - **Executor: Opus sub-agent**, in its own git worktree, on its own branch.
+        - **Executor: Opus sub-agent**, in its own git worktree, on its own branch. It owns the rework if a check fails.
         - Chosen for Opus because
     validations:
       required: true

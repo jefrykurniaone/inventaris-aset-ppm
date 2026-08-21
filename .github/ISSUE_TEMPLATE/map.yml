@@ -31,10 +31,11 @@ body:
         protocol. Name the known shared-file contention and how it is resolved at merge time —
         message catalogues, the Prisma schema, theme tokens.
       value: |
-        - **Orchestrator: Opus.** Never implements. Dispatches each wave, reviews and merges branches, arbitrates shared-file conflicts, enforces the completion gate.
+        - **Orchestrator: Opus.** Never implements. Dispatches each wave, reviews and merges branches, arbitrates shared-file conflicts, enforces the completion gate. A failed check is handed back to the executor that wrote the ticket, never repaired by the orchestrator.
         - **Executors: Opus and Sonnet sub-agents**, one ticket each, labelled `executor:opus` / `executor:sonnet` on the ticket.
         - **Isolation: one git worktree per ticket**, on its own `feat/`, `fix/` or `chore/` branch off `main`.
         - **Merges are serial, never concurrent.** Within a wave, tickets run in parallel but land one after another.
+        - **Discovering a failure and fixing it are separate jobs.** The orchestrator owns every check, including the ones that need a running application; the executor owns every fix.
     validations:
       required: true
 
@@ -68,7 +69,8 @@ body:
       label: Completion gate — every ticket
       description: >
         The checks the orchestrator runs before merging. A sub-agent that cannot satisfy one reports
-        it rather than working around it.
+        it rather than working around it, and a check that fails goes back to the executor that wrote
+        the ticket under the rework protocol.
       value: |
         - `npm run lint`, `npm run typecheck`, `npm run test` and `npm run build` pass.
         - Every touched file clean in the editor diagnostics channel — TypeScript, ESLint, SonarLint — fixed rather than suppressed. No `// NOSONAR`.
@@ -77,6 +79,25 @@ body:
         - Authorisation enforced server-side on every mutation; a public query does not select restricted columns at all.
         - The three seams hold: `src/lib/db.ts`, `src/lib/auth.ts` / `src/lib/auth-client.ts`, `src/lib/storage.ts`.
         - Conventional Commits, branch off `main`, no direct push to `main`, CI green.
+    validations:
+      required: true
+
+  - type: textarea
+    id: rework
+    attributes:
+      label: Rework protocol — a failed check goes back to its executor
+      description: >
+        What happens when a check fails. The orchestrator reports; the executor repairs. State the
+        hand-back route, how many hand-backs a ticket gets before the orchestrator stops, and what a
+        defect found after merge becomes.
+      value: |
+        - **Same executor, same worktree, same branch.** The fix lands as a further commit on the existing branch — not a new branch, not a second pull request, and not a commit written by the orchestrator.
+        - **The hand-back is a report, not a patch.** It names the failing check, quotes the shortest decisive line of output, and points at the file and line. Where the defect is a misread of the spec, it restates the required behaviour.
+        - **The whole gate re-runs after the fix, not only the check that failed.**
+        - **The pull request stays open across the round trip**, so the failure and its fix stay as separate commits in the branch history.
+        - **Runtime defects the sub-agent cannot observe are still its rework.** The orchestrator reports what it observed — route, console line, screenshot — in enough detail to fix from the one-shot commands alone.
+        - **At most two hand-backs per ticket.** A third failure stops the orchestrator: either the ticket is rewritten, or it is relabelled to a stronger executor and dispatched fresh. The decision is recorded in the ticket.
+        - **A defect found after merge becomes its own `bug:` issue**, carrying the executor label of the ticket that introduced it. The merged ticket is not reopened and `main` is not hot-patched.
     validations:
       required: true
 
