@@ -57,13 +57,21 @@ version range and do not upgrade them without an ADR.
 
 ## Auth tables
 
-Generated with the pinned Better Auth CLI, then applied with `prisma migrate dev`:
+Generated with `npm run auth:generate`, then applied with `prisma migrate dev`. Run the script,
+never the bare CLI:
 
 ```
-npx --no auth generate --adapter prisma --yes --output prisma/models/auth.prisma
+npm run auth:generate
 ```
 
-Every part of that line is load-bearing.
+The script is `npx --no auth generate --adapter prisma --yes --output prisma/models/auth.prisma`,
+and it exists as a script because both flags are load-bearing and **dropping either fails
+silently**. `auth generate` with `--output` omitted exits 0 and prints
+`🚀 Schema was overwritten successfully!` while leaving a schema that no longer compiles. A command
+whose failure mode is a success message is not something to retype from memory. Do not inline it,
+and do not "simplify" it back to the raw command.
+
+What each part is for:
 
 - The CLI is the `auth` package, pinned exactly at `auth@1.7.1` in `devDependencies` to match
   `better-auth@1.7.1` — it declares that exact version as a dependency, so npm dedupes rather than
@@ -71,7 +79,7 @@ Every part of that line is load-bearing.
   it deprecated.
 - `--no` makes npx run that pinned local binary and fail loudly rather than quietly fetching
   whatever `latest` resolves to. "Regenerating produces a zero diff" is not a property an unpinned
-  tool can have.
+  tool can have, so a silent version drift silently invalidates the guarantee this file documents.
 - `--output` is not merely a destination. It is also the file the Prisma generator **reads** as the
   existing schema: it parses that file, adds only the models and fields it cannot already find, and
   writes the result back. Omit it and the path defaults to `prisma/schema.prisma` — the schema root,

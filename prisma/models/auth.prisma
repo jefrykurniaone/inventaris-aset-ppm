@@ -1,21 +1,26 @@
 // Better Auth's tables — `user`, `session`, `account` and `verification`, plus
 // the `admin()` plugin's columns. This file is generated, and it is also the
-// file the generator reads:
+// file the generator reads. Regenerate it with:
 //
-//     npx --no auth generate --adapter prisma --yes --output prisma/models/auth.prisma
+//     npm run auth:generate
 //
-// `--no` is what keeps that reproducible: the CLI is pinned as
-// `auth@1.7.1` in `devDependencies`, and `--no` makes npx run that local
-// binary and fail loudly rather than quietly fetching a different version.
+// which runs `npx --no auth generate --adapter prisma --yes --output
+// prisma/models/auth.prisma`. Run the script, never the bare CLI: both flags
+// are load-bearing and dropping either one fails silently.
 //
-// `--output` is not optional under the folder layout, and it is not merely a
-// destination. The Prisma generator uses that same path as the *existing*
-// schema it parses: it reads the file, walks the AST, adds only the models and
-// fields it cannot already find, and writes the result back. With `--output`
-// omitted the path defaults to `prisma/schema.prisma`, so the CLI would read
-// the schema root, find no auth models there, and append a fresh set —
+// `--output` is not merely a destination. The Prisma generator uses that same
+// path as the *existing* schema it parses: it reads the file, walks the AST,
+// adds only the models and fields it cannot already find, and writes the result
+// back. Omitted, the path defaults to `prisma/schema.prisma`, so the CLI reads
+// the schema root, finds no auth models there, and writes a fresh set —
 // colliding with the ones below (`P1012`, model already defined) and producing
-// a `User` that never had the relation fields.
+// a `User` that never had the relation fields. It exits 0 and prints
+// `Schema was overwritten successfully!` while doing it, so nothing reports the
+// damage until `prisma validate` runs.
+//
+// `--no` makes npx run the pinned local `auth@1.7.1` from `devDependencies` and
+// fail loudly rather than quietly fetching a different version, which would
+// void the zero-diff property the rest of this comment depends on.
 //
 // Because the generator only ever adds, hand-written additions survive a run.
 // That is what makes the four reverse relation fields on `User` safe, and they

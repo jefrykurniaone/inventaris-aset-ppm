@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test --pass-with-no-tests",
+    "auth:generate": "npx --no auth generate --adapter prisma --yes --output prisma/models/auth.prisma",
     "db:seed": "tsx prisma/seed.ts",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
