@@ -1,6 +1,6 @@
 name: Bug
-description: Something behaves differently from what the PRD or the specification requires.
-title: "[bug] "
+description: Something behaves differently from what the spec or the PRD requires.
+title: "bug: "
 labels: ["type:bug"]
 body:
   - type: textarea

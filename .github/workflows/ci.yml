@@ -39,7 +39,7 @@ jobs:
         run: npm ci
 
       # Prisma is not a dependency yet; the client-generation step is restored
-      # by the ticket that adds the schema (issue #2).
+      # by the spec that adds the schema (issue #3).
 
       - name: Typecheck
         run: npm run typecheck

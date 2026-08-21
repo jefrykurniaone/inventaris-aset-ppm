@@ -1,0 +1,98 @@
+name: Ticket
+description: One unit of work off a map, executed by a single sub-agent, landing as one pull request.
+title: "feat: "
+labels: ["ready-for-agent"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Retitle the prefix to match the change: `feat:`, `fix:`, `chore:`, `test:`, `refactor:`,
+        optionally scoped — `feat(db):`, `fix(payments):`. One ticket is one pull request. Write it
+        so that a sub-agent with no prior context can implement it: name the files, name the
+        constraints, and make the acceptance criteria checkable. Attach it to its map as a
+        sub-issue, and record every blocker as a GitHub issue dependency.
+
+  - type: textarea
+    id: parent
+    attributes:
+      label: Parent
+      description: The spec and the execution map this ticket belongs to, plus any binding ADR.
+      placeholder: "Spec #NN — <title>. Execution map: #NN."
+    validations:
+      required: true
+
+  - type: textarea
+    id: execution
+    attributes:
+      label: Execution
+      description: >
+        Wave, executor, and why that executor. Opus for work where a wrong decision propagates
+        outward — schema, auth boundaries, token generation, visibility enforcement, aggregation,
+        money, cutover. Sonnet for a fully specified target.
+      value: |
+        - **Wave N.**
+        - **Executor: Opus sub-agent**, in its own git worktree, on its own branch.
+        - Chosen for Opus because
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What to build
+      description: >
+        The work itself, and the constraints on it. State what must not happen as plainly as what
+        must: scope boundaries, architectural seams to respect, and anything deliberately left to a
+        later ticket.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: >
+        Checkable statements. Nothing a reviewer cannot verify, and nothing that restates the
+        completion gate — the last line covers it.
+      value: |
+        - [ ]
+        - [ ]
+        - [ ] Unit tests cover the business logic introduced here
+        - [ ] The completion gate on the execution map passes
+    validations:
+      required: true
+
+  - type: textarea
+    id: blocked
+    attributes:
+      label: Blocked by
+      description: >
+        One line per blocker: what it is, its issue number, and why this ticket needs it. Write
+        "Nothing." for a frontier ticket, and record each edge as a GitHub issue dependency as well.
+      placeholder: "- <title> (#NN). <why this ticket needs it>"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: wave
+    attributes:
+      label: Wave
+      options:
+        - "0 — scaffold and spike"
+        - "1 — data layer, auth, master data"
+        - "2 — assets and photos"
+        - "3 — QR and labels"
+        - "4 — reporting, loans, seed"
+        - "5 — deployment cutover"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: executor
+    attributes:
+      label: Executor model
+      options:
+        - opus
+        - sonnet
+    validations:
+      required: true

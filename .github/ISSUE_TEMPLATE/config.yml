@@ -2,7 +2,10 @@ blank_issues_enabled: false
 contact_links:
   - name: Product requirements
     url: https://github.com/jefrykurniaone/inventaris-aset-ppm/blob/main/docs/prd.md
-    about: Scope, requirements, and delivery plan. Read before filing a specification.
+    about: Scope, requirements, and delivery plan. Read before filing a spec.
   - name: Architecture decision records
     url: https://github.com/jefrykurniaone/inventaris-aset-ppm/tree/main/docs/adr
     about: Decisions already taken. Do not relitigate one in an issue; supersede it with a new ADR.
+  - name: Current spec and execution map
+    url: https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/21
+    about: Wave order, executor assignment, and every open ticket as a sub-issue. Read before filing a ticket.

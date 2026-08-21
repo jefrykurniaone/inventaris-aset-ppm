@@ -87,7 +87,18 @@ lint or type error cannot be committed.
 - [`docs/adr/`](docs/adr/) — architecture decision records
 - [`CLAUDE.md`](CLAUDE.md) — coding standards and conventions binding on all contributors
 
-Specifications and work items live as GitHub issues, grouped by `wave:*` labels.
+Work is tracked as GitHub issues in three kinds, distinguished by the title prefix:
+
+- `spec:` — the output of a grilling session over one coherent surface. Problem, solution, user
+  stories, decisions, testing, out of scope. Decided work, not a wish list.
+- `map:` — the execution plan for one spec, read by the orchestrator: wave order, executor
+  assignment, merge protocol, completion gate. Its tickets hang off it as sub-issues.
+- A conventional-commit prefix — `feat:`, `fix:`, `chore:`, `test:`, `refactor:` — is a ticket: one
+  unit of work, one sub-agent, one pull request. Labelled `wave:N` and `executor:opus` /
+  `executor:sonnet`, with blockers recorded as GitHub issue dependencies.
+
+Current work: spec [#20](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/20), map
+[#21](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/21).
 
 ## Contributing
 
