@@ -1,13 +1,29 @@
-// Prisma 7 schema. The datasource carries no `url`: the connection string lives
-// in `prisma.config.ts` for the CLI and in `src/lib/db.ts` for the runtime
-// client, through the `@prisma/adapter-pg` driver adapter.
+// Prisma 7 schema root. This file carries the `generator` and `datasource`
+// blocks and nothing else; the models live beside it in `models/`, one file per
+// concern. Prisma's multi-file schema is selected by `schema: "prisma"` in
+// `prisma.config.ts`, which names the *directory* — every `.prisma` file under
+// it is part of one schema, and a relation may cross files freely.
 //
-// `User`, `Session`, `Account` and `Verification` come from the Better Auth CLI
-// and are never edited by hand — except the four reverse relation fields on
-// `User`, which a regeneration preserves. The blank line before each documented
-// declaration is what that CLI emits, so rerunning it changes nothing. Enum
-// members carry no `@map`: in Prisma 7 a mapped member emits the mapped value
-// into TypeScript while the engine expects the schema name — a runtime trap.
+// Two constraints fix that shape, and both are why `schema` points at `prisma`
+// rather than at a nested `prisma/schema`:
+//
+//   * The file holding the `generator` block has to sit at the root of the
+//     schema directory, so this file cannot move into `models/`.
+//   * `migrations` has to sit beside that root. Pointing the schema one level
+//     deeper would force the migration history to move with it, rewriting
+//     paths that three applied migrations already depend on.
+//
+// `output` is resolved relative to this file, so the split leaves it correct.
+// `importFileExtension = ""` is required because the generated client is
+// imported from TypeScript compiled by Next.js, which resolves extensionless
+// specifiers.
+//
+// The datasource deliberately carries no `url`. The CLI's connection string
+// lives in `prisma.config.ts` and is `DIRECT_URL`, because a migration must
+// never run through a transaction pooler; the runtime client's is
+// `DATABASE_URL`, read by the `@prisma/adapter-pg` driver adapter in
+// `src/lib/db.ts`. Locally the two are the same string, on Supabase they are
+// not. See `docs/adr/0003-local-postgres-development-supabase-deployment.md`.
 
 generator client {
   provider            = "prisma-client"
@@ -17,283 +33,4 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-}
-
-model User {
-  id            String    @id
-  name          String
-  email         String
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  role          String?
-  banned        Boolean?  @default(false)
-  banReason     String?
-  banExpires    DateTime?
-  sessions      Session[]
-  accounts      Account[]
-
-  // Reverse sides of the application relations. Relation fields only.
-  createdAssets  Asset[]
-  uploadedPhotos AssetPhoto[]
-  handledLoans   Loan[]
-  activities     AssetActivity[]
-
-  @@unique([email])
-  @@map("user")
-}
-
-model Session {
-  id             String   @id
-  expiresAt      DateTime
-  token          String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  ipAddress      String?
-  userAgent      String?
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  impersonatedBy String?
-
-  @@unique([token])
-  @@index([userId])
-  @@map("session")
-}
-
-model Account {
-  id                    String    @id
-  issuer                String
-  accountId             String
-  providerId            String
-  userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope                 String?
-  password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-
-  @@unique([issuer, accountId], map: "account_issuer_accountId_uidx")
-  @@index([userId])
-  @@map("account")
-}
-
-model Verification {
-  id         String   @id
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([identifier])
-  @@map("verification")
-}
-
-// Fixed enumerations, not editable master data: logic branches on them (FR-3.5).
-
-enum AssetStatus {
-  active
-  in_repair
-  loaned
-  retired
-  lost
-
-  @@map("asset_status")
-}
-
-enum AssetCondition {
-  good
-  fair
-  poor
-
-  @@map("asset_condition")
-}
-
-enum ActivityType {
-  created
-  updated
-  status_changed
-  photo_added
-  photo_removed
-  loaned
-  returned
-  deleted
-
-  @@map("activity_type")
-}
-
-// Master data (FR-3.1). Every relation into these tables is `Restrict`: a
-// record an asset references can only be deactivated, never deleted (FR-3.4).
-
-model Category {
-  id        String   @id @default(uuid(7))
-  code      String   @unique
-  name      String
-  nameEn    String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  assets    Asset[]
-
-  @@map("category")
-}
-
-model Building {
-  id       String  @id @default(uuid(7))
-  code     String  @unique
-  name     String
-  isActive Boolean @default(true)
-  rooms    Room[]
-
-  @@map("building")
-}
-
-model Room {
-  id         String   @id @default(uuid(7))
-  buildingId String
-  building   Building @relation(fields: [buildingId], references: [id], onDelete: Restrict)
-  code       String
-  name       String
-  isActive   Boolean  @default(true)
-  assets     Asset[]
-
-  // Room codes repeat between buildings, and the index also covers the key.
-  @@unique([buildingId, code])
-  @@map("room")
-}
-
-model FundingSource {
-  id       String  @id @default(uuid(7))
-  name     String  @unique
-  notes    String?
-  isActive Boolean @default(true)
-  assets   Asset[]
-
-  @@map("funding_source")
-}
-
-// The register itself. Deletion is a soft delete (FR-2.5), so a printed label
-// never becomes a dead end. Fields follow `docs/prd.md` §8.2, in its order.
-
-model Asset {
-  id String @id @default(uuid(7))
-
-  // PUBLIC — rendered on an anonymous scan.
-  assetCode           String         @unique
-  name                String
-  categoryId          String
-  category            Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  photos              AssetPhoto[]
-  condition           AssetCondition
-  status              AssetStatus    @default(active)
-  roomId              String
-  room                Room           @relation(fields: [roomId], references: [id], onDelete: Restrict)
-  brand               String?
-  model               String?
-  serialNumber        String?
-  universityAssetCode String?
-  acquisitionYear     Int
-  notes               String?
-  qrToken             String         @unique
-
-  // RESTRICTED — a session is required. `purchasePrice` is money, so `Decimal`.
-  purchasePrice    Decimal?       @db.Decimal(14, 2)
-  fundingSourceId  String?
-  fundingSource    FundingSource? @relation(fields: [fundingSourceId], references: [id], onDelete: Restrict)
-  procurementDocNo String?
-  vendor           String?
-  warrantyUntil    DateTime?
-  custodianName    String?
-  custodianEmail   String?
-  createdById      String
-  createdBy        User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  deletedAt        DateTime?
-
-  loans      Loan[]
-  activities AssetActivity[]
-
-  // The asset list query (FR-2.6); `assetCode` and `qrToken` are unique already.
-  @@index([categoryId])
-  @@index([roomId])
-  @@index([status])
-  @@index([condition])
-  @@index([acquisitionYear])
-  @@index([fundingSourceId])
-  @@index([deletedAt])
-  @@index([createdById])
-  @@map("asset")
-}
-
-// Up to five photos per asset, at most one primary (FR-4.1) — enforced by the
-// partial unique index on `("assetId") WHERE "isPrimary"` written by hand into
-// the migration. `objectPath` and `thumbObjectPath` hold the storage object
-// path, never a full URL (FR-4.9): the bucket differs per environment, so a
-// stored URL would pin the row to one bucket and force a rewrite at the
-// cutover. See `docs/supabase-storage-provisioning.md`.
-
-model AssetPhoto {
-  id              String   @id @default(uuid(7))
-  assetId         String
-  asset           Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  objectPath      String
-  thumbObjectPath String
-  width           Int
-  height          Int
-  sizeBytes       Int
-  isPrimary       Boolean  @default(false)
-  sortOrder       Int      @default(0)
-  uploadedById    String
-  uploadedBy      User     @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
-  createdAt       DateTime @default(now())
-
-  @@index([assetId, sortOrder])
-  @@index([uploadedById])
-  @@map("asset_photo")
-}
-
-model Loan {
-  id            String    @id @default(uuid(7))
-  assetId       String
-  asset         Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  borrowerName  String
-  borrowerEmail String
-  borrowerUnit  String
-  checkedOutAt  DateTime  @default(now())
-  dueAt         DateTime
-  returnedAt    DateTime?
-  notes         String?
-  handledById   String
-  handledBy     User      @relation(fields: [handledById], references: [id], onDelete: Restrict)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  @@index([assetId])
-  @@index([handledById])
-  @@index([dueAt])
-  @@map("loan")
-}
-
-// Append-only audit trail (FR-8.3), so the model carries no `updatedAt`.
-
-model AssetActivity {
-  id        String       @id @default(uuid(7))
-  assetId   String
-  asset     Asset        @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  actorId   String
-  actor     User         @relation(fields: [actorId], references: [id], onDelete: Restrict)
-  type      ActivityType
-  payload   Json
-  createdAt DateTime     @default(now())
-
-  @@index([assetId, createdAt])
-  @@index([actorId])
-  @@map("asset_activity")
 }

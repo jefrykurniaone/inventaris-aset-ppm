@@ -4,6 +4,14 @@ import { defineConfig, env } from "prisma/config";
  * Prisma 7 configuration. The datasource URL lives here rather than in
  * `schema.prisma`.
  *
+ * `schema` names a **directory**, not a file: the schema is split across
+ * `prisma/schema.prisma` (generator and datasource) and `prisma/models/*.prisma`
+ * (the models). It points at `prisma` rather than at a nested `prisma/schema`
+ * because Prisma requires the file holding the `generator` block to sit at the
+ * root of the schema directory *and* requires `migrations` to sit beside that
+ * root. Going one level deeper would therefore force `prisma/migrations` to
+ * move, rewriting paths that three applied migrations already depend on.
+ *
  * The URL below is the one the **CLI** uses — `migrate`, `db`, and
  * introspection. It is therefore `DIRECT_URL`, not `DATABASE_URL`: migrations
  * must never run through a transaction pooler (ADR 0003). The runtime client
@@ -33,7 +41,7 @@ type PrismaEnv = {
 };
 
 export default defineConfig({
-  schema: "prisma/schema.prisma",
+  schema: "prisma",
   migrations: {
     path: "prisma/migrations",
     seed: "tsx prisma/seed.ts",

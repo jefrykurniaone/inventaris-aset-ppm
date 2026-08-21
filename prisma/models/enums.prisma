@@ -1,0 +1,41 @@
+// Fixed enumerations, not editable master data: logic branches on them, so a
+// new member is a code change rather than a row (FR-3.5). Anything an
+// administrator may add or rename at runtime belongs in `master-data.prisma`
+// instead.
+//
+// No member carries an `@map`. In Prisma 7 a mapped enum member emits the
+// *mapped* value into the generated TypeScript union while the query engine
+// still expects the schema-side name, so a mapped member type-checks and then
+// fails at runtime. The member names are therefore already the database
+// values, spelled snake_case to match the `@@map`ped enum type names.
+
+enum AssetStatus {
+  active
+  in_repair
+  loaned
+  retired
+  lost
+
+  @@map("asset_status")
+}
+
+enum AssetCondition {
+  good
+  fair
+  poor
+
+  @@map("asset_condition")
+}
+
+enum ActivityType {
+  created
+  updated
+  status_changed
+  photo_added
+  photo_removed
+  loaned
+  returned
+  deleted
+
+  @@map("activity_type")
+}
