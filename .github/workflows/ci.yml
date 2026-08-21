@@ -42,8 +42,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Prisma is not a dependency yet; the client-generation step is restored
-      # by the spec that adds the schema (issue #3).
+      # The generated Prisma client is not committed, so typecheck and build
+      # have nothing to import until it exists. Generation reads the schema
+      # only: it opens no connection, which is why the placeholder URLs above
+      # are enough. `prisma migrate dev` does not generate as a side effect in
+      # Prisma 7, so this step is not redundant.
+      - name: Generate Prisma client
+        run: npx prisma generate
 
       - name: Typecheck
         run: npm run typecheck
