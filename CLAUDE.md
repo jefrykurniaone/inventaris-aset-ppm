@@ -129,6 +129,10 @@ category. Semantic elements before ARIA roles.
 - No direct commit or push to `main`. Branch, then pull request.
 - CI must pass before merge.
 - One ticket, one pull request. Reference the issue number in the pull request body.
+- Merge with a merge commit. Never squash and never rebase-merge — the per-commit trail stays on
+  `main`, so `git log` and `git bisect` keep the granularity a pull request was written with. The
+  one-ticket-one-pull-request rule is about scope, not about collapsing history. Squash and rebase
+  merging are disabled on the repository.
 
 ## Dependencies
 
