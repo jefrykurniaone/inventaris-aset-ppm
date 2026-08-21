@@ -133,6 +133,10 @@ category. Semantic elements before ARIA roles.
   `main`, so `git log` and `git bisect` keep the granularity a pull request was written with. The
   one-ticket-one-pull-request rule is about scope, not about collapsing history. Squash and rebase
   merging are disabled on the repository.
+- Delete the branch on both sides once its pull request is merged. `deleteBranchOnMerge` is enabled,
+  so the remote branch goes by itself; delete the local one and run `git fetch --prune`. A merged
+  branch carries nothing the merge commit does not, and stale branches make `git branch -a` useless
+  for seeing what is actually in flight.
 
 ## Dependencies
 
