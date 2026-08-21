@@ -1,4 +1,38 @@
 {
+  "AdminUsersPage": {
+    "columnActions": "Aksi",
+    "columnEmail": "Email",
+    "columnName": "Nama",
+    "columnRole": "Peran",
+    "columnStatus": "Status",
+    "createHeading": "Tambah pengguna",
+    "createSubmit": "Buat pengguna",
+    "createSubmitPending": "Membuat…",
+    "deactivate": "Nonaktifkan",
+    "deactivatePending": "Menonaktifkan…",
+    "emailInvalid": "Masukkan alamat email yang valid.",
+    "emailLabel": "Email",
+    "nameLabel": "Nama",
+    "nameRequired": "Nama wajib diisi.",
+    "passwordLabel": "Kata sandi",
+    "passwordTooShort": "Kata sandi minimal harus 8 karakter.",
+    "reactivate": "Aktifkan kembali",
+    "reactivatePending": "Mengaktifkan…",
+    "roleLabel": "Peran",
+    "roleOptionAdmin": "Admin",
+    "roleOptionStaff": "Staf",
+    "statusActive": "Aktif",
+    "statusDeactivated": "Nonaktif",
+    "title": "Manajemen Pengguna",
+    "unexpectedError": "Terjadi kesalahan. Coba lagi.",
+    "userAlreadyExists": "Sudah ada pengguna dengan email ini."
+  },
+  "AppShell": {
+    "mainNavLabel": "Navigasi utama",
+    "navAdminUsers": "Manajemen Pengguna",
+    "navHome": "Beranda",
+    "signedInAs": "Masuk sebagai"
+  },
   "HomePage": {
     "accentAsText": "Aksen sebagai teks",
     "accentOnSurface": "Aksen di atas permukaan",
@@ -13,8 +47,39 @@
     "id": "Indonesia",
     "label": "Bahasa"
   },
+  "NotAuthorizedPage": {
+    "backHome": "Kembali ke beranda",
+    "message": "Anda tidak memiliki izin untuk mengakses halaman ini.",
+    "title": "Tidak diizinkan"
+  },
+  "Role": {
+    "admin": "Admin",
+    "staff": "Staf"
+  },
   "RootLayout": {
     "description": "Inventaris aset berbasis QR untuk Direktorat PPM, Telkom University.",
     "title": "Inventaris Aset — Direktorat PPM"
+  },
+  "SignInForm": {
+    "emailInvalid": "Masukkan alamat email yang valid.",
+    "emailLabel": "Email",
+    "invalidCredentials": "Email atau kata sandi salah.",
+    "passwordLabel": "Kata sandi",
+    "passwordRequired": "Kata sandi wajib diisi.",
+    "submit": "Masuk",
+    "submitPending": "Memproses…",
+    "unexpectedError": "Terjadi kesalahan. Coba lagi."
+  },
+  "SignInPage": {
+    "description": "Masuk dengan email dan kata sandi yang diberikan oleh admin.",
+    "title": "Masuk"
+  },
+  "SignOutButton": {
+    "label": "Keluar",
+    "pending": "Keluar…"
+  },
+  "ThemeToggle": {
+    "labelToDark": "Beralih ke tema gelap",
+    "labelToLight": "Beralih ke tema terang"
   }
 }

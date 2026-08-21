@@ -1,10 +1,16 @@
 import { getTranslations } from "next-intl/server";
 
 /**
- * Placeholder home page. No product UI ships in this ticket; the only job
- * here is to prove the Tailwind + shadcn token layer renders in both
- * themes, and that every string on the page — including this demo
- * copy — goes through `next-intl` rather than being hardcoded.
+ * Placeholder home page, now nested under the `(app)` route group and so
+ * protected by `src/app/(app)/layout.tsx`'s `requireUser()` (PRD FR-1.5).
+ * No product UI ships in this ticket; the only job here is to prove the
+ * Tailwind + shadcn token layer renders in both themes, and that every
+ * string on the page — including this demo copy — goes through `next-intl`
+ * rather than being hardcoded.
+ *
+ * Wrapped in a `<div>` rather than a `<main>`: the shell layout already
+ * renders the page's one `<main>` element, so this content is that
+ * element's child, not a second one.
  */
 
 interface ThemeCardProps {
@@ -49,7 +55,7 @@ export default async function HomePage() {
   ];
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-3xl flex-col justify-center gap-8 p-8">
+    <div className="mx-auto flex max-w-3xl flex-col gap-8">
       <header>
         <h1 className="text-3xl font-semibold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground mt-2 text-sm">{t("subtitle")}</p>
@@ -64,6 +70,6 @@ export default async function HomePage() {
           />
         ))}
       </div>
-    </main>
+    </div>
   );
 }
