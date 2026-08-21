@@ -95,10 +95,15 @@ Work is tracked as GitHub issues in three kinds, distinguished by the title pref
 - `spec:` — the output of a grilling session over one coherent surface. Problem, solution, user
   stories, decisions, testing, out of scope. Decided work, not a wish list.
 - `map:` — the execution plan for one spec, read by the orchestrator: wave order, executor
-  assignment, merge protocol, completion gate. Its tickets hang off it as sub-issues.
+  assignment, merge protocol, completion gate, rework protocol. Its tickets hang off it as
+  sub-issues.
 - A conventional-commit prefix — `feat:`, `fix:`, `chore:`, `test:`, `refactor:` — is a ticket: one
   unit of work, one sub-agent, one pull request. Labelled `wave:N` and `executor:opus` /
   `executor:sonnet`, with blockers recorded as GitHub issue dependencies.
+
+The orchestrator runs every check and fixes none of them. A ticket that fails the completion gate,
+a review pass, or a runtime check goes back to the executor that wrote it, on the same branch, as a
+further commit.
 
 Current work: spec [#20](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/20), map
 [#21](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/21).
