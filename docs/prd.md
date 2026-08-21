@@ -153,9 +153,12 @@ mistaken for oversights:
   the thumbnail.
 - **FR-4.4** — Files are uploaded from the browser directly to object storage using a
   server-issued signed upload URL. Image bytes never pass through a serverless function.
-- **FR-4.5** — Storage is reached through a single interface at `src/lib/storage.ts` with two
-  implementations: the local filesystem in development, Supabase Storage in deployment. Calling
-  code is unaware of which is active.
+- **FR-4.5** — Storage is reached through a single interface at `src/lib/storage.ts`, backed by
+  Supabase Storage in **every** environment. There is no second implementation and no environment
+  switch; the interface exists so that the module stays the only place object storage is touched,
+  and so that tests can inject an in-memory fake. Development writes to the `asset-photos-dev`
+  bucket and deployment to `asset-photos`, both in the same Supabase project, selected by
+  `SUPABASE_STORAGE_BUCKET`. See ADR 0005.
 - **FR-4.6** — The signed-URL endpoint enforces an allowlist of content types
   (`image/jpeg`, `image/png`, `image/webp`) and a maximum size of 1.5 MB, independently of any
   client-side compression.
@@ -163,6 +166,14 @@ mistaken for oversights:
   asset detail page and the scan page.
 - **FR-4.8** — Unsupported formats, HEIC in particular, produce a clear localised error message,
   not a silent failure.
+- **FR-4.9** — Objects are stored at `assets/<assetId>/<nanoid>.<ext>`. The database stores the
+  object path only, never a full URL; the URL is built at render time from the configured bucket.
+  The object is deleted in the same server action that deletes its row.
+- **FR-4.10** — The bucket is public for read and denies insert to both the anonymous and the
+  authenticated Supabase role. A signed upload URL is minted server-side with the service-role key,
+  and only after the Better Auth session and role have been checked. Because authentication is
+  Better Auth, no Supabase JWT exists and Storage row-level security cannot see the application's
+  users — the server action is the authorisation boundary, not a storage policy.
 
 ### 6.5 QR codes and labels
 
@@ -353,7 +364,9 @@ Binding for all code in this repository, prototype included:
 | Driver adapter | `@prisma/adapter-pg` for both environments | Local and Supabase are both plain Postgres over TCP, so one adapter covers both and no environment-branching driver configuration is needed |
 | Connection strings | `DATABASE_URL` at runtime, `DIRECT_URL` for migrations. On Supabase: transaction pooler on port 6543 with `?pgbouncer=true&connection_limit=1` for the former, session mode on port 5432 for the latter | Prepared statements are unsupported in Supavisor transaction mode; migrations must not run through the transaction pooler |
 | Auth | Better Auth — `emailAndPassword`, `admin()` plugin, `nextCookies()` | Self-hosted, so client data stays with the client; owns its tables in our own schema; the `admin()` plugin covers the two-role model without a hand-rolled RBAC layer. Supabase is used as Postgres and storage only, not as the auth provider |
-| Photo storage | One interface at `src/lib/storage.ts`: local filesystem in development, Supabase Storage in deployment via `createSignedUploadUrl` / `uploadToSignedUrl` | Browser uploads directly to storage, so the serverless request body limit never applies to an image |
+| Photo storage | Supabase Storage in every environment, reached through one interface at `src/lib/storage.ts` via `createSignedUploadUrl` / `uploadToSignedUrl` | Browser uploads directly to storage, so the serverless request body limit never applies to an image. One implementation everywhere, so the path exercised in development is the deployed one. See ADR 0005 |
+| Storage buckets | `asset-photos-dev` in development, `asset-photos` in deployment, both in the same Supabase project, selected by `SUPABASE_STORAGE_BUCKET` | Two databases mint the same `assetCode` and row IDs, so a shared bucket would collide; separate buckets also let the development one be emptied without touching demonstration photos |
+| Storage authorisation | Public read; writes denied to the anonymous and authenticated roles and performed with the service-role key after a Better Auth session check | Better Auth issues no Supabase JWT, so Storage RLS cannot see application users. The server action is the authorisation boundary |
 | Image processing | `browser-image-compression`, self-hosted worker script | Browser-side resize; the library's default worker URL points at a public CDN and is overridden |
 | UI | Tailwind CSS v4 with shadcn/ui, light and dark themes | Components live in our repository, so the coding and accessibility standards apply to code we control |
 | i18n | `next-intl`, default locale `id` | |
@@ -394,11 +407,13 @@ Mitigations:
 
 ### R2 — Photo storage and egress on the free tier
 
-The Supabase free tier provides 500 MB of database, 1 GB of file storage, and 5 GB of monthly
-egress. The binding constraint is not storage volume: sixty unprocessed phone photos is roughly
-300 MB, inside 1 GB. The real walls are the serverless request body limit — approximately 4.5 MB,
-with Next.js server actions defaulting to 1 MB, which a raw phone photo simply exceeds — and the
-egress allowance.
+The Supabase free tier provides 500 MB of database per project, 1 GB of file storage, and 5 GB of
+monthly egress, with the storage and egress allowances counted across the whole organisation rather
+than per project. Since ADR 0005 development also uploads to Supabase, so both buckets draw on that
+one allowance. The binding constraint is still not storage volume: sixty unprocessed phone photos is
+roughly 300 MB, inside 1 GB, and development traffic at this scale is a rounding error beside it.
+The real walls are the serverless request body limit — approximately 4.5 MB, with Next.js server
+actions defaulting to 1 MB, which a raw phone photo simply exceeds — and the egress allowance.
 
 Mitigations:
 
@@ -409,8 +424,10 @@ Mitigations:
 4. Immutable cache headers on stored images.
 5. A server-side content-type allowlist and a 1.5 MB hard cap on the signed-URL endpoint. Client
    compression is a usability measure; the server cap is the control.
-6. Development uses the local filesystem, so iteration and repeated seeding consume no hosted
-   storage or egress at all.
+6. Development uploads go to a separate `asset-photos-dev` bucket. It draws on the same
+   organisation-wide allowance as production — the previous arrangement, where development consumed
+   nothing, ended with ADR 0005 — so an npm script empties it, and emptying it is safe precisely
+   because it is a separate bucket.
 
 Expected footprint at prototype scale: approximately 7 MB of stored images, with egress well
 outside reach of a demonstration workload.
@@ -422,10 +439,15 @@ is retained, but the project must be resumed manually. With no demonstration dat
 realistic failure is: deploy, wait two or three weeks, then arrive at the demonstration to a paused
 database and a scan page erroring in front of the client.
 
+ADR 0005 shrinks this risk rather than enlarging it. The project is now created at wave 0 instead of
+wave 5, which sounds worse, but every development photo upload from wave 2 onward is an API request
+against that project. The thing that pauses is an unused project, and this one stops being unused
+the moment the photo pipeline is built.
+
 Mitigations:
 
-1. Do not create the Supabase project until the deployment cutover ticket is actually started. An
-   unused project is exactly the thing that pauses.
+1. Development traffic keeps the project awake through waves 2 to 4. The exposure is the quiet
+   stretch between the last commit and the demonstration, not the build itself.
 2. Once deployed, keep a scheduled request against a cheap health endpoint so the project stays
    awake.
 3. Confirm the deployment is awake and responding the day before any demonstration. This belongs on
@@ -433,19 +455,23 @@ Mitigations:
 4. If the demonstration slips repeatedly, the paid tier removes the behaviour. That is a cost
    question for the client conversation, not an engineering problem.
 
-### R5 — The Supabase path is unverified until an account exists
+### R5 — The Supabase **database** path is unverified until the cutover
 
 Development runs against local Postgres, so the wave 0 spike can only prove the local path. Prisma
 against the Supabase transaction pooler has known sharp edges — prepared statements are unsupported,
 which is why `pgbouncer=true` is required — and driver adapters change which layer issues those
-statements. The photo pipeline is likewise exercised locally against the filesystem implementation
-rather than the Supabase Storage one.
+statements.
+
+This risk used to cover photos as well. ADR 0005 removes that half: Supabase Storage is now the only
+storage implementation, so the signed-upload path is exercised for real from wave 2 onward and the
+cutover inherits a proven photo pipeline. What remains unverified is the database, and only the
+database.
 
 Mitigation: a dedicated deployment cutover ticket carries this explicitly rather than assuming the
-wave 0 spike covers it. That ticket creates the Supabase project, verifies both connection modes,
-runs migrations through the session-mode connection, exercises a real signed upload against
-Supabase Storage, and confirms the public scan page works from a phone on the deployed URL. Until
-it closes, no claim is made that the application runs on Supabase.
+wave 0 spike covers it. That ticket verifies both connection modes against the Supabase project
+created in wave 0, runs migrations through the session-mode connection, points the deployment at
+the `asset-photos` bucket, and confirms the public scan page works from a phone on the deployed URL.
+Until it closes, no claim is made that the application's **database** runs on Supabase.
 
 ### R3 — No fixed demonstration date
 
@@ -462,22 +488,24 @@ the `spec:` issue; the `map:` issue holds the execution plan and carries every t
 sub-issue; each ticket is titled with a conventional-commit prefix (`feat:`, `fix:`, `chore:`,
 `test:`, `refactor:`) and is one pull request.
 
-Eighteen tickets are grouped into six waves. A wave is released for work only when the preceding
+Nineteen tickets are grouped into six waves. A wave is released for work only when the preceding
 wave has closed. Within a wave, at most three tickets proceed concurrently. Blocking edges are
 recorded as GitHub issue dependencies rather than as prose, so the frontier is whichever open
 ticket reports zero open blockers.
 
 | Wave | Contents | Concurrency |
 |---|---|---|
-| **W0** | Project scaffold and tooling; authentication spike against local Postgres | Serial — both tickets gate everything |
+| **W0** | Project scaffold and tooling; authentication spike against local Postgres; Supabase project, both buckets, and service-role key | Serial — all three tickets gate everything |
 | **W1** | Prisma schema and migrations; authentication UI and route guards; i18n setup; master data screens | Parallel |
 | **W2** | Asset CRUD and code generation; asset list with filters; photo pipeline; asset detail page and timeline | Parallel |
 | **W3** | QR token, rendering, and public scan page; label sheet printing | Parallel |
 | **W4** | Dashboard and charts; XLSX export; loan module; seed data | Parallel |
-| **W5** | Supabase deployment cutover: project creation, both connection modes, Supabase Storage, deployed phone scan | Serial — single ticket |
+| **W5** | Supabase deployment cutover: both connection modes, migrations through session mode, production bucket, deployed phone scan | Serial — single ticket |
 
-Everything through wave 4 runs against local PostgreSQL and local filesystem storage. Wave 5 is
-where the application first runs on hosted infrastructure; see risk R5.
+Everything through wave 4 runs against local PostgreSQL for data and Supabase Storage for photos.
+Wave 5 is where the **database** first runs on hosted infrastructure; see risk R5. Photos are on
+hosted infrastructure from wave 2, which is why the wave 0 ticket that creates the Supabase project
+blocks the photo pipeline.
 
 Each ticket is one pull request against `main`. A wave closes only when every pull request in it is
 CI-green, has passed a review pass, and — from wave 5 onward, once a deployment exists — the
@@ -503,8 +531,9 @@ its spec.
 ## 12. Acceptance criteria for the client demonstration
 
 The prototype is ready to show when all of the following hold **on the deployed Supabase-backed
-environment**, not merely locally. Criteria 1 to 9 are verifiable locally during waves 0 to 4;
-criterion 10 is what wave 5 exists to establish.
+environment**, not merely locally. Criteria 1 to 9 are verifiable during waves 0 to 4 against local
+Postgres — with photos already going to real Supabase Storage; criterion 10 is what wave 5 exists to
+establish.
 
 1. An admin and a staff account can each sign in, and each sees only what their role permits.
 2. An asset can be created on a phone, photographed with the device camera, and saved.
@@ -529,6 +558,6 @@ criterion 10 is what wave 5 exists to establish.
 | Label stock actually available to the directorate | Jefry | Layout defaults to 63.5 × 38.1 mm, 3 × 7 on A4; switching stock is a one-constant change |
 | Real (non-confidential) asset list for seeding | Jefry | Seed uses realistic synthetic data until provided |
 | Which escalation level R1 lands on | Orchestrator | Recorded as an ADR at the end of wave 0 |
-| Supabase account and project | Jefry | Deliberately not created until wave 5 starts, per risk R4 |
-| Whether to run Supabase locally via its CLI instead of plain local Postgres | Jefry | Would make development and production identical; needs Docker, which is not installed. Revisit before wave 5 |
+| Supabase account and project | Jefry | Now created in wave 0, per ADR 0005 — it blocks the photo pipeline in wave 2. Resolved once the wave 0 ticket closes |
+| Whether to run Supabase locally via its CLI instead of plain local Postgres | Jefry | Would put the database and the photo objects in one resettable place. Still needs Docker, which is not installed, and neither is WSL. ADR 0005 removed the storage half of the motivation; only the database gap remains. Revisit only if Docker arrives for another reason |
 | Printed QR codes encode `NEXT_PUBLIC_APP_URL` | Orchestrator | No label may be printed for real use until the production URL is final, or the labels become dead |

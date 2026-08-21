@@ -1,6 +1,7 @@
 # 0003 — Local Postgres for development, Supabase for deployment
 
-- **Status**: Accepted
+- **Status**: Accepted; the *Photo storage* section is superseded by
+  [0005](0005-supabase-storage-in-all-environments.md). The database decision stands.
 - **Date**: 2026-08-21
 - **Deciders**: Jefry Kurniawan
 - **Supersedes**: the database, photo storage, and driver adapter rows of

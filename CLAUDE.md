@@ -21,9 +21,11 @@ resolves to a public page describing that item. Signed-in staff see the full rec
   port 5432 for the latter. Locally they are the same string.
 - Better Auth: `emailAndPassword`, `admin()` plugin, `nextCookies()`. Supabase is used as Postgres
   and object storage only — **not** as the auth provider. Do not reach for Supabase Auth.
-- Object storage behind one interface: local filesystem in development, Supabase Storage
-  (`createSignedUploadUrl` / `uploadToSignedUrl`) in deployment. Browser uploads directly; image
-  bytes never pass through a serverless function.
+- Object storage is **Supabase Storage in every environment** (`createSignedUploadUrl` /
+  `uploadToSignedUrl`), behind one interface. Browser uploads directly; image bytes never pass
+  through a serverless function. Buckets differ per environment — `asset-photos-dev` locally,
+  `asset-photos` in deployment — selected by `SUPABASE_STORAGE_BUCKET`. There is no local-filesystem
+  driver; see ADR 0005.
 - Tailwind CSS v4 + shadcn/ui
 - `next-intl`, default locale `id`
 - Vitest + Playwright
@@ -38,10 +40,10 @@ Three seams exist specifically so that a dependency or environment swap stays ch
 - `src/lib/db.ts` — the only place the generated Prisma client is imported. Everything else
   imports `db` from here.
 - `src/lib/auth.ts` and `src/lib/auth-client.ts` — the only places Better Auth is configured.
-- `src/lib/storage.ts` — the only place object storage is touched. One interface, two
-  implementations selected by environment: local filesystem in development, Supabase Storage in
-  deployment. Calling code must never know which is active, and must never import a Supabase client
-  directly.
+- `src/lib/storage.ts` — the only place object storage is touched. One interface, **one**
+  implementation: Supabase Storage, in every environment. The interface exists so the module stays
+  the single seam and so tests can inject an in-memory fake — it is not an environment switch, and
+  there is no `STORAGE_DRIVER`. Calling code must never import a Supabase client directly.
 
 Do not import `@/generated/prisma`, `better-auth`, or a Supabase client anywhere else.
 
