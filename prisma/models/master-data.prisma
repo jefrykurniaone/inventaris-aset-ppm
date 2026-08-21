@@ -7,6 +7,11 @@
 // the retirement mechanism and the row survives to keep historical assets
 // readable. Deactivation hides a record from the pickers on the asset form; it
 // does not touch assets that already point at it.
+//
+// All four carry `createdAt` and `updatedAt`. FR-3.1 makes all four editable,
+// so `updatedAt` carries real information on every one of them, and a
+// management screen that can rely on the same two columns everywhere is one
+// code path rather than four.
 
 model Category {
   id        String   @id @default(uuid(7))
@@ -22,11 +27,13 @@ model Category {
 }
 
 model Building {
-  id       String  @id @default(uuid(7))
-  code     String  @unique
-  name     String
-  isActive Boolean @default(true)
-  rooms    Room[]
+  id        String   @id @default(uuid(7))
+  code      String   @unique
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  rooms     Room[]
 
   @@map("building")
 }
@@ -38,6 +45,8 @@ model Room {
   code       String
   name       String
   isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
   assets     Asset[]
 
   // Room codes repeat between buildings, and the index also covers the key.
@@ -46,11 +55,13 @@ model Room {
 }
 
 model FundingSource {
-  id       String  @id @default(uuid(7))
-  name     String  @unique
-  notes    String?
-  isActive Boolean @default(true)
-  assets   Asset[]
+  id        String   @id @default(uuid(7))
+  name      String   @unique
+  notes     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  assets    Asset[]
 
   @@map("funding_source")
 }
