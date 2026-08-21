@@ -1,13 +1,4 @@
-import type { Locale } from "@/i18n/config";
-
-/**
- * BCP 47 tags fed to `Intl`. Kept private: callers only ever hand this
- * module the project's own `Locale` union, never a raw tag.
- */
-const LOCALE_TAGS: Readonly<Record<Locale, string>> = {
-  id: "id-ID",
-  en: "en-US",
-};
+import { LOCALE_TAGS, type Locale } from "@/i18n/config";
 
 /**
  * Every asset, loan, and activity date in this system belongs to Direktorat

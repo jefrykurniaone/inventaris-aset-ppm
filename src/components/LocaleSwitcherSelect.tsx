@@ -39,10 +39,14 @@ export function LocaleSwitcherSelect({
   const [isPending, startTransition] = useTransition();
 
   function handleChange(event: ChangeEvent<HTMLSelectElement>) {
-    const nextLocale = event.target.value as Locale;
+    const nextLocale = event.target.value;
     if (nextLocale === locale) {
       return;
     }
+    // `setLocale` re-validates this against `localeSchema` server-side; the
+    // `<option>` values below are the only values this control can ever
+    // send, so a validation failure here would mean the schema and the
+    // rendered options have drifted apart, not a hostile request.
     startTransition(async () => {
       await setLocale(nextLocale);
     });

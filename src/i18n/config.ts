@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 /**
  * Locale configuration shared by the request config, the locale-switching
  * server action, and the message-catalogue parity test. There is no
@@ -10,6 +12,17 @@
 export const locales = ["id", "en"] as const;
 
 export type Locale = (typeof locales)[number];
+
+/**
+ * The single source of truth for "is this string a supported locale",
+ * shared between the server action that receives untrusted input
+ * (`src/i18n/set-locale.ts`) and anything on the client that wants the same
+ * check ahead of the round-trip. Per the project standard, a server action
+ * is an HTTP entry point and validates with a Zod schema built from this
+ * same array, rather than trusting the `Locale` type — a compile-time type
+ * is erased by the time a request reaches the action.
+ */
+export const localeSchema = z.enum(locales);
 
 export const defaultLocale: Locale = "id";
 
@@ -25,15 +38,26 @@ const DAYS_PER_YEAR = 365;
 export const LOCALE_COOKIE_MAX_AGE_SECONDS =
   SECONDS_PER_MINUTE * MINUTES_PER_HOUR * HOURS_PER_DAY * DAYS_PER_YEAR;
 
-function isLocale(candidate: string | undefined): candidate is Locale {
-  return (locales as readonly string[]).includes(candidate ?? "");
-}
-
 /**
  * Resolves an arbitrary cookie value to a supported locale, falling back to
  * the default. A cookie tampered with or left over from a removed locale
- * must never crash message loading.
+ * must never crash message loading — this is defence in depth alongside
+ * the schema above, not a substitute for it: a request body is validated
+ * at the action, a cookie is merely defaulted here on read.
  */
 export function resolveLocale(candidate: string | undefined): Locale {
-  return isLocale(candidate) ? candidate : defaultLocale;
+  const result = localeSchema.safeParse(candidate);
+  return result.success ? result.data : defaultLocale;
 }
+
+/**
+ * BCP 47 tags fed to `Intl` by every formatting helper in `src/lib/`. Kept
+ * as its own map — rather than passing `Locale` straight to `Intl` — so
+ * that `id` and `en` always resolve to one exact region (`id-ID`, `en-US`)
+ * regardless of the host's default region for that language, and so a
+ * locale that later needs a different region only changes one line here.
+ */
+export const LOCALE_TAGS: Readonly<Record<Locale, string>> = {
+  id: "id-ID",
+  en: "en-US",
+};

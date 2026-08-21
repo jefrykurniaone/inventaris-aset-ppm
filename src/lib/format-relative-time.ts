@@ -1,9 +1,4 @@
-import type { Locale } from "@/i18n/config";
-
-const LOCALE_TAGS: Readonly<Record<Locale, string>> = {
-  id: "id-ID",
-  en: "en-US",
-};
+import { LOCALE_TAGS, type Locale } from "@/i18n/config";
 
 const SECONDS_PER_MINUTE = 60;
 const MINUTES_PER_HOUR = 60;

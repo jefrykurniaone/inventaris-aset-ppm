@@ -1,9 +1,4 @@
-import type { Locale } from "@/i18n/config";
-
-const LOCALE_TAGS: Readonly<Record<Locale, string>> = {
-  id: "id-ID",
-  en: "en-US",
-};
+import { LOCALE_TAGS, type Locale } from "@/i18n/config";
 
 const IDR_CURRENCY_CODE = "IDR";
 
