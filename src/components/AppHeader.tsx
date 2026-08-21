@@ -33,9 +33,23 @@ export async function AppHeader({ user }: Readonly<AppHeaderProps>) {
           {t("navHome")}
         </Link>
         {isAdmin && (
-          <Link href="/admin/users" className={NAV_LINK_CLASS}>
-            {t("navAdminUsers")}
-          </Link>
+          <>
+            <Link href="/admin/users" className={NAV_LINK_CLASS}>
+              {t("navAdminUsers")}
+            </Link>
+            <Link href="/admin/categories" className={NAV_LINK_CLASS}>
+              {t("navAdminCategories")}
+            </Link>
+            <Link href="/admin/buildings" className={NAV_LINK_CLASS}>
+              {t("navAdminBuildings")}
+            </Link>
+            <Link href="/admin/rooms" className={NAV_LINK_CLASS}>
+              {t("navAdminRooms")}
+            </Link>
+            <Link href="/admin/funding-sources" className={NAV_LINK_CLASS}>
+              {t("navAdminFundingSources")}
+            </Link>
+          </>
         )}
       </nav>
       <div className="flex flex-wrap items-center gap-3">
