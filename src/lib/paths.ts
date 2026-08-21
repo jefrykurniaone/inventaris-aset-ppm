@@ -1,0 +1,12 @@
+/**
+ * Route path constants shared between server-only modules
+ * (`src/lib/require-user.ts`, Server Component pages) and plain Client
+ * Components (`src/components/SignOutButton.tsx`). This file imports
+ * nothing — in particular nothing from `next/headers` or `@/lib/auth` — so a
+ * Client Component can import it without pulling a server-only module into
+ * the browser bundle, which is exactly what would happen if it imported
+ * these constants from `require-user.ts` instead.
+ */
+export const SIGN_IN_PATH = "/sign-in";
+export const NOT_AUTHORIZED_PATH = "/not-authorized";
+export const HOME_PATH = "/";
