@@ -47,17 +47,32 @@ const DEV_ENV_FILE = ".env.local";
 const EXIT_REFUSED = 1;
 const SCRIPT_NAME = "scripts/seed-e2e-master-data.ts";
 
-/** Distinct from any code the demonstration dataset (issue #16) is likely to
- * pick, so the two never collide once that dataset lands. */
-const CATEGORY_CODE = "E2E";
-const CATEGORY_NAME = "Kategori E2E";
-const CATEGORY_NAME_EN = "E2E Category";
+/**
+ * Letters only, never a digit — this bit CI once already (issue #70
+ * hand-back 1). `categorySchema` in
+ * `src/app/(app)/admin/categories/schemas.ts` requires
+ * `/^[A-Z]{2,4}$/`, and `ASSET_CODE_PATTERN` in `src/lib/asset-code.ts`
+ * is `/^PPM-([A-Z]{2,4})-(\d{4})-(\d{4})$/`. The original code, "E2E",
+ * contains the digit "2" and satisfied neither: writing it through `db`
+ * directly bypassed `categorySchema`, and every asset code minted in that
+ * category (`PPM-E2E-2026-nnnn`) failed `ASSET_CODE_PATTERN`, so
+ * `nextAssetCodeSequence` ignored every one of them and kept returning `1` —
+ * the second spec's create then collided on the first spec's own code. Do
+ * not "simplify" this back to something with a digit.
+ */
+const CATEGORY_CODE = "ETE";
+const CATEGORY_NAME = "Kategori End-to-End";
+const CATEGORY_NAME_EN = "End-to-End Category";
 
-const BUILDING_CODE = "E2E";
-const BUILDING_NAME = "Gedung E2E";
+/** `buildingSchema` and `roomSchema` only require a non-empty string up to
+ * 20 characters (`src/app/(app)/admin/buildings/schemas.ts`,
+ * `src/app/(app)/admin/rooms/schemas.ts`) — no letters-only shape — but
+ * matching `CATEGORY_CODE` keeps the three rows recognisably one fixture. */
+const BUILDING_CODE = "ETE";
+const BUILDING_NAME = "Gedung End-to-End";
 
-const ROOM_CODE = "E2E-1";
-const ROOM_NAME = "Ruang E2E";
+const ROOM_CODE = "ETE-1";
+const ROOM_NAME = "Ruang End-to-End";
 
 type Db = (typeof import("@/lib/db"))["db"];
 
