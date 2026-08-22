@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatCurrencyIdr, formatInteger } from "./format-number";
+import { formatCurrencyIdr, formatInteger, formatYear } from "./format-number";
 
 describe("formatInteger", () => {
   it("uses a period as the thousands separator for id", () => {
@@ -14,6 +14,20 @@ describe("formatInteger", () => {
   it("renders zero without a sign in either locale", () => {
     expect(formatInteger(0, "id")).toBe("0");
     expect(formatInteger(0, "en")).toBe("0");
+  });
+});
+
+describe("formatYear", () => {
+  it("renders a year with no grouping separator, regardless of locale", () => {
+    expect(formatYear(2023)).toBe("2023");
+  });
+
+  it("never inserts the id thousands separator for a four-digit year", () => {
+    expect(formatYear(2023)).not.toContain(".");
+  });
+
+  it("never inserts the en thousands separator for a four-digit year", () => {
+    expect(formatYear(2023)).not.toContain(",");
   });
 });
 

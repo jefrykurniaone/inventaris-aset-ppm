@@ -126,10 +126,14 @@ describe("describeChangeValue", () => {
     });
   });
 
-  it("formats acquisitionYear as a locale-formatted integer", () => {
+  it("formats acquisitionYear ungrouped, never with a thousands separator", () => {
     expect(describeChangeValue("acquisitionYear", 2026, "en")).toEqual({
       kind: "text",
-      text: "2,026",
+      text: "2026",
+    });
+    expect(describeChangeValue("acquisitionYear", 2026, "id")).toEqual({
+      kind: "text",
+      text: "2026",
     });
   });
 
