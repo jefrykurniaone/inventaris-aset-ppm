@@ -33,4 +33,20 @@ describe("buildScanUrl", () => {
       "http://localhost:3000/a/abc123DEF456",
     );
   });
+
+  it("strips multiple trailing slashes from the configured base URL", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://inventaris.ppm.example////";
+    expect(buildScanUrl("abc123DEF456")).toBe(
+      "https://inventaris.ppm.example/a/abc123DEF456",
+    );
+  });
+
+  it("resolves quickly for a long run of trailing slashes (typescript:S8786)", () => {
+    const longRunOfSlashes = "/".repeat(50_000);
+    process.env.NEXT_PUBLIC_APP_URL = `https://inventaris.ppm.example${longRunOfSlashes}`;
+    const startedAt = performance.now();
+    const result = buildScanUrl("abc123DEF456");
+    expect(performance.now() - startedAt).toBeLessThan(100);
+    expect(result).toBe("https://inventaris.ppm.example/a/abc123DEF456");
+  });
 });

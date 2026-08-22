@@ -1,8 +1,24 @@
 const DEFAULT_APP_URL = "http://localhost:3000";
 
-/** Strips one or more trailing slashes so joining a path never doubles one. */
+const SLASH = "/";
+
+/**
+ * Strips one or more trailing slashes so joining a path never doubles one.
+ *
+ * A loop, not `value.replace(/\/+$/, "")`: an unbounded quantifier abutting
+ * `$` is exactly the super-linear-backtracking shape SonarQube
+ * `typescript:S8786` flags, and this repository has already been bitten by
+ * that shape three times (#37, #50). `NEXT_PUBLIC_APP_URL` is
+ * operator-controlled rather than user input, so it was never exploitable
+ * here — but the standard does not carve out "probably safe input", and a
+ * plain loop is no less clear than the regex was.
+ */
 function stripTrailingSlashes(value: string): string {
-  return value.replace(/\/+$/, "");
+  let end = value.length;
+  while (end > 0 && value[end - 1] === SLASH) {
+    end -= 1;
+  }
+  return value.slice(0, end);
 }
 
 /**

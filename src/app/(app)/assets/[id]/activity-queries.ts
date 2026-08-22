@@ -20,7 +20,7 @@ const activityWindowSchema = z
   .unknown()
   .optional()
   .transform((raw) => {
-    const value = typeof raw === "string" ? Number(raw) : NaN;
+    const value = typeof raw === "string" ? Number(raw) : Number.NaN;
     if (!Number.isInteger(value) || value < ACTIVITY_WINDOW_STEP) {
       return ACTIVITY_WINDOW_STEP;
     }
