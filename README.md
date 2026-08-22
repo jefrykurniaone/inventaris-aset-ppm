@@ -96,10 +96,37 @@ lint or type error cannot be committed.
 | `SUPABASE_SERVICE_ROLE_KEY` | Required in every environment. Server-side only, used to issue signed upload URLs after the Better Auth session check. Never exposed to the browser |
 | `SUPABASE_STORAGE_BUCKET` | Required in every environment. `asset-photos-dev` in development, `asset-photos` in deployment |
 
+`?pgbouncer=true` and `connection_limit=1` are inert under Prisma 7's driver adapter — they were
+Prisma engine flags, and `pg` drops query parameters it does not recognise. They stay because every
+Prisma and Supabase guide says to add them. The **port** difference is the part that matters.
+[`docs/deployment.md`](docs/deployment.md) §7 has the verification and the error shapes.
+
+## Before a demonstration
+
+Run this the **day before**, not on the morning. A free Supabase project pauses after a week without
+API requests, and the failure it produces is a scan page erroring in front of the client. A daily
+cron against `/api/health` is meant to prevent that (PRD risk R4); this checklist is what confirms
+the prevention worked.
+
+1. **The project is awake.** Open `<production URL>/api/health`. It must answer `{"status":"ok"}`.
+   That endpoint runs a real query against Supabase, so a good answer means the database replied —
+   not merely that Vercel is up. Anything else: resume the project in the Supabase dashboard and
+   check again.
+2. **The seed data is present.** Sign in and open the dashboard. The asset count and the status
+   breakdown must be the seeded figures, not zeros.
+3. **One label scans.** Point a phone camera at a printed label — on mobile data, not on the office
+   network — and confirm the public page opens with its photos.
+
+[`docs/deployment.md`](docs/deployment.md) has the long version, including what to do when step 1
+fails.
+
 ## Documentation
 
 - [`docs/prd.md`](docs/prd.md) — product requirements
 - [`docs/adr/`](docs/adr/) — architecture decision records
+- [`docs/deployment.md`](docs/deployment.md) — the Vercel and Supabase Postgres cutover: environment
+  variables, migrations through session mode, the verification checklist, and what a
+  prepared-statement error against the transaction pooler actually means
 - [`docs/supabase-storage-provisioning.md`](docs/supabase-storage-provisioning.md) — how the storage
   buckets and their access policies were created, and how to recreate them
 - [`docs/sonarcloud-analysis.md`](docs/sonarcloud-analysis.md) — how static analysis runs, why

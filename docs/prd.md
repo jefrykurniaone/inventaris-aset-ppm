@@ -448,10 +448,21 @@ Mitigations:
 
 1. Development traffic keeps the project awake through waves 2 to 4. The exposure is the quiet
    stretch between the last commit and the demonstration, not the build itself.
-2. Once deployed, keep a scheduled request against a cheap health endpoint so the project stays
-   awake.
+2. A scheduled request against a cheap health endpoint, so the project stays awake once development
+   stops. **Both halves are in the repository as of issue #17**: `src/app/api/health/route.ts`
+   answers `GET /api/health` by running `SELECT 1` through the `src/lib/db.ts` seam — the query is
+   the point, because the thing that pauses is the Supabase project and an endpoint returning `200`
+   out of Vercel without touching the database would keep the scheduler happy while the database
+   slept — and `vercel.json` schedules one daily cron against it. Vercel cron rather than a GitHub
+   Actions schedule because GitHub disables scheduled workflows in a quiet repository after 60 days,
+   which is precisely this risk's scenario; `docs/deployment.md` §8 carries the full comparison.
+   *Awaiting observation:* whether the cron invocation is exempt from Vercel's Deployment
+   Protection. Vercel's documentation does not say, and a `401` there would be silent — the schedule
+   would report success daily while nothing reached Supabase. Reading the first invocation's status
+   is a checklist item in `docs/deployment.md` §5.
 3. Confirm the deployment is awake and responding the day before any demonstration. This belongs on
-   a demonstration checklist, not in someone's memory.
+   a demonstration checklist, not in someone's memory — it is now the three-step *Before a
+   demonstration* section in `README.md`.
 4. If the demonstration slips repeatedly, the paid tier removes the behaviour. That is a cost
    question for the client conversation, not an engineering problem.
 
@@ -472,6 +483,22 @@ wave 0 spike covers it. That ticket verifies both connection modes against the S
 created in wave 0, runs migrations through the session-mode connection, points the deployment at
 the `asset-photos` bucket, and confirms the public scan page works from a phone on the deployed URL.
 Until it closes, no claim is made that the application's **database** runs on Supabase.
+
+**Narrowed on paper by issue #17, not yet by observation.** The sharp edge turns out to be sharper
+than described above, and in an unexpected direction: with a Prisma **driver adapter**,
+`?pgbouncer=true` and `connection_limit=1` are both inert. They were Prisma *engine* URL flags, and
+Prisma 7 hands the connection string to `@prisma/adapter-pg` and then to `pg`, which drops
+unrecognised query parameters without an error or a warning. What actually makes transaction mode
+safe here is the adapter's default: it supplies a statement `name` to node-postgres only when given
+a `statementNameGenerator`, and `src/lib/db.ts` gives it none, so every query is an unnamed
+extended-protocol query — which Supavisor transaction mode supports. The consequence of the second
+inert parameter is real but small at this scale: the pool is `pg`'s, defaulting to ten connections
+per warm instance rather than one. `docs/deployment.md` §7 records the verification, the sources,
+the error shapes to expect (`42P05`, `26000`) and the one-line fix if pool exhaustion ever appears.
+
+*Still awaiting observation, and the whole reason this risk stays open:* no query from this
+application has yet reached Supabase Postgres. The reasoning above is read off the installed
+packages, which is stronger than a documentation page and weaker than a request that ran.
 
 ### R3 — No fixed demonstration date
 
