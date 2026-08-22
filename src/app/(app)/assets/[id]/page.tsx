@@ -150,7 +150,11 @@ async function AssetDetailView({
       <AssetDetailActions asset={asset} t={t} td={td} />
       <ScanUrlSection asset={asset} td={td} />
       <PhotoGallery assetId={asset.id} />
-      <LoanPanel status={asset.status} />
+      <LoanPanel
+        assetId={asset.id}
+        assetCode={asset.assetCode}
+        status={asset.status}
+      />
       <AssetDetailSections asset={asset} />
       <ActivityTimeline assetId={asset.id} windowSize={activityWindow} />
     </div>
