@@ -37,12 +37,53 @@ contradicts most of what a search engine will offer.
 1. Vercel dashboard → **Add New… → Project** → import `jefrykurniaone/inventaris-aset-ppm`.
 2. Framework preset: **Next.js**, detected automatically. Root directory `./`. Build command, output
    directory and install command all stay at their defaults — `vercel.json` in this repository sets
-   only `crons` and touches no build setting.
+   only `crons` and touches no build setting. **Do not override the build command in the dashboard**:
+   a dashboard override is configuration nobody reviewing this repository can see.
 3. Node.js version: **24 or later** (`package.json` `engines`).
 4. **Do not deploy yet.** Add the environment variables from [§2](#2-environment-variables) first: a
    build with no `DATABASE_URL` fails, and a build with the wrong `NEXT_PUBLIC_APP_URL` bakes that
    value into the client bundle, because `NEXT_PUBLIC_*` is substituted at build time and not read
    at runtime.
+
+### The build generates the Prisma client
+
+`package.json`'s build script is `prisma generate && next build`, and the `prisma generate` half is
+not optional. `src/generated/prisma` is generated output and git-ignored, so a fresh clone — which
+is what Vercel builds — does not contain it, and `src/lib/db.ts` fails with
+`Module not found: Can't resolve '@/generated/prisma/client'`. CI does not hit this because
+`.github/workflows/ci.yml` runs `npx --no prisma generate` as its own step before `npm run build`;
+Vercel runs only the build script.
+
+It is in the **build** script rather than in `postinstall`, which is what Prisma's own Vercel page
+still recommends
+(<https://www.prisma.io/docs/orm/more/help-and-troubleshooting/vercel-caching-issue>). That page
+predates Prisma 7: it argues from a dependency `postinstall` hook that Prisma **removed** in 7.0
+(<https://www.prisma.io/docs/guides/upgrade-prisma-orm/v7> — "the post-install hook was removed and
+developers are now required to explicitly call `prisma generate`"). Its conclusion survives, its
+premise does not. The build script wins here on three counts: it runs on every build whatever the
+dependency cache did, this repository's own CI installs with `npm ci --ignore-scripts` so a
+`postinstall` would never be exercised by the gate that is supposed to catch its absence, and one
+ordering in one place beats two.
+
+Inside an npm script the binary needs no `npx --no`: `npm run` puts `node_modules/.bin` on `PATH`
+(<https://docs.npmjs.com/cli/v10/commands/npm-run-script>), so `prisma` is already the pinned local
+7.9.1. `npx --no` earns its keep in `ci.yml`, where a bare `run:` step has no such `PATH`.
+
+### `prisma generate` needs `DIRECT_URL` set, even though it opens no connection
+
+`prisma generate` reads the schema and never connects — since 7.2.0 it does not require a database
+URL at all. **`prisma.config.ts` requires one anyway**, because its `datasource.url` is
+`env<PrismaEnv>("DIRECT_URL")` and that helper is evaluated when the config file loads, before any
+command runs. Prisma's config reference says so outright: *"Commands like `prisma generate` don't
+need a database URL, but will still fail if `env()` throws an error when loading the config file"*
+(<https://www.prisma.io/docs/orm/reference/prisma-config-reference>). Confirmed against the
+installed 7.9.1, which words the failure
+`Cannot resolve environment variable: DIRECT_URL` rather than the phrasing the docs quote.
+
+So `DIRECT_URL` must exist in **both** the Production and the Preview scope or the build fails —
+and it fails inside `prisma generate`, naming an environment variable, which reads as a migration
+problem rather than as a build one. [§2](#2-environment-variables) already lists it; this is why it
+is required at build time and not only at migration time.
 
 ## 2. Environment variables
 
