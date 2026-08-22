@@ -413,14 +413,17 @@
     "warrantyUntilInvalid": "Enter a valid warranty date.",
     "warrantyUntilLabel": "Warranty until"
   },
-  "HomePage": {
-    "accentAsText": "Accent as text",
-    "accentOnSurface": "Accent on surface",
-    "subtitle": "Scaffold placeholder. Product surfaces arrive with their own tickets.",
-    "themeDark": "Dark",
-    "themeDescription": "Neutral base, Telkom University red accent.",
-    "themeLight": "Light",
-    "title": "Inventaris Aset PPM"
+  "DashboardPage": {
+    "attentionLabel": "Requires attention",
+    "categoryChartEmpty": "No category data to show yet.",
+    "categoryChartTitle": "Assets per category",
+    "emptyState": "No assets registered yet.",
+    "statusBreakdownLabel": "Assets by status",
+    "title": "Dashboard",
+    "totalAssetsLabel": "Total assets",
+    "totalValueLabel": "Total acquisition value",
+    "yearChartEmpty": "No acquisition year data to show yet.",
+    "yearChartTitle": "Acquisitions per year"
   },
   "LocaleSwitcher": {
     "en": "English",
