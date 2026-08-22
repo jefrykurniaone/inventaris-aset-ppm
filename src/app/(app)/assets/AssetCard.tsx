@@ -8,7 +8,7 @@ import { deleteAssetAction } from "./actions";
 import { CONDITION_LABEL_KEYS, STATUS_LABEL_KEYS } from "./asset-field-specs";
 import { AssetRowCheckbox } from "./AssetRowCheckbox";
 import { AssetThumbnailPlaceholder } from "./AssetThumbnailPlaceholder";
-import type { AssetListRow } from "./queries";
+import type { AssetListRow } from "./list-queries";
 
 type AssetsT = Awaited<ReturnType<typeof getTranslations<"AssetsPage">>>;
 

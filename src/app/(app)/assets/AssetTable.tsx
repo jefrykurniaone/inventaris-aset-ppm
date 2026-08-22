@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { AssetCard } from "./AssetCard";
 import { AssetRow } from "./AssetRow";
 import { AssetSelectAllCheckbox } from "./AssetSelectAllCheckbox";
-import type { AssetListRow } from "./queries";
+import type { AssetListRow } from "./list-queries";
 
 type AssetsT = Awaited<ReturnType<typeof getTranslations<"AssetsPage">>>;
 

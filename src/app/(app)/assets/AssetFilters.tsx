@@ -12,7 +12,7 @@ import {
 import { AssetFilterSelect, AssetFilterTextInput } from "./AssetFilterFields";
 import { AssetSortControls } from "./AssetSortControls";
 import type { AssetListSearchParams } from "./list-schemas";
-import type { AssetListFilterOptions } from "./queries";
+import type { AssetListFilterOptions } from "./list-queries";
 import { ASSET_CONDITIONS, ASSET_STATUSES, type AssetOption } from "./schemas";
 
 type OptionsByFilterName = Record<

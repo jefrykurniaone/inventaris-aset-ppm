@@ -18,7 +18,7 @@ import {
   assetListSearchParamsSchema,
   type AssetListSearchParams,
 } from "./list-schemas";
-import { listAssetFilterOptions, listAssetsPage } from "./queries";
+import { listAssetFilterOptions, listAssetsPage } from "./list-queries";
 
 interface AssetsPageProps {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
