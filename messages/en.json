@@ -249,6 +249,18 @@
     "withdrawnDescription": "{assetCode} — {name} has been withdrawn from the register. Its record is kept, but it no longer appears in lists or reports.",
     "withdrawnTitle": "Asset withdrawn"
   },
+  "AssetLabelsPage": {
+    "description": "{count} assets selected for printing.",
+    "missingNotice": "{count} of the selected assets could not be printed because they were deleted or not found.",
+    "noAssetsFound": "The selected assets were not found or have been deleted.",
+    "offsetApply": "Apply",
+    "offsetHint": "Skip the first few positions if part of the label sheet is already used.",
+    "offsetLabel": "Start at position",
+    "organisation": "Direktorat PPM",
+    "printAction": "Print",
+    "sheetLabel": "Sheet {number}",
+    "title": "Print labels"
+  },
   "AssetPhotos": {
     "assetNotFound": "This asset no longer exists, so no photo can be added to it.",
     "cancelUpload": "Cancel",
@@ -347,8 +359,6 @@
     "fundingSourceLabel": "Funding source",
     "fundingSourcePlaceholder": "No funding source",
     "invalidReference": "The selected category, room, or funding source is no longer available. Reload the page and try again.",
-    "labelsStubDescription": "{count} asset(s) selected. Bulk label printing is not available yet.",
-    "labelsStubTitle": "Print labels",
     "modelLabel": "Model",
     "nameLabel": "Asset name",
     "nameRequired": "Asset name is required.",

@@ -10,9 +10,8 @@ import { useAssetSelection } from "./asset-selection-context";
 /**
  * The selection count and its actions (PRD FR-2.6: "a persistent selection
  * count and a 'print labels' action that hands the selection to the label
- * view from #12"). #12 has not merged, so "Cetak label" links to a stub
- * route at `/assets/labels` rather than a real print view — see that
- * route's own comment.
+ * view from #12"). "Cetak label" links to `/assets/labels?ids=<selection>`,
+ * the real bulk label print view #12 ships.
  */
 export function AssetSelectionToolbar() {
   const t = useTranslations("AssetsPage");
