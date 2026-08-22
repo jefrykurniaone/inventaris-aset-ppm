@@ -75,10 +75,13 @@ export function AssetCard({ asset, t }: Readonly<AssetCardProps>) {
         <AssetThumbnailPlaceholder
           label={t("thumbnailPlaceholderLabel", { assetName: asset.name })}
         />
-        <div className="flex flex-col">
+        <Link
+          href={`/assets/${asset.id}`}
+          className="flex flex-col hover:underline"
+        >
           <span className="font-mono text-sm">{asset.assetCode}</span>
           <span className="font-medium">{asset.name}</span>
-        </div>
+        </Link>
       </div>
       <AssetCardDetails asset={asset} t={t} />
       <AssetCardActions asset={asset} t={t} />
