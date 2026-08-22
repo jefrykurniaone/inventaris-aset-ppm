@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { deleteAssetAction } from "./actions";
 import { CONDITION_LABEL_KEYS, STATUS_LABEL_KEYS } from "./asset-field-specs";
 import { AssetRowCheckbox } from "./AssetRowCheckbox";
-import { AssetThumbnailPlaceholder } from "./AssetThumbnailPlaceholder";
+import { AssetThumbnail } from "./AssetThumbnail";
 import type { AssetListRow } from "./list-queries";
 
 type AssetsT = Awaited<ReturnType<typeof getTranslations<"AssetsPage">>>;
@@ -72,8 +72,15 @@ export function AssetCard({ asset, t }: Readonly<AssetCardProps>) {
     <li className="border-border flex flex-col gap-3 rounded-md border p-4">
       <div className="flex items-start gap-3">
         <AssetRowCheckbox assetId={asset.id} assetCode={asset.assetCode} />
-        <AssetThumbnailPlaceholder
-          label={t("thumbnailPlaceholderLabel", { assetName: asset.name })}
+        <AssetThumbnail
+          thumbnailUrl={asset.thumbnailUrl}
+          alt={t("thumbnailAlt", {
+            assetName: asset.name,
+            categoryName: asset.categoryName,
+          })}
+          placeholderLabel={t("thumbnailPlaceholderLabel", {
+            assetName: asset.name,
+          })}
         />
         <Link
           href={`/assets/${asset.id}`}

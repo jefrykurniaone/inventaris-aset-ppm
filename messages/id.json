@@ -393,6 +393,7 @@
     "statusRetired": "Tidak digunakan",
     "statusSetByLoan": "Status \"Dipinjam\" ditetapkan dengan mencatat peminjaman pada daftar pinjaman, bukan dari formulir ini.",
     "textTooLong": "Maksimal 200 karakter.",
+    "thumbnailAlt": "Foto {assetName} ({categoryName})",
     "thumbnailPlaceholderLabel": "Belum ada foto untuk {assetName}",
     "title": "Aset",
     "unexpectedError": "Terjadi kesalahan. Coba lagi.",
