@@ -70,7 +70,7 @@ The reason, and the condition for removing it, are in
 | Command | Purpose |
 |---|---|
 | `npm run dev` | Development server |
-| `npm run build` | Production build |
+| `npm run build` | `prisma generate` then `next build`. The generate half is not optional — `src/generated/prisma` is git-ignored, so a fresh clone has no client to import. See [`docs/deployment.md`](docs/deployment.md) §1 |
 | `npm run start` | Serve the production build |
 | `npm run lint` | ESLint, zero warnings tolerated |
 | `npm run typecheck` | `tsc --noEmit` |
