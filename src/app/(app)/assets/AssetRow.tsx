@@ -32,9 +32,15 @@ export function AssetRow({ asset, t }: Readonly<AssetRowProps>) {
         />
       </td>
       <td className="py-2 pr-4 font-mono whitespace-nowrap">
-        {asset.assetCode}
+        <Link href={`/assets/${asset.id}`} className="hover:underline">
+          {asset.assetCode}
+        </Link>
       </td>
-      <td className="py-2 pr-4">{asset.name}</td>
+      <td className="py-2 pr-4">
+        <Link href={`/assets/${asset.id}`} className="hover:underline">
+          {asset.name}
+        </Link>
+      </td>
       <td className="py-2 pr-4">{asset.categoryName}</td>
       <td className="py-2 pr-4">{`${asset.buildingName} — ${asset.roomName}`}</td>
       <td className="py-2 pr-4">{t(STATUS_LABEL_KEYS[asset.status])}</td>
