@@ -11,6 +11,7 @@ import {
   type DashboardBarChartItem,
 } from "./DashboardBarChart";
 import { DashboardSummaryCards } from "./DashboardSummaryCards";
+import { OverdueLoansCard } from "./loans/OverdueLoansCard";
 import type { DashboardStatusRow } from "./DashboardStatusBreakdownCard";
 import {
   acquisitionYearFilterHref,
@@ -106,6 +107,12 @@ function DashboardChartsSection({
  * true: `loadDashboardMetrics`'s `includeTotalValue` option is what keeps a
  * staff session's response payload from ever carrying that figure, not a
  * conditional render of an already-fetched number (PRD FR-9.1: "admin only").
+ *
+ * `OverdueLoansCard` (issue #15, PRD FR-6.4) is self-contained — it runs its
+ * own count and links to the loans list pre-filtered to `overdue` — and it
+ * renders even for an empty register, because "0 overdue" is a true and
+ * useful figure where the asset cards' empty state stands in for meaningless
+ * zeros.
  */
 export default async function HomePage() {
   const user = await requireUser();
@@ -139,6 +146,7 @@ export default async function HomePage() {
           attentionValue={formatInteger(metrics.attentionCount, locale)}
         />
       )}
+      <OverdueLoansCard />
       <DashboardChartsSection metrics={metrics} locale={locale} t={t} />
     </div>
   );

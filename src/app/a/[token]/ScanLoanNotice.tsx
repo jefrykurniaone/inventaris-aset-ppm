@@ -1,6 +1,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { formatDate, formatDateTime } from "@/lib/format-date";
+import { isLoanOverdue } from "@/lib/loan-transitions";
 
 import type { ScanLoanBorrower, ScanOpenLoan } from "./queries";
 import { ScanField, ScanFieldGroup } from "./ScanFieldList";
@@ -50,6 +51,16 @@ export async function ScanLoanNotice({
     getTranslations("ScanPage"),
   ]);
 
+  // Derived from `dueAt`, which the anonymous selection already reads for the
+  // sentence above it — the public page learns nothing new by saying the date
+  // has passed, because a visitor holding the label can subtract two dates
+  // themselves. `openLoan` is only ever non-null for an *open* loan
+  // (`OPEN_LOAN_WHERE`), so `returnedAt` is null by construction here.
+  const isOverdue = isLoanOverdue(
+    { dueAt: loan.dueAt, returnedAt: null },
+    new Date(),
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <section
@@ -60,6 +71,11 @@ export async function ScanLoanNotice({
           {ts("onLoanHeading")}
         </h2>
         <p>{ts("onLoanDueOn", { dueAt: formatDate(loan.dueAt, locale) })}</p>
+        {isOverdue ? (
+          <p className="text-destructive-text font-medium">
+            {ts("onLoanOverdue")}
+          </p>
+        ) : null}
       </section>
       {loan.borrower ? (
         <ScanLoanBorrowerFields borrower={loan.borrower} />
