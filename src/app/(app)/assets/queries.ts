@@ -2,58 +2,21 @@ import { db } from "@/lib/db";
 
 import {
   PRICE_DECIMAL_PLACES,
-  type AssetCondition,
   type AssetFormDefaults,
   type AssetFormOptions,
-  type AssetStatus,
 } from "./schemas";
 
 /**
- * Reads for the asset register. Both the list and the edit form are
- * signed-in surfaces, so both may select the restricted half of PRD §8.2 —
- * the public/restricted split is enforced on the *public* scan query (#11),
- * which selects the public columns and no others.
+ * Reads for the asset register's create-and-edit form (issue #7). Both this
+ * and the edit form are signed-in surfaces, so both may select the
+ * restricted half of PRD §8.2 — the public/restricted split is enforced on
+ * the *public* scan query (#11), which selects the public columns and no
+ * others.
+ *
+ * The asset list (issue #8) departs from that: see the note at the top of
+ * `list-queries.ts` for why its query never selects the restricted columns
+ * at all, for every role.
  */
-
-export interface AssetListRow {
-  readonly id: string;
-  readonly assetCode: string;
-  readonly name: string;
-  readonly categoryName: string;
-  readonly roomName: string;
-  readonly buildingName: string;
-  readonly status: AssetStatus;
-  readonly condition: AssetCondition;
-}
-
-/** Non-deleted assets only (PRD FR-2.5): a soft-deleted asset disappears from
- * every list while its row, and therefore its printed label, survives. */
-export async function listAssets(): Promise<readonly AssetListRow[]> {
-  const assets = await db.asset.findMany({
-    where: { deletedAt: null },
-    orderBy: { assetCode: "asc" },
-    select: {
-      id: true,
-      assetCode: true,
-      name: true,
-      status: true,
-      condition: true,
-      category: { select: { name: true } },
-      room: { select: { name: true, building: { select: { name: true } } } },
-    },
-  });
-
-  return assets.map((asset) => ({
-    id: asset.id,
-    assetCode: asset.assetCode,
-    name: asset.name,
-    categoryName: asset.category.name,
-    roomName: asset.room.name,
-    buildingName: asset.room.building.name,
-    status: asset.status,
-    condition: asset.condition,
-  }));
-}
 
 export interface AssetForEdit {
   readonly id: string;
