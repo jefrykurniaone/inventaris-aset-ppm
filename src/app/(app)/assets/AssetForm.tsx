@@ -18,9 +18,11 @@ import {
 import { AssetFieldset } from "./AssetFieldset";
 import {
   ASSET_CONDITIONS,
-  ASSET_STATUSES,
   EMPTY_ASSET_FORM_DEFAULTS,
   INITIAL_ASSET_FORM_STATE,
+  LOANED_STATUS,
+  selectableStatuses,
+  type AssetFieldNotes,
   type AssetFormDefaults,
   type AssetFormOptions,
   type AssetFormState,
@@ -108,11 +110,24 @@ export function AssetForm({
   const t = useTranslations("AssetsPage");
   const [state, formAction] = useActionState(action, INITIAL_ASSET_FORM_STATE);
 
+  // `loaned` is offered only to an asset that already is, and then as the
+  // only option with the control locked. The loan register (#15) owns that
+  // status in both directions; `refuseStatusTransition` on the server is what
+  // enforces it, and this is the courtesy that keeps a user from walking into
+  // the refusal.
+  const isOnLoan = defaults.status === LOANED_STATUS;
   const optionSets: AssetOptionSets = {
     ...options,
     conditions: enumOptions(ASSET_CONDITIONS, CONDITION_LABEL_KEYS, t),
-    statuses: enumOptions(ASSET_STATUSES, STATUS_LABEL_KEYS, t),
+    statuses: enumOptions(
+      selectableStatuses(defaults.status),
+      STATUS_LABEL_KEYS,
+      t,
+    ),
   };
+  const lockedNotes: AssetFieldNotes = isOnLoan
+    ? { status: t("statusLockedByLoan") }
+    : {};
 
   return (
     <form
@@ -128,6 +143,7 @@ export function AssetForm({
         t={t}
         defaults={defaults}
         errors={state.fieldErrors}
+        lockedNotes={lockedNotes}
         options={optionSets}
       />
       <AssetFieldset
@@ -137,6 +153,7 @@ export function AssetForm({
         t={t}
         defaults={defaults}
         errors={state.fieldErrors}
+        lockedNotes={lockedNotes}
         options={optionSets}
       />
       <FormError message={state.formError} />

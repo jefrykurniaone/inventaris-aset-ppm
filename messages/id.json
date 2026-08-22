@@ -280,6 +280,7 @@
     "statusPlaceholder": "Pilih status",
     "statusRequired": "Status wajib dipilih.",
     "statusRetired": "Tidak digunakan",
+    "statusSetByLoan": "Status \"Dipinjam\" ditetapkan dengan mencatat peminjaman pada daftar pinjaman, bukan dari formulir ini.",
     "textTooLong": "Maksimal 200 karakter.",
     "title": "Aset",
     "unexpectedError": "Terjadi kesalahan. Coba lagi.",

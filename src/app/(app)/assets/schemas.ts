@@ -35,6 +35,55 @@ export type AssetCondition = (typeof ASSET_CONDITIONS)[number];
 export const LOANED_STATUS: AssetStatus = "loaned";
 
 /**
+ * Why a submitted status is refused, or `null` when it is allowed. `current`
+ * is `null` for a create.
+ *
+ * The asset form does not own `loaned`, in *either* direction, and these two
+ * refusals are one rule seen from its two sides. `loaned` is a fact about a
+ * `Loan` row, not a label somebody types: setting it here would record an
+ * asset as checked out with nobody holding it and no due date, and clearing
+ * it here would strand the open loan row that is holding the real one. Both
+ * transitions belong to check-out and return (#15).
+ *
+ * Refusing only the way *out* — which is all FR-2's wording strictly asks for
+ * — leaves a one-way door: the form offers `loaned`, and the moment it is
+ * saved the same rule locks the asset out of every other status until #15
+ * ships. The picker hides `loaned` for exactly this reason, and this function
+ * is why hiding it is a courtesy rather than the enforcement.
+ */
+export type StatusTransitionRefusal =
+  "STATUS_LOCKED_BY_LOAN" | "STATUS_SET_BY_LOAN";
+
+export function refuseStatusTransition(
+  current: string | null,
+  next: AssetStatus,
+): StatusTransitionRefusal | null {
+  const isCurrentlyLoaned = current === LOANED_STATUS;
+  const isBecomingLoaned = next === LOANED_STATUS;
+
+  if (isCurrentlyLoaned && !isBecomingLoaned) {
+    return "STATUS_LOCKED_BY_LOAN";
+  }
+  if (!isCurrentlyLoaned && isBecomingLoaned) {
+    return "STATUS_SET_BY_LOAN";
+  }
+  return null;
+}
+
+/**
+ * The statuses the form's picker may offer. An asset already out on loan gets
+ * exactly one — its own — and the control is rendered locked; every other
+ * asset gets every status except `loaned`. Mirrors `refuseStatusTransition`
+ * above, which is what actually enforces it.
+ */
+export function selectableStatuses(current: string): readonly AssetStatus[] {
+  if (current === LOANED_STATUS) {
+    return [LOANED_STATUS];
+  }
+  return ASSET_STATUSES.filter((status) => status !== LOANED_STATUS);
+}
+
+/**
  * The register predates the directorate's digital records but not by much;
  * anything earlier is a typo rather than an acquisition. One year ahead is
  * allowed because procurement is routinely booked against the coming budget
@@ -187,6 +236,11 @@ export const REQUIRED_ASSET_FIELD_NAMES: readonly AssetFieldName[] = [
 ];
 
 export type AssetFieldErrors = Partial<Record<AssetFieldName, string>>;
+
+/** A note rendered under a field whose control is locked, keyed by field —
+ * currently only `status`, on an asset that is out on loan. Present means
+ * locked, so there is no second flag to keep in step with the message. */
+export type AssetFieldNotes = Partial<Record<AssetFieldName, string>>;
 
 /** Every field as the string its `<input>` wants. The edit page fills this
  * from the stored row (`queries.ts`); the create page uses the blank below.

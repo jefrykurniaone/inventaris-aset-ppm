@@ -135,6 +135,8 @@ function reasonToFormError(
       return t("sequenceExhausted");
     case "STATUS_LOCKED_BY_LOAN":
       return t("statusLockedByLoan");
+    case "STATUS_SET_BY_LOAN":
+      return t("statusSetByLoan");
     default:
       return t("unexpectedError");
   }

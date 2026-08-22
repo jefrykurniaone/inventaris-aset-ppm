@@ -165,9 +165,23 @@ export function assetCodeLockKey(
   // and would need a `?? 0` fallback that no input can reach, leaving an
   // untestable branch behind. Every id and year here is ASCII, and the hash
   // only has to be deterministic, not Unicode-aware.
+  //
+  // The multiply must stay `Math.imul`, whose result is already ToInt32.
   for (const character of source) {
     hash ^= character.charCodeAt(0);
     hash = Math.imul(hash, FNV_PRIME);
   }
-  return hash | 0;
+
+  // `Math.imul(hash, 1)`, and specifically *not* `Math.trunc(hash)`, which is
+  // what `typescript:S7767` proposes in place of the `| 0` this replaces.
+  // The two are different operations: `Math.trunc` only drops a fractional
+  // part, while `| 0` and `Math.imul` both apply ToInt32, which *wraps*. They
+  // agree on every value the loop above can produce, because `Math.imul`
+  // already returns a signed 32-bit integer — and they disagree on the one
+  // value it cannot: an empty `source` leaves `hash` at `FNV_OFFSET_BASIS`,
+  // 2166136261, above the `int4` maximum, which `pg_advisory_xact_lock(int4,
+  // int4)` would reject at the database. `source` always carries at least the
+  // `:` separator, so that path is unreachable today; `Math.trunc` would make
+  // it one refactor away from being a runtime failure instead of a wrap.
+  return Math.imul(hash, 1);
 }

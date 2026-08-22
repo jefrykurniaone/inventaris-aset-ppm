@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   ASSET_FIELD_NAMES,
+  ASSET_STATUSES,
   assetSchema,
   EMPTY_ASSET_FORM_DEFAULTS,
+  refuseStatusTransition,
+  selectableStatuses,
 } from "./schemas";
 
 /** Bounds are read at validation time, so the fixtures follow the clock
@@ -144,6 +147,80 @@ describe("assetSchema — warrantyUntil", () => {
     ["a timestamp", "2027-03-15T10:00:00Z"],
   ])("rejects %s", (_label, warrantyUntil) => {
     expect(firstIssuePath({ warrantyUntil })).toBe("warrantyUntil");
+  });
+});
+
+describe("refuseStatusTransition — the loan register owns `loaned`", () => {
+  it("refuses creating an asset already marked on loan", () => {
+    expect(refuseStatusTransition(null, "loaned")).toBe("STATUS_SET_BY_LOAN");
+  });
+
+  it.each(["active", "in_repair", "retired", "lost"] as const)(
+    "refuses moving an asset from %s into loaned",
+    (current) => {
+      expect(refuseStatusTransition(current, "loaned")).toBe(
+        "STATUS_SET_BY_LOAN",
+      );
+    },
+  );
+
+  it.each(["active", "in_repair", "retired", "lost"] as const)(
+    "refuses moving an asset that is on loan to %s",
+    (next) => {
+      expect(refuseStatusTransition("loaned", next)).toBe(
+        "STATUS_LOCKED_BY_LOAN",
+      );
+    },
+  );
+
+  it("allows an on-loan asset to be edited while keeping its status", () => {
+    expect(refuseStatusTransition("loaned", "loaned")).toBeNull();
+  });
+
+  it.each(["active", "in_repair", "retired", "lost"] as const)(
+    "allows creating an asset as %s",
+    (next) => {
+      expect(refuseStatusTransition(null, next)).toBeNull();
+    },
+  );
+
+  it("allows every transition that does not cross loaned", () => {
+    expect(refuseStatusTransition("active", "in_repair")).toBeNull();
+    expect(refuseStatusTransition("in_repair", "active")).toBeNull();
+    expect(refuseStatusTransition("active", "lost")).toBeNull();
+    expect(refuseStatusTransition("retired", "retired")).toBeNull();
+  });
+});
+
+describe("selectableStatuses", () => {
+  it("hides loaned from an asset that is not on loan", () => {
+    expect(selectableStatuses("active")).not.toContain("loaned");
+  });
+
+  it("offers every other status to an asset that is not on loan", () => {
+    expect(selectableStatuses("active")).toEqual(
+      ASSET_STATUSES.filter((status) => status !== "loaned"),
+    );
+  });
+
+  it("offers an on-loan asset only its own status, so the control can lock", () => {
+    expect(selectableStatuses("loaned")).toEqual(["loaned"]);
+  });
+
+  it("never offers an option that refuseStatusTransition would then refuse", () => {
+    for (const current of ASSET_STATUSES) {
+      for (const offered of selectableStatuses(current)) {
+        expect(refuseStatusTransition(current, offered)).toBeNull();
+      }
+    }
+  });
+
+  it("offers a create only statuses a create accepts", () => {
+    for (const offered of selectableStatuses(
+      EMPTY_ASSET_FORM_DEFAULTS.status,
+    )) {
+      expect(refuseStatusTransition(null, offered)).toBeNull();
+    }
   });
 });
 

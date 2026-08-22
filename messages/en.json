@@ -280,6 +280,7 @@
     "statusPlaceholder": "Select a status",
     "statusRequired": "Status is required.",
     "statusRetired": "Retired",
+    "statusSetByLoan": "The \"On loan\" status is set by checking the item out in the loan register, not from this form.",
     "textTooLong": "At most 200 characters.",
     "title": "Assets",
     "unexpectedError": "Something went wrong. Please try again.",

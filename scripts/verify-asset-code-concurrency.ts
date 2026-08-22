@@ -1,29 +1,20 @@
 /**
  * Verification script for the asset code generator added by issue #7, in the
- * style of `scripts/verify-master-data-rules.ts`.
- *
- * The property under test cannot be shown by a Vitest unit test: `npm run
- * test` runs in a `node` environment with no database (`vitest.config.mts`),
- * and what is being claimed is a *database* guarantee — a transaction-scoped
- * Postgres advisory lock, keyed on the (category, acquisition year)
- * namespace, serialising the read-highest-then-insert inside `createAsset`. A
- * mocked Prisma client would prove only that the mock was called.
- *
- * Shown here, against the real local development database: that many
- * simultaneous creates in one category and year produce a contiguous run of
- * codes and no duplicate (PRD FR-2.1); that the sequence restarts at 0001 for
- * a second category and for a second year; that a soft-deleted asset does not
- * free its number for reuse, because its printed label outlives the row; that
- * every `qrToken` is a distinct 12-character nanoid (FR-2.2); and that every
- * mutation left its activity row behind (FR-8.3).
- *
- * Run it with:
+ * style of `scripts/verify-master-data-rules.ts`. Run it with:
  *
  *     npx tsx scripts/verify-asset-code-concurrency.ts
  *
- * The process exits on its own. A non-zero exit code means at least one
- * property did not hold. The script creates its own fixtures, removes them
- * before and after the run, and is safe to run repeatedly.
+ * What it proves cannot be shown by a Vitest unit test: `npm run test` runs a
+ * `node` environment with no database (`vitest.config.mts`), and the claim is
+ * a *database* guarantee — a transaction-scoped Postgres advisory lock, keyed
+ * on the (category, acquisition year) namespace, serialising the
+ * read-highest-then-insert inside `createAsset`. A mocked Prisma client would
+ * prove only that the mock was called. Each check below states in the line it
+ * prints what it holds: PRD FR-2.1 for the codes, FR-2.2 for the tokens,
+ * FR-8.3 for the activity rows.
+ *
+ * A non-zero exit code means at least one property did not hold. The script
+ * makes its own fixtures, removes them either side of the run, and repeats.
  */
 import { describeError } from "@/lib/log-error";
 import { QR_TOKEN_LENGTH } from "@/lib/qr-token";
@@ -43,9 +34,8 @@ const OTHER_CATEGORY_CODE = "ACCB";
 const YEAR = 2026;
 const OTHER_YEAR = 2027;
 
-/** Enough parallel writers that an unsynchronised read-then-insert loses
- * essentially every time, but few enough to stay inside Prisma's default
- * five-second interactive transaction timeout on a laptop. */
+/** Enough parallel writers that an unsynchronised read-then-insert loses every
+ * time, few enough to stay inside Prisma's 5s transaction timeout. */
 const PARALLEL_CREATES = 12;
 
 const URL_SAFE_TOKEN = /^[A-Za-z0-9_-]+$/;
@@ -87,41 +77,35 @@ async function removeFixtures(db: Db): Promise<void> {
   await db.user.deleteMany({ where: { id: USER_ID } });
 }
 
+async function createCategory(
+  db: Db,
+  id: string,
+  code: string,
+  label: string,
+): Promise<void> {
+  const data = {
+    id,
+    code,
+    name: `Konkurensi ${label}`,
+    nameEn: `Concurrency ${label}`,
+  };
+  await db.category.create({ data });
+}
+
 async function createFixtures(db: Db): Promise<void> {
   await db.user.create({
     data: { id: USER_ID, name: "Asset Code Check", email: FIXTURE_EMAIL },
   });
-  await db.category.create({
-    data: {
-      id: CATEGORY_ID,
-      code: CATEGORY_CODE,
-      name: "Konkurensi A",
-      nameEn: "Concurrency A",
-    },
-  });
-  await db.category.create({
-    data: {
-      id: OTHER_CATEGORY_ID,
-      code: OTHER_CATEGORY_CODE,
-      name: "Konkurensi B",
-      nameEn: "Concurrency B",
-    },
-  });
+  await createCategory(db, CATEGORY_ID, CATEGORY_CODE, "A");
+  await createCategory(db, OTHER_CATEGORY_ID, OTHER_CATEGORY_CODE, "B");
   await db.building.create({
     data: { id: BUILDING_ID, code: "ACCG", name: "Gedung Konkurensi" },
   });
-  await db.room.create({
-    data: {
-      id: ROOM_ID,
-      buildingId: BUILDING_ID,
-      code: "K1",
-      name: "Ruang K1",
-    },
-  });
+  const room = { id: ROOM_ID, buildingId: BUILDING_ID, code: "K1" };
+  await db.room.create({ data: { ...room, name: "Ruang K1" } });
 }
 
-/** The two modules under test, carried as one argument so the check
- * functions below stay short enough to read. */
+/** The two modules under test, as one argument, so the checks stay short. */
 interface Subject {
   readonly mutations: AssetMutations;
   readonly schemas: AssetSchemas;
@@ -148,8 +132,8 @@ interface CreatedAsset {
   readonly assetCode: string;
 }
 
-/** Starts every create before awaiting any of them, so they contend for the
- * same (category, year) namespace inside overlapping transactions. */
+/** Starts every create before awaiting any, so their transactions overlap and
+ * genuinely contend for the same (category, year) namespace. */
 async function createInParallel(
   { mutations, schemas }: Subject,
   categoryId: string,
@@ -182,6 +166,13 @@ function expectedRun(categoryCode: string, year: number, count: number) {
   );
 }
 
+/** Explicit, not `toSorted()`'s implicit UTF-16 order (`typescript:S2871`).
+ * These codes are fixed-width ASCII so the two agree, but "alphabetically" is
+ * the intent, and an intent belongs in the code rather than in a coincidence. */
+function byCode(left: string, right: string): number {
+  return left.localeCompare(right);
+}
+
 function checkNoDuplicates(created: readonly CreatedAsset[]): boolean {
   const codes = created.map((asset) => asset.assetCode);
   const unique = new Set(codes);
@@ -191,7 +182,7 @@ function checkNoDuplicates(created: readonly CreatedAsset[]): boolean {
     `${unique.size} distinct of ${codes.length}`,
   );
 
-  const sorted = [...codes].toSorted();
+  const sorted = [...codes].toSorted(byCode);
   const isContiguous = report(
     "the codes form one contiguous run from 0001",
     JSON.stringify(sorted) ===

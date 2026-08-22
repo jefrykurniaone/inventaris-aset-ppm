@@ -69,6 +69,12 @@ interface AssetSelectFieldProps {
   readonly isRequired?: boolean;
   readonly placeholder: string;
   readonly options: readonly AssetOption[];
+  readonly lockedNote?: string;
+}
+
+function describedBy(ids: readonly (string | null)[]): string | undefined {
+  const present = ids.filter((id): id is string => id !== null);
+  return present.length > 0 ? present.join(" ") : undefined;
 }
 
 /**
@@ -77,6 +83,14 @@ interface AssetSelectFieldProps {
  * selectable and means "none" — a funding source is genuinely optional
  * (§8.2), and an explicit "none" beats leaving the first record silently
  * pre-selected.
+ *
+ * A `lockedNote` renders the control disabled with its note underneath — the
+ * `status` picker on an asset that is out on loan. The disabled `<select>`
+ * then carries no `name`, because a disabled control submits nothing and the
+ * server would read a required field as missing; the value travels in the
+ * hidden input beside it instead. None of this is authorisation:
+ * `refuseStatusTransition` in `schemas.ts` is what actually refuses, on the
+ * server, whatever the client submits.
  */
 export function AssetSelectField({
   name,
@@ -86,30 +100,45 @@ export function AssetSelectField({
   isRequired = false,
   placeholder,
   options,
+  lockedNote,
 }: Readonly<AssetSelectFieldProps>) {
   const id = fieldId(name);
   const errorId = `${id}-error`;
+  const noteId = `${id}-note`;
+  const isLocked = lockedNote !== undefined;
 
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id}>{label}</Label>
+      {isLocked && <input type="hidden" name={name} value={defaultValue} />}
       <Select
         id={id}
-        name={name}
+        name={isLocked ? undefined : name}
         defaultValue={defaultValue}
-        required={isRequired}
+        required={isRequired && !isLocked}
+        disabled={isLocked}
         aria-invalid={Boolean(error)}
-        aria-describedby={error ? errorId : undefined}
+        aria-describedby={describedBy([
+          error ? errorId : null,
+          isLocked ? noteId : null,
+        ])}
       >
-        <option value="" disabled={isRequired}>
-          {placeholder}
-        </option>
+        {!isLocked && (
+          <option value="" disabled={isRequired}>
+            {placeholder}
+          </option>
+        )}
         {options.map((option) => (
           <option key={option.id} value={option.id}>
             {option.label}
           </option>
         ))}
       </Select>
+      {isLocked && (
+        <p id={noteId} className="text-muted-foreground text-sm">
+          {lockedNote}
+        </p>
+      )}
       <FieldError id={errorId} message={error} />
     </div>
   );

@@ -19,7 +19,7 @@ import {
   writeUpdateActivities,
   type TransactionClient,
 } from "./activity-writes";
-import { LOANED_STATUS, type AssetInput } from "./schemas";
+import { refuseStatusTransition, type AssetInput } from "./schemas";
 
 /**
  * Plain database logic for the asset register (PRD FR-2.1 to FR-2.5), kept
@@ -37,7 +37,8 @@ export type MutationFailureReason =
   | "INVALID_REFERENCE"
   | "SEQUENCE_EXHAUSTED"
   | "CODE_COLLISION"
-  | "STATUS_LOCKED_BY_LOAN";
+  | "STATUS_LOCKED_BY_LOAN"
+  | "STATUS_SET_BY_LOAN";
 
 export type MutationResult =
   | { readonly ok: true }
@@ -174,11 +175,20 @@ function classifyCreateError(error: unknown): "RETRY" | MutationFailureReason {
  * Creates an asset, generating both identifiers (PRD FR-2.1, FR-2.2) and
  * writing the `created` activity row in the same transaction, so an asset
  * never exists without its own audit trail entry.
+ *
+ * A new asset may not be registered as `loaned`: that status is a fact about
+ * a `Loan` row, and there cannot be one yet. The picker does not offer it,
+ * and this check is why that is a courtesy rather than the enforcement.
  */
 export async function createAsset(
   input: AssetInput,
   actorId: string,
 ): Promise<CreateAssetResult> {
+  const refusal = refuseStatusTransition(null, input.status);
+  if (refusal !== null) {
+    return { ok: false, reason: refusal };
+  }
+
   for (let attempt = 1; attempt <= MAX_CREATE_ATTEMPTS; attempt += 1) {
     try {
       return await createAssetOnce(input, actorId);
@@ -197,9 +207,10 @@ export async function createAsset(
  * when the category or the acquisition year changes — see the comment on
  * `findAssetForEdit` in `queries.ts`.
  *
- * The one refused transition is away from `loaned`: the loan register (#15)
- * owns that, and letting the asset form quietly mark a checked-out item
- * `retired` would strand the open loan row.
+ * Both directions across `loaned` are refused, by `refuseStatusTransition`:
+ * the loan register (#15) owns that status. Marking a checked-out item
+ * `retired` here would strand the open loan row, and marking an idle item
+ * `loaned` here would record a check-out with no borrower and no due date.
  */
 export async function updateAsset(
   id: string,
@@ -210,8 +221,10 @@ export async function updateAsset(
   if (!existing) {
     return { ok: false, reason: "NOT_FOUND" };
   }
-  if (existing.status === LOANED_STATUS && input.status !== LOANED_STATUS) {
-    return { ok: false, reason: "STATUS_LOCKED_BY_LOAN" };
+
+  const refusal = refuseStatusTransition(existing.status, input.status);
+  if (refusal !== null) {
+    return { ok: false, reason: refusal };
   }
 
   const changes = diffAssets(

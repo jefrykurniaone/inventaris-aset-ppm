@@ -10,7 +10,11 @@ import {
   AssetTextAreaField,
   AssetTextField,
 } from "./AssetFormFields";
-import type { AssetFieldErrors, AssetFormDefaults } from "./schemas";
+import type {
+  AssetFieldErrors,
+  AssetFieldNotes,
+  AssetFormDefaults,
+} from "./schemas";
 
 /**
  * Renders one described field, and one `<fieldset>` of them.
@@ -27,6 +31,7 @@ interface AssetFieldProps {
   readonly t: AssetsTranslate;
   readonly defaults: AssetFormDefaults;
   readonly errors: AssetFieldErrors;
+  readonly lockedNotes: AssetFieldNotes;
   readonly options: AssetOptionSets;
 }
 
@@ -35,6 +40,7 @@ export function AssetField({
   t,
   defaults,
   errors,
+  lockedNotes,
   options,
 }: Readonly<AssetFieldProps>) {
   const shared = {
@@ -51,6 +57,7 @@ export function AssetField({
         isRequired={spec.isRequired}
         placeholder={t(spec.placeholderKey)}
         options={options[spec.optionsKey]}
+        lockedNote={lockedNotes[spec.name]}
       />
     );
   }
@@ -76,6 +83,7 @@ interface AssetFieldsetProps {
   readonly t: AssetsTranslate;
   readonly defaults: AssetFormDefaults;
   readonly errors: AssetFieldErrors;
+  readonly lockedNotes: AssetFieldNotes;
   readonly options: AssetOptionSets;
 }
 
@@ -86,6 +94,7 @@ export function AssetFieldset({
   t,
   defaults,
   errors,
+  lockedNotes,
   options,
 }: Readonly<AssetFieldsetProps>) {
   return (
@@ -99,6 +108,7 @@ export function AssetFieldset({
           t={t}
           defaults={defaults}
           errors={errors}
+          lockedNotes={lockedNotes}
           options={options}
         />
       ))}

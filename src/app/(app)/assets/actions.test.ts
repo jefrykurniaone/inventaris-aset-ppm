@@ -172,6 +172,7 @@ describe("createAssetAction", () => {
     ["SEQUENCE_EXHAUSTED", "sequenceExhausted"],
     ["INVALID_REFERENCE", "invalidReference"],
     ["CODE_COLLISION", "unexpectedError"],
+    ["STATUS_SET_BY_LOAN", "statusSetByLoan"],
   ] as const)(
     "maps %s to a localised, non-generic form error",
     async (reason, messageKey) => {
@@ -216,6 +217,40 @@ describe("updateAssetAction", () => {
 
     expect(result.formError).toBe("statusLockedByLoan");
     expect(mockedRedirect).not.toHaveBeenCalled();
+  });
+
+  it("refuses a submission that sets loaned from the form, with its own message", async () => {
+    mockedUpdateAsset.mockResolvedValue({
+      ok: false,
+      reason: "STATUS_SET_BY_LOAN",
+    });
+
+    const result = await updateAssetAction(
+      INITIAL_ASSET_FORM_STATE,
+      updateFormData({ status: "loaned" }),
+    );
+
+    expect(result.formError).toBe("statusSetByLoan");
+    expect(result.formError).not.toBe("statusLockedByLoan");
+    expect(mockedRedirect).not.toHaveBeenCalled();
+  });
+
+  it("still reaches the mutation with a hand-crafted loaned payload, so the server decides", async () => {
+    mockedUpdateAsset.mockResolvedValue({
+      ok: false,
+      reason: "STATUS_SET_BY_LOAN",
+    });
+
+    await updateAssetAction(
+      INITIAL_ASSET_FORM_STATE,
+      updateFormData({ status: "loaned" }),
+    );
+
+    expect(mockedUpdateAsset).toHaveBeenCalledWith(
+      ASSET_ID,
+      expect.objectContaining({ status: "loaned" }),
+      ACTOR_ID,
+    );
   });
 
   it("reports a missing asset rather than raising", async () => {
