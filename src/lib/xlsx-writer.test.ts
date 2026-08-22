@@ -22,6 +22,12 @@ const NAME_LENGTH_OFFSET = 26;
 const EXTRA_LENGTH_OFFSET = 28;
 const LOCAL_HEADER_SIZE = 30;
 
+/** This is a 5000-row compression benchmark, not a speed check. Standalone it
+ * finishes in well under a second (measured 817 ms), but Vitest's default
+ * 5000 ms per-test timeout leaves no margin under parallel test load, so it
+ * gets a generous timeout of its own instead of racing the whole suite. */
+const LARGE_EXPORT_TEST_TIMEOUT_MS = 20_000;
+
 /** Walks the local file headers in order, which is enough to read an archive
  * this writer produced: every entry stores its own compressed size. */
 function readArchive(archive: Buffer): ReadonlyMap<string, string> {
@@ -163,21 +169,25 @@ describe("createXlsxStream", () => {
 });
 
 describe("createXlsxStream memory behaviour", () => {
-  it("keeps a large export far smaller compressed than the XML it wrote", async () => {
-    const rows = Array.from({ length: 5000 }, (_unused, index) =>
-      bodyRow(`PPM-${index}`, index * 1000),
-    );
-    const stream = createXlsxStream({
-      sheetName: "Aset",
-      columns: COLUMNS,
-      rows: rowsOf(rows),
-    });
-    const bytes = await collectStream(stream);
-    const sheet = readArchive(bytes).get(WORKSHEET_PART_PATH) ?? "";
+  it(
+    "keeps a large export far smaller compressed than the XML it wrote",
+    async () => {
+      const rows = Array.from({ length: 5000 }, (_unused, index) =>
+        bodyRow(`PPM-${index}`, index * 1000),
+      );
+      const stream = createXlsxStream({
+        sheetName: "Aset",
+        columns: COLUMNS,
+        rows: rowsOf(rows),
+      });
+      const bytes = await collectStream(stream);
+      const sheet = readArchive(bytes).get(WORKSHEET_PART_PATH) ?? "";
 
-    expect(sheet).toContain('<row r="5001">');
-    expect(bytes.length).toBeLessThan(sheet.length / 5);
-  });
+      expect(sheet).toContain('<row r="5001">');
+      expect(bytes.length).toBeLessThan(sheet.length / 5);
+    },
+    LARGE_EXPORT_TEST_TIMEOUT_MS,
+  );
 
   it("produces nothing until the body is read", async () => {
     let started = false;
