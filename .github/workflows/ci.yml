@@ -190,6 +190,16 @@ jobs:
           SEED_ADMIN_EMAIL: ${{ secrets.E2E_EMAIL }}
           SEED_ADMIN_PASSWORD: ${{ secrets.E2E_PASSWORD }}
 
+      # `npm run db:seed` above seeds only the administrator; the asset
+      # create form's `categoryId` and `roomId` pickers need at least one
+      # active `Category` and one active `Room` (with its `Building`) to
+      # offer, or the specs' `createAsset` helper hangs selecting an option
+      # that does not exist (issue #70). The full demonstration dataset is
+      # issue #16's — this step seeds only what the smoke path needs.
+      - name: Seed master data for the smoke path
+        if: env.HAS_E2E_SECRETS == 'true'
+        run: npm run db:seed:e2e-master-data
+
       - name: Run the Playwright smoke path
         if: env.HAS_E2E_SECRETS == 'true'
         run: npm run test:e2e

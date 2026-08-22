@@ -1,4 +1,5 @@
 import type { AssetCondition, AssetStatus } from "@/app/(app)/assets/schemas";
+import { buildAttentionWhere } from "@/lib/asset-attention";
 import type { db } from "@/lib/db";
 
 /**
@@ -55,6 +56,10 @@ export interface AssetListFilters {
   readonly condition?: AssetCondition;
   readonly acquisitionYear?: number;
   readonly fundingSourceId?: string;
+  /** The dashboard's "requiring attention" card links here (PRD FR-9.1). Kept
+   * as its own boolean rather than exposed as a status or condition value,
+   * because it is a compound rule (`asset-attention.ts`), not a column. */
+  readonly attention?: boolean;
 }
 
 export interface AssetListQueryInput extends AssetListFilters {
@@ -111,6 +116,13 @@ export function buildAssetListWhere(filters: AssetListFilters): AssetListWhere {
         toSearchClause(field, trimmedSearch),
       ),
     }),
+    // Nested under `AND` rather than merged as a second top-level `OR` key —
+    // a plain object can only hold one `OR` key, and the search clause above
+    // already claims it. Wrapping keeps the two independent regardless of
+    // whether both are active at once, and leaves the search-only shape
+    // (asserted by this file's existing tests) untouched when `attention` is
+    // absent.
+    ...(filters.attention && { AND: [buildAttentionWhere()] }),
   };
 
   // Prisma's generated `AssetWhereInput` is a large conditional type keyed
