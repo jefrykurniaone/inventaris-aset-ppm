@@ -15,6 +15,7 @@
     "test:e2e": "playwright test --pass-with-no-tests",
     "auth:generate": "npx --no auth generate --adapter prisma --yes --output prisma/models/auth.prisma",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:e2e-master-data": "tsx scripts/seed-e2e-master-data.ts",
     "storage:purge:dev": "tsx scripts/purge-dev-storage-bucket.ts",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
