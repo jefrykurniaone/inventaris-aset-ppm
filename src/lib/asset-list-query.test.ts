@@ -94,6 +94,44 @@ describe("buildAssetListWhere", () => {
       name: { contains: hostile, mode: "insensitive" },
     });
   });
+
+  it("omits the attention clause when attention is not requested", () => {
+    expect(buildAssetListWhere({}).AND).toBeUndefined();
+  });
+
+  it("ANDs the shared attention rule in, including the no-photo relation filter", () => {
+    const where = buildAssetListWhere({ attention: true });
+    expect(where.AND).toEqual([
+      {
+        OR: [
+          { status: "in_repair" },
+          { condition: "poor" },
+          { photos: { none: {} } },
+        ],
+      },
+    ]);
+  });
+
+  it("keeps the attention clause and a free-text search independent of each other", () => {
+    const where = buildAssetListWhere({ attention: true, search: "proj" });
+    expect(where.OR).toEqual([
+      { name: { contains: "proj", mode: "insensitive" } },
+      { assetCode: { contains: "proj", mode: "insensitive" } },
+      { universityAssetCode: { contains: "proj", mode: "insensitive" } },
+      { brand: { contains: "proj", mode: "insensitive" } },
+      { model: { contains: "proj", mode: "insensitive" } },
+      { serialNumber: { contains: "proj", mode: "insensitive" } },
+    ]);
+    expect(where.AND).toEqual([
+      {
+        OR: [
+          { status: "in_repair" },
+          { condition: "poor" },
+          { photos: { none: {} } },
+        ],
+      },
+    ]);
+  });
 });
 
 describe("buildAssetListOrderBy", () => {

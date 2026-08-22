@@ -23,6 +23,7 @@ export interface AssetListUrlState {
   readonly condition?: string;
   readonly acquisitionYear?: number;
   readonly fundingSourceId?: string;
+  readonly attention?: boolean;
   readonly sort: AssetListSortKey;
   readonly dir: AssetListSortDirection;
   readonly page: number;
@@ -53,6 +54,9 @@ export function buildAssetListSearchParams(
   }
   if (state.acquisitionYear) {
     params.set("acquisitionYear", String(state.acquisitionYear));
+  }
+  if (state.attention) {
+    params.set("attention", "1");
   }
   if (state.sort !== DEFAULT_ASSET_LIST_SORT_KEY) {
     params.set("sort", state.sort);

@@ -102,6 +102,17 @@ const acquisitionYearFilter = z
   .optional()
   .transform((raw) => readInt(raw));
 
+/** The dashboard's "requiring attention" card links to `?attention=1`
+ * (PRD FR-9.1). Any other value — including a stray `attention=0` a visitor
+ * might type — reads as "not requested", the same fallback-never-throw rule
+ * every other param here follows. */
+const ATTENTION_QUERY_VALUE = "1";
+
+const attentionFilter = z
+  .unknown()
+  .optional()
+  .transform((raw): boolean => readParam(raw) === ATTENTION_QUERY_VALUE);
+
 const sortKeyParam = z
   .unknown()
   .optional()
@@ -155,6 +166,7 @@ export const assetListSearchParamsSchema = z.object({
   status: statusFilter,
   condition: conditionFilter,
   acquisitionYear: acquisitionYearFilter,
+  attention: attentionFilter,
   sort: sortKeyParam,
   dir: sortDirectionParam,
   page: pageParam,

@@ -37,7 +37,8 @@ function isFilteredView(params: AssetListSearchParams): boolean {
     params.status ||
     params.condition ||
     params.acquisitionYear ||
-    params.fundingSourceId,
+    params.fundingSourceId ||
+    params.attention,
   );
   return hasFilter || params.page > 1;
 }
@@ -61,6 +62,7 @@ function toAssetListQueryInput(
     condition: params.condition,
     acquisitionYear: params.acquisitionYear,
     fundingSourceId: params.fundingSourceId,
+    attention: params.attention,
     sortKey: params.sort,
     sortDirection: params.dir,
     page: params.page,
