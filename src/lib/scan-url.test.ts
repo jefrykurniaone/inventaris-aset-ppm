@@ -1,18 +1,20 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { buildScanUrl } from "./scan-url";
+import { buildScanPath, buildScanUrl } from "./scan-url";
 
 const ORIGINAL_APP_URL = process.env.NEXT_PUBLIC_APP_URL;
 
-describe("buildScanUrl", () => {
-  afterEach(() => {
-    if (ORIGINAL_APP_URL === undefined) {
-      delete process.env.NEXT_PUBLIC_APP_URL;
-    } else {
-      process.env.NEXT_PUBLIC_APP_URL = ORIGINAL_APP_URL;
-    }
-  });
+// Restores the variable after every test in the file, not just the first
+// block's — both describes below write to it.
+afterEach(() => {
+  if (ORIGINAL_APP_URL === undefined) {
+    delete process.env.NEXT_PUBLIC_APP_URL;
+  } else {
+    process.env.NEXT_PUBLIC_APP_URL = ORIGINAL_APP_URL;
+  }
+});
 
+describe("buildScanUrl", () => {
   it("joins the configured base URL and the token", () => {
     process.env.NEXT_PUBLIC_APP_URL = "https://inventaris.ppm.example";
     expect(buildScanUrl("abc123DEF456")).toBe(
@@ -48,5 +50,18 @@ describe("buildScanUrl", () => {
     const result = buildScanUrl("abc123DEF456");
     expect(performance.now() - startedAt).toBeLessThan(100);
     expect(result).toBe("https://inventaris.ppm.example/a/abc123DEF456");
+  });
+});
+
+describe("buildScanPath", () => {
+  it("is the site-relative half of the scan URL", () => {
+    expect(buildScanPath("abc123DEF456")).toBe("/a/abc123DEF456");
+  });
+
+  it("agrees with buildScanUrl about where the route lives", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://inventaris.ppm.example";
+    expect(buildScanUrl("abc123DEF456")).toBe(
+      `https://inventaris.ppm.example${buildScanPath("abc123DEF456")}`,
+    );
   });
 });
