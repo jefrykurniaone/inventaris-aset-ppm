@@ -5,7 +5,7 @@ import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { RoleBadge } from "@/components/RoleBadge";
 import { SignOutButton } from "@/components/SignOutButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { ASSETS_PATH } from "@/lib/paths";
+import { ASSETS_PATH, LOANS_PATH } from "@/lib/paths";
 import { ADMIN_ROLE } from "@/lib/roles";
 import type { SessionUser } from "@/lib/require-user";
 
@@ -40,6 +40,12 @@ export async function AppHeader({ user }: Readonly<AppHeaderProps>) {
             the asset register, so both roles reach it from the shell. */}
         <Link href={ASSETS_PATH} className={NAV_LINK_CLASS}>
           {t("navAssets")}
+        </Link>
+        {/* Also outside the admin-only block, for the same FR-1.4 reason:
+            handing an item over and taking it back is part of running the
+            register, so `staff` reaches the loan list from the shell too. */}
+        <Link href={LOANS_PATH} className={NAV_LINK_CLASS}>
+          {t("navLoans")}
         </Link>
         {isAdmin && (
           <>
