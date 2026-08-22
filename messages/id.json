@@ -249,6 +249,18 @@
     "withdrawnDescription": "{assetCode} — {name} telah ditarik dari daftar aset. Datanya tetap tersimpan, tetapi tidak lagi muncul di daftar maupun laporan.",
     "withdrawnTitle": "Aset ditarik"
   },
+  "AssetLabelsPage": {
+    "description": "{count} aset dipilih untuk dicetak.",
+    "missingNotice": "{count} aset yang dipilih tidak dapat dicetak karena sudah dihapus atau tidak ditemukan.",
+    "noAssetsFound": "Aset yang dipilih tidak ditemukan atau sudah dihapus.",
+    "offsetApply": "Terapkan",
+    "offsetHint": "Lewati beberapa posisi pertama jika sebagian lembar label sudah terpakai.",
+    "offsetLabel": "Mulai dari posisi ke-",
+    "organisation": "Direktorat PPM",
+    "printAction": "Cetak",
+    "sheetLabel": "Lembar {number}",
+    "title": "Cetak label"
+  },
   "AssetPhotos": {
     "assetNotFound": "Aset ini sudah tidak ada, sehingga foto tidak dapat ditambahkan.",
     "cancelUpload": "Batalkan",
@@ -347,8 +359,6 @@
     "fundingSourceLabel": "Sumber dana",
     "fundingSourcePlaceholder": "Tanpa sumber dana",
     "invalidReference": "Kategori, ruangan, atau sumber dana yang dipilih sudah tidak tersedia. Muat ulang halaman lalu coba lagi.",
-    "labelsStubDescription": "{count} aset dipilih. Fitur cetak label belum tersedia.",
-    "labelsStubTitle": "Cetak label",
     "modelLabel": "Model",
     "nameLabel": "Nama aset",
     "nameRequired": "Nama aset wajib diisi.",

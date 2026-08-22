@@ -7,9 +7,12 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
  *
  * This is the only test in the suite that touches the network deliberately.
  * That is the accepted cost of ADR 0005: there is no local storage driver, so
- * "photo upload works" cannot be demonstrated offline. **CI holds no Supabase
- * secrets and runs no end-to-end tests** — `npm run test:e2e` is run by hand,
- * against a local development server and a local database.
+ * "photo upload works" cannot be demonstrated offline. CI's `e2e` job
+ * (`.github/workflows/ci.yml`) runs this spec only once `E2E_EMAIL`,
+ * `E2E_PASSWORD`, `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are
+ * provisioned as repository secrets; until then it stays a warning rather
+ * than a failure, and `npm run test:e2e` run by hand against a local
+ * development server and a local database is the only way to exercise it.
  *
  * Every photo it uploads is deleted through the interface, which removes the
  * objects from the bucket; anything a failed run leaves behind is cleared by

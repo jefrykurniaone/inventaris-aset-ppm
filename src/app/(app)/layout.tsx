@@ -19,8 +19,13 @@ export default async function AppLayout({
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <AppHeader user={user} />
-      <main className="flex-1 p-4">{children}</main>
+      {/* Never useful on paper — hidden here rather than per-page, so a print
+          of any authenticated screen never carries the app chrome (#12's
+          "browser chrome, app navigation ... excluded from print"). */}
+      <div className="print:hidden">
+        <AppHeader user={user} />
+      </div>
+      <main className="flex-1 p-4 print:p-0">{children}</main>
     </div>
   );
 }
