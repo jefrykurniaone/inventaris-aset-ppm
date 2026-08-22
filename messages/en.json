@@ -249,6 +249,11 @@
     "withdrawnDescription": "{assetCode} — {name} has been withdrawn from the register. Its record is kept, but it no longer appears in lists or reports.",
     "withdrawnTitle": "Asset withdrawn"
   },
+  "AssetExport": {
+    "sheetName": "Assets",
+    "tooLarge": "These filters match {count} assets, more than the {max} one export can carry. Narrow the filters and try again.",
+    "triggerLabel": "Export to Excel"
+  },
   "AssetLabelsPage": {
     "description": "{count} assets selected for printing.",
     "missingNotice": "{count} of the selected assets could not be printed because they were deleted or not found.",

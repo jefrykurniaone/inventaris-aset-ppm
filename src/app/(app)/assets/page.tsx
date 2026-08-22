@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
+import { buildAssetExportHref } from "@/lib/asset-export";
 import {
   totalAssetListPageCount,
   type AssetListQueryInput,
@@ -81,6 +82,7 @@ export default async function AssetsPage({
 }: Readonly<AssetsPageProps>) {
   await requireUser();
   const t = await getTranslations("AssetsPage");
+  const tExport = await getTranslations("AssetExport");
   const params = assetListSearchParamsSchema.parse(await searchParams);
 
   const [{ rows, totalCount }, filterOptions] = await Promise.all([
@@ -92,9 +94,18 @@ export default async function AssetsPage({
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-        <Button asChild>
-          <Link href={NEW_ASSET_PATH}>{t("createLink")}</Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* A plain anchor, not `next/link`: the target is a route handler
+              that generates a file, and a prefetch of it would build a whole
+              workbook nobody asked for. The href carries the list's current
+              filters and sort, so the download matches what is on screen. */}
+          <Button asChild variant="outline">
+            <a href={buildAssetExportHref(params)}>{tExport("triggerLabel")}</a>
+          </Button>
+          <Button asChild>
+            <Link href={NEW_ASSET_PATH}>{t("createLink")}</Link>
+          </Button>
+        </div>
       </div>
       <AssetFilters params={params} options={filterOptions} t={t} />
       <AssetSelectionProvider>

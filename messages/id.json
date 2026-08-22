@@ -249,6 +249,11 @@
     "withdrawnDescription": "{assetCode} — {name} telah ditarik dari daftar aset. Datanya tetap tersimpan, tetapi tidak lagi muncul di daftar maupun laporan.",
     "withdrawnTitle": "Aset ditarik"
   },
+  "AssetExport": {
+    "sheetName": "Aset",
+    "tooLarge": "Filter ini cocok dengan {count} aset, lebih banyak daripada {max} yang dapat dimuat satu ekspor. Persempit filter lalu coba lagi.",
+    "triggerLabel": "Ekspor ke Excel"
+  },
   "AssetLabelsPage": {
     "description": "{count} aset dipilih untuk dicetak.",
     "missingNotice": "{count} aset yang dipilih tidak dapat dicetak karena sudah dihapus atau tidak ditemukan.",
