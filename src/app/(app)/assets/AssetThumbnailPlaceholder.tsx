@@ -4,13 +4,8 @@ interface AssetThumbnailPlaceholderProps {
 
 /**
  * Stands in for a real thumbnail (PRD FR-2.6: "thumbnail per row, never the
- * full image"). The photo pipeline is issue #9, being built in parallel
- * right now, so no `AssetPhoto` row can be rendered from here yet.
- *
- * TODO(#9): once the photo pipeline merges, replace this with the asset's
- * primary photo thumbnail — read only `objectPath`/`thumbObjectPath` off
- * `AssetPhoto` and resolve it through `src/lib/storage.ts`, never a
- * Supabase client imported here directly.
+ * full image"), rendered by `AssetThumbnail` when an asset has no primary
+ * photo.
  */
 export function AssetThumbnailPlaceholder({
   label,
