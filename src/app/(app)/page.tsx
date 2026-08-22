@@ -1,5 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
+import { OverdueLoansCard } from "./loans/OverdueLoansCard";
+
 /**
  * Placeholder home page, now nested under the `(app)` route group and so
  * protected by `src/app/(app)/layout.tsx`'s `requireUser()` (PRD FR-1.5).
@@ -60,6 +62,11 @@ export default async function HomePage() {
         <h1 className="text-3xl font-semibold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground mt-2 text-sm">{t("subtitle")}</p>
       </header>
+      {/* Issue #15's overdue-loans figure (PRD FR-6.4). Mounted here because
+          this page still holds #10's placeholder; issue #13 rebuilds the
+          landing page in parallel, and the card takes no props precisely so
+          that moving it costs one import and one element. */}
+      <OverdueLoansCard />
       <div className="grid gap-4 sm:grid-cols-2">
         {themePreviews.map((preview) => (
           <ThemeCard
