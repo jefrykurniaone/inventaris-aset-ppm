@@ -3,8 +3,10 @@ import { defineConfig, devices } from "@playwright/test";
 /**
  * End-to-end configuration only. The single smoke path described in
  * `docs/prd.md` §7.2 (sign in -> create asset -> upload photo -> label print
- * view -> public scan page) arrives with the ticket that ships those screens,
- * so `e2e/` is empty for now and `npm run test:e2e` passes with no tests.
+ * view -> public scan page) is `e2e/label-printing.spec.ts`, added by issue
+ * #12. `--pass-with-no-tests` on `npm run test:e2e` stays in place: both
+ * specs skip themselves when `E2E_EMAIL`/`E2E_PASSWORD` are unset, which is
+ * indistinguishable from "no tests" to this runner.
  */
 const DEV_SERVER_PORT = 3000;
 const DEV_SERVER_TIMEOUT_MS = 120_000;

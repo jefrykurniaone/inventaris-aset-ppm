@@ -109,6 +109,109 @@ jobs:
           path: coverage/lcov.info
           retention-days: 1
 
+  e2e:
+    name: End-to-end smoke test
+    runs-on: ubuntu-latest
+    needs: verify
+    # Same pattern as `sonar`'s `HAS_SONAR_TOKEN` below: an expression in
+    # `env` may read `secrets`, a step-level `if` may not, so the workflow
+    # stays green before every secret this job needs has been provisioned.
+    # The smoke path (`e2e/photo-upload.spec.ts`,
+    # `e2e/label-printing.spec.ts`) performs a real sign-in and a real
+    # Supabase Storage upload (ADR 0005: there is no local storage driver),
+    # neither of which this repository's CI has held secrets for until now.
+    env:
+      HAS_E2E_SECRETS: ${{ secrets.E2E_EMAIL != '' && secrets.E2E_PASSWORD != '' && secrets.SUPABASE_URL != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+      # A local, ephemeral database for this job only — not a secret. Both
+      # point at the `postgres` service container below, same as `verify`'s
+      # placeholders point nowhere; the difference here is that migrations
+      # and a real sign-in run against this one.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      DIRECT_URL: postgresql://ci:ci@localhost:5432/ci
+      # Signs this run's session cookies only. Not the production secret and
+      # not sensitive: the database it is paired with is destroyed when the
+      # job ends.
+      BETTER_AUTH_SECRET: ci-e2e-session-signing-secret-not-used-in-any-deployment
+      BETTER_AUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      # Not sensitive — the same literal `verify` uses above, and ADR 0005's
+      # actual development bucket name.
+      SUPABASE_STORAGE_BUCKET: asset-photos-dev
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v7
+        if: env.HAS_E2E_SECRETS == 'true'
+
+      - uses: actions/setup-node@v7
+        if: env.HAS_E2E_SECRETS == 'true'
+        with:
+          node-version: 24
+          cache: npm
+
+      # Same `--ignore-scripts` reasoning as `verify`'s install step.
+      - name: Install dependencies
+        if: env.HAS_E2E_SECRETS == 'true'
+        run: npm ci --ignore-scripts
+
+      - name: Install Playwright browsers
+        if: env.HAS_E2E_SECRETS == 'true'
+        run: npx --no playwright install --with-deps chromium
+
+      - name: Generate Prisma client
+        if: env.HAS_E2E_SECRETS == 'true'
+        run: npx --no prisma generate
+
+      - name: Run migrations against the CI database
+        if: env.HAS_E2E_SECRETS == 'true'
+        run: npx --no prisma migrate deploy
+
+      # Seeds the exact account `E2E_EMAIL`/`E2E_PASSWORD` sign in as
+      # (`src/lib/seed-admin.ts`). `DATABASE_URL` above resolves to
+      # `localhost`, so `isLocalDatabaseUrl` allows this without
+      # `SEED_ALLOW_REMOTE` — the safeguard that exists is "never seed a
+      # deployment by accident", and this database is neither.
+      - name: Seed the first administrator
+        if: env.HAS_E2E_SECRETS == 'true'
+        run: npm run db:seed
+        env:
+          SEED_ADMIN_EMAIL: ${{ secrets.E2E_EMAIL }}
+          SEED_ADMIN_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+
+      - name: Run the Playwright smoke path
+        if: env.HAS_E2E_SECRETS == 'true'
+        run: npm run test:e2e
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+
+      - name: Upload the Playwright report
+        if: ${{ !cancelled() && env.HAS_E2E_SECRETS == 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Report that the smoke test was skipped
+        if: env.HAS_E2E_SECRETS != 'true'
+        run: |
+          echo "::warning title=End-to-end smoke test not run::E2E_EMAIL, E2E_PASSWORD, SUPABASE_URL, or SUPABASE_SERVICE_ROLE_KEY is not set, so the Playwright smoke path did not run. See CLAUDE.md and docs/prd.md §7.2."
+
   sonar:
     name: SonarQube Cloud
     runs-on: ubuntu-latest
