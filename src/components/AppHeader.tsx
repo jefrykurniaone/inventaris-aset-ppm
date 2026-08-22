@@ -5,6 +5,7 @@ import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { RoleBadge } from "@/components/RoleBadge";
 import { SignOutButton } from "@/components/SignOutButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { ASSETS_PATH } from "@/lib/paths";
 import { ADMIN_ROLE } from "@/lib/roles";
 import type { SessionUser } from "@/lib/require-user";
 
@@ -31,6 +32,11 @@ export async function AppHeader({ user }: Readonly<AppHeaderProps>) {
       <nav aria-label={t("mainNavLabel")} className="flex items-center gap-4">
         <Link href="/" className={NAV_LINK_CLASS}>
           {t("navHome")}
+        </Link>
+        {/* Outside the admin-only block: PRD FR-1.4 gives `staff` the run of
+            the asset register, so both roles reach it from the shell. */}
+        <Link href={ASSETS_PATH} className={NAV_LINK_CLASS}>
+          {t("navAssets")}
         </Link>
         {isAdmin && (
           <>

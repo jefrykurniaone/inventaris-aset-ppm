@@ -30,6 +30,7 @@
     "better-auth": "1.7.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "nanoid": "^6.0.1",
     "next": "15.5.23",
     "next-intl": "^4.13.7",
     "radix-ui": "^1.6.7",
