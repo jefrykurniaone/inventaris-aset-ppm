@@ -11,11 +11,16 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
  * secrets and runs no end-to-end tests** — `npm run test:e2e` is run by hand,
  * against a local development server and a local database.
  *
- * It cleans up after itself: every photo it uploads is deleted through the
- * interface, which removes the objects from the bucket. Anything a failed run
- * still leaves behind is cleared by `npm run storage:purge:dev`. The asset row
- * itself is left in the register — it is one row, and soft-deleting it would
- * add a second failure mode to the teardown of a test whose subject is photos.
+ * Every photo it uploads is deleted through the interface, which removes the
+ * objects from the bucket; anything a failed run leaves behind is cleared by
+ * `npm run storage:purge:dev`.
+ *
+ * **The asset row is not cleaned up. Rows accumulate, one per run, and
+ * `prisma migrate reset` is the reset.** That is deliberate: soft-deleting the
+ * asset would add a second confirmation dialog, and a second failure mode, to
+ * the teardown of a test whose subject is photos. A soft delete would not free
+ * the row's `assetCode` sequence number either, so it would not make repeated
+ * runs any cheaper than leaving the row alone does.
  *
  * Required environment, all read from `.env.local` by the dev server this
  * spec's `webServer` starts:
@@ -38,15 +43,27 @@ const HTTP_OK = 200;
 /**
  * Longer than Playwright's 30 s default, because this one test performs a
  * real sign-in, a real asset create, a real compression pass in a Web Worker,
- * two real uploads to Singapore and three real reads back. The default left
- * no headroom over the upload wait below, so a slow link failed the whole
+ * two real uploads to Singapore and several real reads back — the last of
+ * which waits on CDN propagation. It has to exceed the upload wait and the
+ * propagation ceiling below, added together, or a slow link fails the whole
  * test rather than the step that was actually slow.
  */
-const TEST_TIMEOUT_MS = 120_000;
+const TEST_TIMEOUT_MS = 180_000;
 
 /** How long the compress-and-upload round trip may take before the photo is
  * expected to appear. */
 const UPLOAD_TIMEOUT_MS = 45_000;
+
+/**
+ * How long the CDN may keep serving a deleted object before the public URL
+ * stops answering `200`.
+ *
+ * A ceiling, not a cost: the poll below ends the moment the status changes, so
+ * a healthy run pays propagation time and nothing more. The full ceiling is
+ * only ever spent by a run that is about to fail anyway.
+ */
+const DELETE_PROPAGATION_TIMEOUT_MS = 90_000;
+const DELETE_POLL_INTERVAL_MS = 2_000;
 
 /**
  * A required `<select>` renders a disabled placeholder at index 0 (see
@@ -210,12 +227,36 @@ test.describe("photo pipeline against the real development bucket", () => {
       .click();
     await expect(photoCard).toHaveCount(0);
 
-    // The object is gone from the bucket too. A unique query string defeats
-    // the CDN, which answers 200 from cache for a short while after a delete —
-    // see `docs/supabase-storage-provisioning.md`.
-    const afterDelete = await page.request.get(
-      `${source}?cachebust=${Date.now()}`,
-    );
-    expect(afterDelete.status()).not.toBe(HTTP_OK);
+    // The object is gone from the bucket too.
+    //
+    // Polled rather than asserted once. A delete does not reach the CDN edge
+    // instantly, and the public URL keeps answering 200 from cache until it
+    // does. A unique query string does **not** force a miss — Supabase's cache
+    // key is the object path alone. That is measured, not assumed: on the run
+    // that produced issue #60, this URL answered 200 while `listObjectPaths`
+    // reported the bucket holding zero objects at the same moment.
+    // `docs/supabase-storage-provisioning.md` used to claim the opposite and
+    // has been corrected.
+    //
+    // The cachebust is kept only so that a cache keyed on the full URL, if one
+    // sits anywhere between this process and the edge, cannot serve a stale
+    // copy. It is the polling that handles propagation.
+    //
+    // This still fails hard on a real leak: an object that genuinely survived
+    // the delete answers 200 until the ceiling runs out, and the test fails.
+    await expect
+      .poll(
+        async () => {
+          const response = await page.request.get(
+            `${source}?cachebust=${Date.now()}`,
+          );
+          return response.status();
+        },
+        {
+          timeout: DELETE_PROPAGATION_TIMEOUT_MS,
+          intervals: [DELETE_POLL_INTERVAL_MS],
+        },
+      )
+      .not.toBe(HTTP_OK);
   });
 });

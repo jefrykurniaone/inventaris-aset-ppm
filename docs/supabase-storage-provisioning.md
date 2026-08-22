@@ -78,9 +78,14 @@ use for it either, so it is not in `.env.local`.
   1.5 MB hard cap enforced server-side at the signed-URL endpoint, independently of any client-side
   compression, and a content-type allowlist there as well. Client compression is usability; the server
   cap is the control. The bucket limit only catches what gets past both.
-- **A deleted object still answers `200` on its cached public URL for a short while.** That is the CDN,
-  not a failed delete. A request with a unique query string is a cache miss and shows the real state —
-  `400` once the object is gone.
+- **A deleted object still answers `200` on its public URL for a short while.** That is the CDN, not a
+  failed delete. A unique query string does **not** force a cache miss, contrary to what this document
+  claimed until issue #60: the cache key is the object path alone, so appending `?cachebust=…` changes
+  nothing. That was measured rather than reasoned about — immediately after a delete, the public URL
+  answered `200` while `listObjectPaths` reported the bucket holding zero objects. To see the real
+  state, either wait for the edge to catch up and retry, which is what `e2e/photo-upload.spec.ts`
+  polls for, or list the bucket through `src/lib/storage.ts`, which talks to the storage API and never
+  to the CDN.
 
 ## Emptying the development bucket
 
