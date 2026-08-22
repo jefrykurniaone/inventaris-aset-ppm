@@ -29,7 +29,10 @@ export async function AppHeader({ user }: Readonly<AppHeaderProps>) {
 
   return (
     <header className="border-border flex flex-wrap items-center justify-between gap-4 border-b px-4 py-3">
-      <nav aria-label={t("mainNavLabel")} className="flex items-center gap-4">
+      <nav
+        aria-label={t("mainNavLabel")}
+        className="flex flex-wrap items-center gap-x-4 gap-y-2"
+      >
         <Link href="/" className={NAV_LINK_CLASS}>
           {t("navHome")}
         </Link>
