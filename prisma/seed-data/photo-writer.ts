@@ -20,9 +20,18 @@ import { getObjectStorage } from "@/lib/storage";
  * only the in-browser compression step the amendment says the committed
  * files already stand in for.
  *
- * If the three storage environment variables are not set — the CI `e2e` job
- * has none of them during `npm run db:seed` — this reports the skip and
- * moves on rather than failing the whole seed run.
+ * Photo seeding is skipped when `SEED_SKIP_PHOTOS=true` (issue #16 hand-back
+ * 1) — an **explicit** flag, not inferred from presence. Presence-sniffing
+ * (the `hasStorageConfig` check below) cannot tell a real Supabase project
+ * from a placeholder one: `.github/workflows/ci.yml`'s workflow-level `env:`
+ * block sets `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` to well-formed
+ * placeholder values for every job, including the `e2e` job's `db:seed`
+ * step, so `hasStorageConfig` reads "configured" there even with no real
+ * bucket to reach — which is exactly what made CI's seed step fail with
+ * `fetch failed` against `ci-placeholder.supabase.co`. The workflow sets
+ * `SEED_SKIP_PHOTOS=true` on that step; `hasStorageConfig` stays as a second
+ * net for a genuinely unconfigured environment, but the flag is the
+ * contract, not secret availability.
  */
 
 const SEED_ASSETS_DIR = new URL("../seed-assets/", import.meta.url);
@@ -34,15 +43,28 @@ const PHOTO_CONTENT_TYPE = "image/jpeg";
 const FULL_IMAGE_WIDTH_PX = 1600;
 const FULL_IMAGE_HEIGHT_PX = 1200;
 
+/** Explicit opt-out, set on CI's `e2e` job seed step. See the module comment
+ * above for why presence-sniffing alone cannot replace this. */
+export const SKIP_PHOTOS_ENV = "SEED_SKIP_PHOTOS";
+const SKIP_PHOTOS_VALUE = "true";
+
+export function isPhotoSeedingSkipped(
+  env: Readonly<Record<string, string | undefined>>,
+): boolean {
+  return env[SKIP_PHOTOS_ENV] === SKIP_PHOTOS_VALUE;
+}
+
 const REQUIRED_STORAGE_ENV = [
   "SUPABASE_URL",
   "SUPABASE_SERVICE_ROLE_KEY",
   "SUPABASE_STORAGE_BUCKET",
 ] as const;
 
-/** Whether object storage is configured at all. Exported so `prisma/seed.ts`
- * can decide, before calling `seedPhotos`, whether to print the skip
- * explanation itself or let this module report it. */
+/** Whether object storage is configured at all. This is the second net, not
+ * the contract — it cannot distinguish CI's placeholder values from a real
+ * project, which is why `isPhotoSeedingSkipped` is checked first. Exported
+ * so `prisma/seed.ts` can decide, before calling `seedPhotos`, whether to
+ * print the skip explanation itself or let this module report it. */
 export function hasStorageConfig(
   env: Readonly<Record<string, string | undefined>>,
 ): boolean {
@@ -161,6 +183,11 @@ export async function seedPhotos(
   input: SeedPhotoWriteInput,
   env: Readonly<Record<string, string | undefined>>,
 ): Promise<readonly string[]> {
+  if (isPhotoSeedingSkipped(env)) {
+    return [
+      `skipped: ${SKIP_PHOTOS_ENV}=true is set. No photos were attached.`,
+    ];
+  }
   if (!hasStorageConfig(env)) {
     return [
       "skipped: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY or SUPABASE_STORAGE_BUCKET is not set. No photos were attached.",

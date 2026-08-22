@@ -173,8 +173,23 @@ async function main(): Promise<void> {
 // `scripts/`. The package is CommonJS, so tsx's esbuild transform rejects
 // top-level await outright: "Top-level await is currently not supported with
 // the cjs output format".
+//
+// This handler is reached only for an exception thrown *during* seeding —
+// `refuse()` above exits the process directly for every pre-flight refusal,
+// so those never land here. By the time this runs, `seedAdmin` or one of
+// `seedDemoDataset`'s phases may already have written real rows (issue #16
+// hand-back 1): the demonstration dataset seeds users, master data, sixty
+// assets, loans and photos as a sequence of small, individually idempotent
+// writes, not one all-or-nothing transaction, so "Nothing was written" is no
+// longer a fact this handler can assert — it was only ever true back when
+// this script seeded nothing but the administrator in one call. What is
+// still true, and worth saying instead: whatever committed before the
+// failure stays and will not be duplicated, so rerunning is the safe next
+// step, not a retry from a clean slate.
 main().catch((error: unknown) => {
-  console.error("prisma/seed.ts: seeding failed. Nothing was written.");
+  console.error(
+    "prisma/seed.ts: seeding failed before finishing — see the error below for which step. Earlier steps write in small, idempotent pieces, so anything already committed stays and is not duplicated; rerun the seed to continue from there.",
+  );
   console.error(error);
   process.exitCode = 1;
 });
