@@ -10,6 +10,10 @@ playwright-report
 test-results
 .storage
 src/generated
+# The vendored browser-image-compression worker: a verbatim copy of the
+# published dist build, asserted byte-identical by
+# src/lib/photo-compression.test.ts. Reformatting it breaks that assertion.
+public/vendor
 package-lock.json
 next-env.d.ts
 *.ico

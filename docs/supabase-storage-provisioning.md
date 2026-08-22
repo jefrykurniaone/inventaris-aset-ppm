@@ -82,6 +82,35 @@ use for it either, so it is not in `.env.local`.
   not a failed delete. A request with a unique query string is a cache miss and shows the real state —
   `400` once the object is gone.
 
+## Emptying the development bucket
+
+```
+npm run storage:purge:dev
+```
+
+Photo rows and photo objects reset independently: the rows live in local PostgreSQL and
+`prisma migrate reset` wipes them, while the objects live in the cloud and survive. Both buckets draw
+on one organisation-wide free-tier allowance, so the orphans are not free. This script is the entire
+mitigation, and it is deliberately manual — a reconciliation job would be over-engineering at sixty
+assets.
+
+It refuses to run against any bucket other than `asset-photos-dev`, and exits non-zero when it does.
+That refusal matters because one project holds both buckets and therefore one service-role key: the
+key on a development machine can empty the deployment bucket as easily as this one. The guard is
+`assertDevelopmentStorageBucket` in `src/lib/storage.ts`, and `src/lib/storage.test.ts` asserts it.
+
+## Verifying the pipeline against the live bucket
+
+```
+npx tsx scripts/verify-photo-storage.ts
+```
+
+Added by issue #9. It mints a signed upload URL, uploads through it with a plain `PUT` carrying no
+Supabase client, reads the object's real size and content type back, fetches it over its public URL
+with no credentials, walks the bucket recursively the way the purge script does, deletes it, and
+checks that an upload declaring a type outside the allowlist is refused by the bucket. It cleans up
+before and after itself, and it makes the same development-bucket refusal the purge script makes.
+
 ## Verifying a bucket after provisioning it
 
 The acceptance proof for issue #27 walked these, in order, and all passed:

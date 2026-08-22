@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/require-user";
 
 import { updateAssetAction } from "../../actions";
 import { AssetForm } from "../../AssetForm";
+import { AssetPhotoSection } from "../../photos/AssetPhotoSection";
 import { findAssetForEdit, listAssetFormOptions } from "../../queries";
 
 interface EditAssetPageProps {
@@ -58,6 +59,11 @@ export default async function EditAssetPage({
         assetCode={asset.assetCode}
         defaults={asset.defaults}
       />
+      {/* Photos hang off an asset that already exists, so the section is
+          mounted here rather than on the create form: FR-4.9 puts the object
+          at `assets/<assetId>/…`, and there is no id to name until the asset
+          has been saved once. */}
+      <AssetPhotoSection assetId={asset.id} />
     </div>
   );
 }

@@ -28,6 +28,11 @@ const eslintConfig = [
       "playwright-report/**",
       "test-results/**",
       "src/generated/**",
+      // A verbatim copy of the published `browser-image-compression` dist
+      // build, self-hosted because loading the worker from a CDN is
+      // prohibited. It is third-party bundled output, not this project's
+      // source, and it must stay byte-identical to the installed package.
+      "public/vendor/**",
       "next-env.d.ts",
     ],
   },
