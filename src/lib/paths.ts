@@ -12,3 +12,4 @@ export const NOT_AUTHORIZED_PATH = "/not-authorized";
 export const HOME_PATH = "/";
 export const ASSETS_PATH = "/assets";
 export const NEW_ASSET_PATH = "/assets/new";
+export const LOANS_PATH = "/loans";
