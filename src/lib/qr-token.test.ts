@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { generateQrToken, QR_TOKEN_LENGTH } from "./qr-token";
+import { generateQrToken, isQrTokenShape, QR_TOKEN_LENGTH } from "./qr-token";
 
 /** `nanoid`'s URL alphabet: `A-Za-z0-9_-`, and nothing that needs escaping in
  * a path segment, because the token is the public scan URL (PRD FR-2.2). */
@@ -45,5 +45,26 @@ describe("generateQrToken", () => {
       const distinct = new Set(tokens.map((token) => token[position]));
       expect(distinct.size).toBeGreaterThan(1);
     }
+  });
+});
+
+describe("isQrTokenShape", () => {
+  it("accepts every token this application generates", () => {
+    for (const token of sampleTokens(SAMPLE_SIZE)) {
+      expect(isQrTokenShape(token)).toBe(true);
+    }
+  });
+
+  it.each([
+    ["empty", ""],
+    ["one character short", "V1StGXR8Z5j"],
+    ["one character long", "V1StGXR8Z5jdX"],
+    ["a slash, which would escape the path segment", "V1StGXR8Z5j/"],
+    ["a dot, which a traversal attempt would use", "V1StGXR8Z5j."],
+    ["a percent escape", "V1StGXR8Z%2f"],
+    ["a space", "V1StGXR8Z5j "],
+    ["SQL punctuation", "V1StGXR8Z5'j"],
+  ])("refuses %s", (_description, candidate) => {
+    expect(isQrTokenShape(candidate)).toBe(false);
   });
 });

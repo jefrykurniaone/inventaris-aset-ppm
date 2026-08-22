@@ -21,6 +21,22 @@ function stripTrailingSlashes(value: string): string {
   return value.slice(0, end);
 }
 
+const SCAN_PATH_PREFIX = "/a";
+
+/**
+ * The public scan route as a site-relative path, for links the browser is
+ * already on the right origin for — the scan page's own photo-selection links
+ * (#11).
+ *
+ * It lives here, and `buildScanUrl` is written in terms of it, so the printed
+ * label and the in-page link cannot come to disagree about where `/a/<token>`
+ * is. A token is `nanoid`'s URL alphabet by construction
+ * (`src/lib/qr-token.ts`), so no escaping is needed in the segment.
+ */
+export function buildScanPath(qrToken: string): string {
+  return `${SCAN_PATH_PREFIX}/${qrToken}`;
+}
+
 /**
  * The absolute public scan URL a printed QR code encodes and the asset
  * detail page shows and links to (PRD FR-5.1: `${NEXT_PUBLIC_APP_URL}/a/<qrToken>`).
@@ -39,5 +55,5 @@ export function buildScanUrl(qrToken: string): string {
   const base = stripTrailingSlashes(
     process.env.NEXT_PUBLIC_APP_URL ?? DEFAULT_APP_URL,
   );
-  return `${base}/a/${qrToken}`;
+  return `${base}${buildScanPath(qrToken)}`;
 }

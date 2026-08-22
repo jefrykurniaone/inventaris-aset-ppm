@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { DeleteControl } from "@/components/DeleteControl";
+import { QrCode } from "@/components/QrCode";
 import { Button } from "@/components/ui/button";
 import { ASSETS_PATH } from "@/lib/paths";
 import { requireUser } from "@/lib/require-user";
@@ -66,6 +67,11 @@ function AssetDetailActions({
   );
 }
 
+/** Big enough to scan off a laptop screen from arm's length, small enough not
+ * to dominate the section. Print sizing is the label sheet's business (#12),
+ * which renders the same component at its own size. */
+const DETAIL_QR_SIZE_PX = 160;
+
 function ScanUrlSection({
   asset,
   td,
@@ -82,20 +88,27 @@ function ScanUrlSection({
       <p className="text-muted-foreground text-sm">
         {td("scanUrlDescription")}
       </p>
-      <div className="flex flex-wrap items-center gap-2">
-        <a
-          href={scanUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="text-primary font-mono text-sm break-all hover:underline"
-        >
-          {scanUrl}
-        </a>
-        <CopyScanUrlButton
-          scanUrl={scanUrl}
-          copyLabel={td("scanUrlCopyLabel")}
-          copiedLabel={td("scanUrlCopiedLabel")}
+      <div className="flex flex-wrap items-center gap-4">
+        <QrCode
+          value={scanUrl}
+          sizePx={DETAIL_QR_SIZE_PX}
+          label={td("qrCodeAlt", { assetCode: asset.assetCode })}
         />
+        <div className="flex flex-wrap items-center gap-2">
+          <a
+            href={scanUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary font-mono text-sm break-all hover:underline"
+          >
+            {scanUrl}
+          </a>
+          <CopyScanUrlButton
+            scanUrl={scanUrl}
+            copyLabel={td("scanUrlCopyLabel")}
+            copiedLabel={td("scanUrlCopiedLabel")}
+          />
+        </div>
       </div>
     </section>
   );
