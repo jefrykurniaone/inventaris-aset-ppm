@@ -179,16 +179,29 @@ jobs:
         run: npx --no prisma migrate deploy
 
       # Seeds the exact account `E2E_EMAIL`/`E2E_PASSWORD` sign in as
-      # (`src/lib/seed-admin.ts`). `DATABASE_URL` above resolves to
-      # `localhost`, so `isLocalDatabaseUrl` allows this without
-      # `SEED_ALLOW_REMOTE` — the safeguard that exists is "never seed a
-      # deployment by accident", and this database is neither.
+      # (`src/lib/seed-admin.ts`), plus the full demonstration dataset
+      # (issue #16) — `DATABASE_URL` above resolves to `localhost`, so
+      # `isLocalDatabaseUrl` allows this without `SEED_ALLOW_REMOTE` — the
+      # safeguard that exists is "never seed a deployment by accident", and
+      # this database is neither.
+      #
+      # `SEED_SKIP_PHOTOS=true` (issue #16 hand-back 1): this job's photo
+      # phase must not run here, but `prisma/seed-data/photo-writer.ts`'s
+      # `hasStorageConfig` presence check cannot tell that on its own — the
+      # workflow-level `env:` block at the top of this file sets
+      # `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` to well-formed placeholder
+      # values for every job, this one included, so presence-sniffing alone
+      # reads "configured" here and the seed tried to upload to
+      # `ci-placeholder.supabase.co` and failed with `fetch failed`. This
+      # flag is the explicit, non-inferred instruction to skip; it is what
+      # decides, not whether real secrets happen to be present on this step.
       - name: Seed the first administrator
         if: env.HAS_E2E_SECRETS == 'true'
         run: npm run db:seed
         env:
           SEED_ADMIN_EMAIL: ${{ secrets.E2E_EMAIL }}
           SEED_ADMIN_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+          SEED_SKIP_PHOTOS: "true"
 
       # `npm run db:seed` above seeds only the administrator; the asset
       # create form's `categoryId` and `roomId` pickers need at least one

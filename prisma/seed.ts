@@ -1,19 +1,34 @@
 /**
- * Seeds the first administrator, so a freshly migrated database can be signed
- * into at all (issue #41).
+ * Seeds the first administrator (issue #41), so a freshly migrated database
+ * can be signed into at all, and then the rest of the demonstration dataset
+ * (issue #16): two `staff` accounts, categories, buildings, rooms, funding
+ * sources, sixty assets, photos, five loans, and their activity trail. The
+ * orchestration for everything past the administrator lives in
+ * `prisma/seed-data/index.ts`, imported dynamically — see the comment there
+ * for why.
  *
- * Without this, a clean environment is unreachable: `emailAndPassword`
- * has `disableSignUp` set (FR-1.1, no public self-registration), and
- * `/admin/create-user` needs an existing admin session — so a database with
- * zero users has no path to a first one, and `README.md`'s getting-started
- * sequence dead-ends at a sign-in form nobody can pass.
+ * Without the administrator, a clean environment is unreachable:
+ * `emailAndPassword` has `disableSignUp` set (FR-1.1, no public
+ * self-registration), and `/admin/create-user` needs an existing admin
+ * session — so a database with zero users has no path to a first one, and
+ * `README.md`'s getting-started sequence dead-ends at a sign-in form nobody
+ * can pass.
  *
- * `prisma.config.ts` points `migrations.seed` here, so `prisma migrate reset`
- * and `npm run db:seed` both run this file.
+ * `prisma.config.ts` points `migrations.seed` here, so both
+ * `npx --no prisma migrate reset` and `npm run db:seed` run this file and
+ * seed the full dataset. `migrate reset` is the documented way to wipe and
+ * reseed a development database: it drops and recreates the schema, replays
+ * every migration, and then runs this script automatically.
  *
- * The demonstration dataset — categories, buildings, rooms, funding sources,
- * sixty assets, photos, loans, activity — is issue #16, and will build on top
- * of this.
+ * ## Object storage and CI
+ *
+ * The CI `e2e` job's `db:seed` step holds no Supabase secrets — only
+ * `scripts/seed-e2e-master-data.ts` runs after it, and neither is a photo
+ * upload. `prisma/seed-data/photo-writer.ts` detects a missing
+ * `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`/`SUPABASE_STORAGE_BUCKET` and
+ * reports the skip rather than failing the run, so users, master data,
+ * assets, loans and activity are still seeded there; only the ~15 assets'
+ * photos are not.
  *
  * ## How the administrator is created
  *
@@ -140,6 +155,17 @@ async function main(): Promise<void> {
   console.info(`prisma/seed.ts: ${outcome}`);
 
   const { db } = await import("@/lib/db");
+  const adminUser = await db.user.findUniqueOrThrow({
+    where: { email: admin.value.email },
+    select: { id: true },
+  });
+
+  const { seedDemoDataset } = await import("./seed-data");
+  const demo = await seedDemoDataset(process.env, adminUser.id);
+  for (const message of demo.messages) {
+    console.info(`prisma/seed.ts: ${message}`);
+  }
+
   await db.$disconnect();
 }
 
@@ -147,8 +173,23 @@ async function main(): Promise<void> {
 // `scripts/`. The package is CommonJS, so tsx's esbuild transform rejects
 // top-level await outright: "Top-level await is currently not supported with
 // the cjs output format".
+//
+// This handler is reached only for an exception thrown *during* seeding —
+// `refuse()` above exits the process directly for every pre-flight refusal,
+// so those never land here. By the time this runs, `seedAdmin` or one of
+// `seedDemoDataset`'s phases may already have written real rows (issue #16
+// hand-back 1): the demonstration dataset seeds users, master data, sixty
+// assets, loans and photos as a sequence of small, individually idempotent
+// writes, not one all-or-nothing transaction, so "Nothing was written" is no
+// longer a fact this handler can assert — it was only ever true back when
+// this script seeded nothing but the administrator in one call. What is
+// still true, and worth saying instead: whatever committed before the
+// failure stays and will not be duplicated, so rerunning is the safe next
+// step, not a retry from a clean slate.
 main().catch((error: unknown) => {
-  console.error("prisma/seed.ts: seeding failed. Nothing was written.");
+  console.error(
+    "prisma/seed.ts: seeding failed before finishing — see the error below for which step. Earlier steps write in small, idempotent pieces, so anything already committed stays and is not duplicated; rerun the seed to continue from there.",
+  );
   console.error(error);
   process.exitCode = 1;
 });
