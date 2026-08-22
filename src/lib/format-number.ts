@@ -13,6 +13,16 @@ export function formatInteger(value: number, locale: Locale): string {
 }
 
 /**
+ * Renders a calendar year, e.g. an asset's acquisition year, as a plain
+ * digit string with no grouping separator in any locale — `2023`, never
+ * `2.023` or `2,023`. A year is an identifier, not a quantity, so it never
+ * goes through `formatInteger`.
+ */
+export function formatYear(value: number): string {
+  return String(value);
+}
+
+/**
  * Renders an amount as Indonesian rupiah. The separator and currency
  * placement follow the active locale; the currency itself is always IDR,
  * because every acquisition price and loan record in this system is in

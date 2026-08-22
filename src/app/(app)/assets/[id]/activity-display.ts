@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import type { Locale } from "@/i18n/config";
 import { formatDate } from "@/lib/format-date";
-import { formatCurrencyIdr, formatInteger } from "@/lib/format-number";
+import { formatCurrencyIdr, formatYear } from "@/lib/format-number";
 
 import {
   ASSET_DETAIL_FIELD_SPECS,
@@ -107,7 +107,7 @@ export function describeChangeValue(
     return { kind: "condition", value: value as AssetCondition };
   }
   if (field === "acquisitionYear") {
-    return { kind: "text", text: formatInteger(Number(value), locale) };
+    return { kind: "text", text: formatYear(Number(value)) };
   }
   if (field === "purchasePrice") {
     return { kind: "text", text: formatCurrencyIdr(Number(value), locale) };

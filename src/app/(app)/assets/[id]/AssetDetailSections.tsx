@@ -4,7 +4,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 
 import type { Locale } from "@/i18n/config";
 import { formatDate, formatDateTime } from "@/lib/format-date";
-import { formatCurrencyIdr, formatInteger } from "@/lib/format-number";
+import { formatCurrencyIdr, formatYear } from "@/lib/format-number";
 
 import { CONDITION_LABEL_KEYS, STATUS_LABEL_KEYS } from "../asset-field-specs";
 import type { AssetDetailRecord } from "./queries";
@@ -69,7 +69,7 @@ function orEmpty(value: string | null, emptyText: string): string {
   return value ?? emptyText;
 }
 
-function IdentitySection({ asset, t, td, locale }: Readonly<SectionProps>) {
+function IdentitySection({ asset, t, td }: Readonly<SectionProps>) {
   return (
     <DetailSection
       headingId="asset-identity-heading"
@@ -96,7 +96,7 @@ function IdentitySection({ asset, t, td, locale }: Readonly<SectionProps>) {
       />
       <DetailField
         label={t("acquisitionYearLabel")}
-        value={formatInteger(asset.acquisitionYear, locale)}
+        value={formatYear(asset.acquisitionYear)}
       />
       <DetailField
         label={t("notesLabel")}

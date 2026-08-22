@@ -1,10 +1,10 @@
-import { getLocale, getTranslations } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import {
   CONDITION_LABEL_KEYS,
   STATUS_LABEL_KEYS,
 } from "@/app/(app)/assets/asset-field-specs";
-import { formatInteger } from "@/lib/format-number";
+import { formatYear } from "@/lib/format-number";
 
 import type { ScanAssetRecord } from "./queries";
 import { orNotSet, ScanField, ScanFieldGroup } from "./ScanFieldList";
@@ -22,8 +22,7 @@ import { orNotSet, ScanField, ScanFieldGroup } from "./ScanFieldList";
 export async function ScanPublicFields({
   asset,
 }: Readonly<{ asset: ScanAssetRecord }>) {
-  const [locale, t, ts] = await Promise.all([
-    getLocale(),
+  const [t, ts] = await Promise.all([
     getTranslations("AssetsPage"),
     getTranslations("ScanPage"),
   ]);
@@ -55,7 +54,7 @@ export async function ScanPublicFields({
         />
         <ScanField
           label={t("acquisitionYearLabel")}
-          value={formatInteger(asset.acquisitionYear, locale)}
+          value={formatYear(asset.acquisitionYear)}
         />
         <ScanField
           label={t("notesLabel")}
