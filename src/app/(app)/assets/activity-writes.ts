@@ -59,6 +59,55 @@ export async function writeDeletedActivity(
   });
 }
 
+/**
+ * The loan register's two trail entries (PRD FR-6, issue #15).
+ *
+ * Neither payload carries the borrower's name, email or unit. That is not an
+ * oversight and not an economy: `AssetActivity.payload` is a `Json` column read
+ * by the asset detail timeline, outside the reach of the column-level split
+ * `src/lib/asset-visibility.ts` enforces — a restricted value copied into it
+ * would be personal data sitting in a blob that no `select` can exclude. The
+ * loan row is where the borrower lives, and it is selected by audience.
+ *
+ * Neither is accompanied by a `status_changed` row either. `loaned` and
+ * `returned` *are* the status change, told in the terms that caused it; writing
+ * both would put two entries in the trail for one event.
+ */
+export async function writeLoanedActivity(
+  tx: TransactionClient,
+  assetId: string,
+  actorId: string,
+  loan: { readonly loanId: string; readonly dueAt: Date },
+): Promise<void> {
+  await tx.assetActivity.create({
+    data: {
+      assetId,
+      actorId,
+      type: "loaned",
+      payload: { loanId: loan.loanId, dueAt: loan.dueAt.toISOString() },
+    },
+  });
+}
+
+export async function writeReturnedActivity(
+  tx: TransactionClient,
+  assetId: string,
+  actorId: string,
+  loan: { readonly loanId: string; readonly returnedAt: Date },
+): Promise<void> {
+  await tx.assetActivity.create({
+    data: {
+      assetId,
+      actorId,
+      type: "returned",
+      payload: {
+        loanId: loan.loanId,
+        returnedAt: loan.returnedAt.toISOString(),
+      },
+    },
+  });
+}
+
 async function writeStatusActivity(
   tx: TransactionClient,
   assetId: string,
