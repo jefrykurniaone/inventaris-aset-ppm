@@ -2,7 +2,7 @@
 
 Version 2.0 — 2026-08-26. Follows `docs/prd.md` (v1.0, delivered by spec #20). This document is
 the repository copy of spec issue #81; the execution map is issue #91; the tickets are #82-#90,
-sub-issues of #81. The domain glossary lives in `CONTEXT.md` at the repository root.
+sub-issues of #81. The domain glossary lives in `docs/CONTEXT.md`.
 ## Problem Statement
 
 The prototype is deployed and usable, but a first real session against the production URL surfaced five defects and a set of usability gaps:
@@ -86,7 +86,7 @@ Harden the deployed prototype in three strokes:
 
 ## Further Notes
 
-- The domain glossary (CONTEXT.md at the repository root) fixes the vocabulary: "deactivate", not "ban", in every user-facing and code-facing name; the underlying library call is the implementation detail.
+- The domain glossary (`docs/CONTEXT.md`) fixes the vocabulary: "deactivate", not "ban", in every user-facing and code-facing name; the underlying library call is the implementation detail.
 - The five defects and the usability gaps were found in a single manual session against the production URL on 2026-08-26; there is no automated monitoring yet, which is worth its own conversation later.
 - Page-size default changes from 20 to 10 on the asset list; existing shared URLs without an explicit pageSize parameter will render 10 rows instead of 20, which is accepted.
 
