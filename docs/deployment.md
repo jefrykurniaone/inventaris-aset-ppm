@@ -37,8 +37,8 @@ contradicts most of what a search engine will offer.
 1. Vercel dashboard → **Add New… → Project** → import `jefrykurniaone/inventaris-aset-ppm`.
 2. Framework preset: **Next.js**, detected automatically. Root directory `./`. Build command, output
    directory and install command all stay at their defaults — `vercel.json` in this repository sets
-   only `crons` and touches no build setting. **Do not override the build command in the dashboard**:
-   a dashboard override is configuration nobody reviewing this repository can see.
+   only `regions` and `crons` and touches no build setting. **Do not override the build command in
+   the dashboard**: a dashboard override is configuration nobody reviewing this repository can see.
 3. Node.js version: **24 or later** (`package.json` `engines`).
 4. **Do not deploy yet.** Add the environment variables from [§2](#2-environment-variables) first: a
    build with no `DATABASE_URL` fails, and a build with the wrong `NEXT_PUBLIC_APP_URL` bakes that
@@ -84,6 +84,40 @@ So `DIRECT_URL` must exist in **both** the Production and the Preview scope or t
 and it fails inside `prisma generate`, naming an environment variable, which reads as a migration
 problem rather than as a build one. [§2](#2-environment-variables) already lists it; this is why it
 is required at build time and not only at migration time.
+
+### The function region is pinned to Singapore, beside the database
+
+`vercel.json` sets `"regions": ["sin1"]`. Without it every function runs in Washington, D.C., and
+every query it issues crosses the Pacific to a Supabase project in Singapore — measured at roughly
+five seconds per authenticated navigation before the pin (issue #83). The Supabase project's region
+is fixed at `ap-southeast-1` and cannot be moved after creation
+([`supabase-storage-provisioning.md`](supabase-storage-provisioning.md)), so the function is what
+moves.
+
+From <https://vercel.com/docs/functions/configuring-functions/region>:
+
+- *"By default, Vercel Functions execute in Washington, D.C., USA (`iad1`) for all new projects"*,
+  and *"To change the default region in your `vercel.json` configuration file, add the region
+  code(s) to the `"regions"` key"*.
+- The Hobby plan permits exactly one: the **Limits** table on that page reads `Hobby | Single
+  region`, against `Pro | 5 regions` and `Enterprise | All regions`, and *"Deploying to more regions
+  than your plan allows causes the deployment to fail before the build step"*. One entry is
+  therefore both what this project needs and the most it is allowed.
+- *"If your functions communicate with external services, choosing regions far from those services
+  increases latency. Select only regions close to your external services."*
+
+`sin1` is Singapore, AWS `ap-southeast-1` — the row `sin1 | ap-southeast-1 | Singapore` in the
+region list at <https://vercel.com/docs/regions#region-list>. It is the same AWS region the Supabase
+project sits in, so the query no longer leaves the region.
+
+Two things the pin does **not** change. Static assets are unaffected: Vercel's CDN serves them from
+the point of presence nearest the visitor whatever `regions` says. Routing Middleware is also
+unaffected — *"Vercel deploys Routing Middleware to all regions by default, regardless of your
+region settings"* — though the same page notes it runs in fewer regions on Hobby.
+
+`functionFailoverRegions` is Enterprise-only and is deliberately absent. A single-region Hobby
+project has nowhere to fail over to, and the page requires any failover region to differ from the
+default anyway.
 
 ## 2. Environment variables
 
