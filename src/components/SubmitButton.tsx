@@ -12,12 +12,13 @@ interface SubmitButtonProps {
 }
 
 /**
- * A form's submit button, shared by every plain `<form action={...}>` in the
- * application shell (the admin user table's deactivate/reactivate rows) so
- * each one disables itself and announces `aria-busy` while its action is in
- * flight, without needing its own client-side state. `useFormStatus` only
- * reports the status of the nearest enclosing `<form>`, so this component
- * has to be rendered inside one.
+ * A form's submit button, shared by every plain `<form>` in the application —
+ * server-action forms (the write forms, the admin tables' deactivate/
+ * reactivate rows) and, since ticket #84, the asset list's plain
+ * `method="get"` filter form too — so each one disables itself and announces
+ * `aria-busy` while its submission is in flight, without needing its own
+ * client-side state. `useFormStatus` only reports the status of the nearest
+ * enclosing `<form>`, so this component has to be rendered inside one.
  */
 export function SubmitButton({
   idleLabel,

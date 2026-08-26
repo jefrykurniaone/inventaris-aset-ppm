@@ -360,10 +360,12 @@
     "filterSearchLabel": "Search",
     "filterStatusLabel": "Status",
     "filterSubmit": "Apply filters",
+    "filterSubmitPending": "Applying…",
     "fundingSourceInvalid": "The selected funding source is not valid.",
     "fundingSourceLabel": "Funding source",
     "fundingSourcePlaceholder": "No funding source",
     "invalidReference": "The selected category, room, or funding source is no longer available. Reload the page and try again.",
+    "loadingLabel": "Loading asset list…",
     "modelLabel": "Model",
     "nameLabel": "Asset name",
     "nameRequired": "Asset name is required.",
@@ -423,6 +425,7 @@
     "categoryChartEmpty": "No category data to show yet.",
     "categoryChartTitle": "Assets per category",
     "emptyState": "No assets registered yet.",
+    "loadingLabel": "Loading dashboard…",
     "statusBreakdownLabel": "Assets by status",
     "title": "Dashboard",
     "totalAssetsLabel": "Total assets",
@@ -508,6 +511,9 @@
   "RootLayout": {
     "description": "QR-based asset inventory for Direktorat PPM, Telkom University.",
     "title": "Inventaris Aset — Direktorat PPM"
+  },
+  "RouteProgressBar": {
+    "navigating": "Loading page…"
   },
   "ScanPage": {
     "borrowerEmailLabel": "Borrower email",

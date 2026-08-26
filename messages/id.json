@@ -360,10 +360,12 @@
     "filterSearchLabel": "Cari",
     "filterStatusLabel": "Status",
     "filterSubmit": "Terapkan filter",
+    "filterSubmitPending": "Menerapkan…",
     "fundingSourceInvalid": "Sumber dana yang dipilih tidak valid.",
     "fundingSourceLabel": "Sumber dana",
     "fundingSourcePlaceholder": "Tanpa sumber dana",
     "invalidReference": "Kategori, ruangan, atau sumber dana yang dipilih sudah tidak tersedia. Muat ulang halaman lalu coba lagi.",
+    "loadingLabel": "Memuat daftar aset…",
     "modelLabel": "Model",
     "nameLabel": "Nama aset",
     "nameRequired": "Nama aset wajib diisi.",
@@ -423,6 +425,7 @@
     "categoryChartEmpty": "Belum ada data kategori untuk ditampilkan.",
     "categoryChartTitle": "Aset per kategori",
     "emptyState": "Belum ada aset yang terdaftar.",
+    "loadingLabel": "Memuat dasbor…",
     "statusBreakdownLabel": "Aset per status",
     "title": "Dasbor",
     "totalAssetsLabel": "Total aset",
@@ -508,6 +511,9 @@
   "RootLayout": {
     "description": "Inventaris aset berbasis QR untuk Direktorat PPM, Telkom University.",
     "title": "Inventaris Aset — Direktorat PPM"
+  },
+  "RouteProgressBar": {
+    "navigating": "Memuat halaman…"
   },
   "ScanPage": {
     "borrowerEmailLabel": "Email peminjam",

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { SubmitButton } from "@/components/SubmitButton";
 import { Button } from "@/components/ui/button";
 import { ASSETS_PATH } from "@/lib/paths";
 
@@ -83,11 +84,20 @@ function AssetFilterInputs({
 }
 
 /** The submit and reset controls. Reset is a plain link to `/assets` — the
- * shortest possible way to drop every filter and return to page 1. */
+ * shortest possible way to drop every filter and return to page 1. Submit is
+ * the same `SubmitButton` every other form in this app uses (ticket #84): it
+ * disables itself and announces `aria-busy` while the filter navigation is
+ * in flight, via `useFormStatus` — which tracks this plain `method="get"`
+ * form's submission the same way it tracks the action-based forms elsewhere,
+ * `useFormStatus`'s `method` field being documented as `'get' | 'post'`
+ * rather than always `'post'` is what confirms that. */
 function AssetFilterActions({ t }: Readonly<{ t: AssetsTranslate }>) {
   return (
     <div className="flex items-end gap-2">
-      <Button type="submit">{t("filterSubmit")}</Button>
+      <SubmitButton
+        idleLabel={t("filterSubmit")}
+        pendingLabel={t("filterSubmitPending")}
+      />
       <Button asChild variant="outline">
         <Link href={ASSETS_PATH}>{t("filterReset")}</Link>
       </Button>
