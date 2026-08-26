@@ -18,7 +18,10 @@ interface SignOutButtonProps {
  * the sign-in page happens from its `onSuccess` callback rather than being
  * assumed, so a failed sign-out (a dropped connection, say) leaves the
  * button re-enabled instead of navigating away from a session that is
- * still live.
+ * still live. The callback also calls `router.refresh()` right after
+ * `router.push`, so the Router Cache does not keep serving the signed-out
+ * account's rendered layout and pages to a later sign-in or to
+ * back-navigation.
  */
 export function SignOutButton({
   label,
@@ -33,6 +36,12 @@ export function SignOutButton({
       fetchOptions: {
         onSuccess: () => {
           router.push(SIGN_IN_PATH);
+          // Queued behind the push above (see SignInForm's matching call)
+          // so it runs after navigation lands on the sign-in page,
+          // re-fetching it from the server and evicting the Router Cache
+          // entries for the routes just signed out of — so back-navigation
+          // can't restore an authenticated view from client cache.
+          router.refresh();
         },
       },
     });
