@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 
 import "./globals.css";
 
+import { RouteProgressBar } from "@/components/RouteProgressBar";
 import { resolveTheme, THEME_COOKIE_NAME } from "@/lib/theme";
 
 /**
@@ -37,10 +38,18 @@ export default async function RootLayout({
   const locale = await getLocale();
   const cookieStore = await cookies();
   const theme = resolveTheme(cookieStore.get(THEME_COOKIE_NAME)?.value);
+  const t = await getTranslations("RouteProgressBar");
 
   return (
     <html lang={locale} className={theme === "dark" ? "dark" : undefined}>
       <body>
+        {/* Suspense is required by `useSearchParams` inside
+            `RouteProgressBar` (Next.js's `missing-suspense-with-csr-bailout`
+            build error otherwise) — a `null` fallback is fine, since the bar
+            has nothing to show before hydration anyway. */}
+        <Suspense fallback={null}>
+          <RouteProgressBar label={t("navigating")} />
+        </Suspense>
         <NextIntlClientProvider>{children}</NextIntlClientProvider>
       </body>
     </html>
