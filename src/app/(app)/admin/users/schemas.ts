@@ -27,6 +27,37 @@ export type CreateUserInput = z.infer<typeof createUserSchema>;
 /** Better Auth's user IDs are opaque strings; only "present" is checkable. */
 export const userIdSchema = z.string().min(1);
 
+/**
+ * Long enough for a sentence of context, short enough that the admin users
+ * table stays a table. The column itself is unbounded `text`, so this is the
+ * product's limit rather than the database's.
+ */
+export const DEACTIVATION_REASON_MAX_LENGTH = 300;
+
+/**
+ * Deactivation requires a documented reason (issue #86). Validated here rather
+ * than only in the dialog: `deactivateUserAction` parses with this schema, so a
+ * request that never rendered the dialog is refused the same way.
+ */
+export const deactivateUserSchema = z.object({
+  userId: userIdSchema,
+  reason: z.string().trim().min(1).max(DEACTIVATION_REASON_MAX_LENGTH),
+});
+
+/**
+ * `deactivateUserAction`'s return shape. The action grew a return value when
+ * it grew a field to validate — it used to be a plain `void` form action.
+ */
+export interface DeactivateUserState {
+  readonly reasonError: string | null;
+  readonly formError: string | null;
+}
+
+export const INITIAL_DEACTIVATE_USER_STATE: DeactivateUserState = {
+  reasonError: null,
+  formError: null,
+};
+
 type CreateUserFieldErrors = Partial<
   Record<"name" | "email" | "password", string>
 >;

@@ -11,8 +11,12 @@ import { requireAdmin } from "@/lib/require-user";
 import {
   createUserSchema,
   type CreateUserState,
+  deactivateUserSchema,
+  type DeactivateUserState,
+  INITIAL_DEACTIVATE_USER_STATE,
   userIdSchema,
 } from "./schemas";
+import { readDeactivationReason, recordUserActivity } from "./user-activity";
 
 const USERS_PATH = "/admin/users";
 
@@ -128,35 +132,98 @@ export async function createUserAction(
 }
 
 /**
- * Deactivates a user (PRD FR-1.3) via the admin plugin's ban, per this
- * project's constraint that deactivation is not a new schema column. A
- * plain form action with no return value: the row's own "deactivate" button
- * is hidden for the signed-in admin's own account as a UX nicety, and
- * Better Auth's own `YOU_CANNOT_BAN_YOURSELF` check backs that up
- * server-side regardless — a failure here is logged and the row simply
- * stays as it was, rather than the mutation being silently accepted.
+ * Picks the message for whatever is wrong with the submitted reason, or
+ * `null` when the reason itself is fine. A missing `userId` is not a user
+ * error — no form renders that field — so it falls through to `null` and the
+ * caller reports its generic failure instead.
  */
-export async function deactivateUserAction(formData: FormData): Promise<void> {
-  await requireAdmin();
-  const userId = userIdSchema.parse(formData.get("userId"));
+function readReasonErrorKey(
+  issues: ReadonlyArray<{
+    readonly path: PropertyKey[];
+    readonly code: string;
+  }>,
+): "reasonRequired" | "reasonTooLong" | null {
+  const issue = issues.find((candidate) => candidate.path[0] === "reason");
+  if (!issue) {
+    return null;
+  }
+  return issue.code === "too_big" ? "reasonTooLong" : "reasonRequired";
+}
 
+/**
+ * Deactivates a user (PRD FR-1.3) via the admin plugin's ban, recording the
+ * required reason (issue #86). The reason goes to two places on purpose:
+ * `banReason`, which is the current state the users table renders, and a
+ * `UserActivity` row, which is the history — reactivation clears the former
+ * and the latter is what survives it.
+ *
+ * The reason is required *here*, not only in the dialog: this schema parse is
+ * what refuses an empty one, so a request that never rendered the dialog is
+ * refused identically. The row's own control is hidden for the signed-in
+ * admin's own account as a UX nicety, and Better Auth's own
+ * `YOU_CANNOT_BAN_YOURSELF` check backs that up server-side regardless.
+ */
+export async function deactivateUserAction(
+  _previousState: DeactivateUserState,
+  formData: FormData,
+): Promise<DeactivateUserState> {
+  const actor = await requireAdmin();
+  const t = await getTranslations("AdminUsersPage");
+  const parsed = deactivateUserSchema.safeParse({
+    userId: formData.get("userId"),
+    reason: formData.get("reason"),
+  });
+
+  if (!parsed.success) {
+    const reasonErrorKey = readReasonErrorKey(parsed.error.issues);
+    return {
+      reasonError: reasonErrorKey ? t(reasonErrorKey) : null,
+      formError: reasonErrorKey ? null : t("unexpectedError"),
+    };
+  }
+
+  const { userId, reason } = parsed.data;
   try {
-    await auth.api.banUser({ body: { userId }, headers: await headers() });
+    await auth.api.banUser({
+      body: { userId, banReason: reason },
+      headers: await headers(),
+    });
+    await recordUserActivity({
+      userId,
+      actorId: actor.id,
+      type: "deactivated",
+      reason,
+    });
   } catch (error) {
     logActionError("deactivateUserAction", { userId }, error);
-    return;
+    return { reasonError: null, formError: t("unexpectedError") };
   }
 
   revalidatePath(USERS_PATH);
+  return INITIAL_DEACTIVATE_USER_STATE;
 }
 
-/** The reciprocal of `deactivateUserAction`, so deactivating is not one-way. */
+/**
+ * The reciprocal of `deactivateUserAction`, so deactivating is not one-way.
+ *
+ * The stored reason is read *before* the unban, because Better Auth's
+ * `unbanUser` sets `banReason` to null, and it is then written into a
+ * `reactivated` row: clearing the current state must not erase the record of
+ * why the account was deactivated in the first place.
+ */
 export async function reactivateUserAction(formData: FormData): Promise<void> {
-  await requireAdmin();
+  const actor = await requireAdmin();
   const userId = userIdSchema.parse(formData.get("userId"));
 
   try {
+    const clearedReason = await readDeactivationReason(userId);
     await auth.api.unbanUser({ body: { userId }, headers: await headers() });
+    await recordUserActivity({
+      userId,
+      actorId: actor.id,
+      type: "reactivated",
+      reason: clearedReason,
+    });
   } catch (error) {
     logActionError("reactivateUserAction", { userId }, error);
     return;

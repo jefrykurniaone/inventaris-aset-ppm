@@ -18,6 +18,7 @@ const COLUMN_KEYS = [
   "columnEmail",
   "columnRole",
   "columnStatus",
+  "columnReason",
   "columnActions",
 ] as const;
 

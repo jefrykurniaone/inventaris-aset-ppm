@@ -1,0 +1,40 @@
+// Append-only history of user-account deactivations (issue #86). A row is
+// written and never amended, so — like `AssetActivity` — the model carries no
+// `updatedAt`; the absence is deliberate.
+//
+// This exists because `User.banReason` holds only the *current* state:
+// reactivating clears it, and the reason then no longer exists anywhere. A
+// deactivation writes both — `banReason` for what the admin users table shows
+// now, a row here for what happened — and a reactivation clears `banReason`
+// while writing the reason it cleared into a `reactivated` row, so the history
+// outlives the state.
+//
+// A separate table rather than a widened `AssetActivity`: that model's `assetId`
+// is `NOT NULL` with a cascade to `Asset`, so every row there belongs to a real
+// asset. Making it nullable to fit rows that are not about assets would weaken
+// that invariant for every existing row. This costs one `CREATE TABLE` and
+// changes nothing that already exists.
+//
+// Both columns point at `user`, so each relation needs an explicit name —
+// Prisma cannot pair two relations to the same model by field order. `userId`
+// cascades, matching `session` and `account`: an account's own history goes with
+// the account. `actorId` restricts, matching every other actor column in this
+// schema, so an admin who has acted cannot be deleted out from under the trail.
+//
+// `reason` is restricted data. It is read by the admin users surface only, and
+// no public or non-admin query selects this table at all.
+
+model UserActivity {
+  id        String           @id @default(uuid(7))
+  userId    String
+  user      User             @relation("UserActivitySubject", fields: [userId], references: [id], onDelete: Cascade)
+  actorId   String
+  actor     User             @relation("UserActivityActor", fields: [actorId], references: [id], onDelete: Restrict)
+  type      UserActivityType
+  reason    String
+  createdAt DateTime         @default(now())
+
+  @@index([userId, createdAt])
+  @@index([actorId])
+  @@map("user_activity")
+}
