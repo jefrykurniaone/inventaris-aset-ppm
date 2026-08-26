@@ -241,7 +241,7 @@ local Postgres, and the hosted database path has never executed.
 - [ ] **Smoke path against the deployment.** [§6](#6-running-the-smoke-path-against-the-deployment).
 - [ ] **The health endpoint answers.** `GET <production URL>/api/health` returns `{"status":"ok"}`.
 - [ ] **The scheduled request reaches it.** The first cron invocation is recorded as `200` in
-      Vercel → Cron Jobs, not `401`. [§8](#check-the-first-cron-invocation-actually-returned-200) —
+      Vercel → Cron Jobs, not `401`. [§8](#the-first-cron-invocation-returned-200) —
       this one is easy to skip and is exactly the failure R4 exists to prevent.
 
 Only when every box is ticked does PRD acceptance criterion 10 hold, and only then may issue #17 be
@@ -383,6 +383,7 @@ decision and the fix takes a minute when it is needed.
 | `prepared statement "s0" already exists` | `42P05` | Named prepared statements are reaching a transaction pooler. **Not a Prisma bug.** |
 | `prepared statement "s3" does not exist` | `26000` | The same fault from the other side: the statement was prepared on one pooled server connection and executed on another |
 | `Can't reach database server` (`P1001`) | — | Wrong host or port, or **the Supabase project is paused** — check that first, see [§8](#8-keeping-the-project-awake-r4) |
+| `Can't reach database server` (`P1001`) | — | `DIRECT_URL` is the Connect panel's **Direct connection** string (`db.<project-ref>.supabase.co:5432`). That host is **IPv6-only** on the Supabase free tier, so it is unreachable from an IPv4-only network — most home and office networks, and Vercel. Fix: use the **Session pooler** string instead (`aws-…pooler.supabase.com:5432`, user `postgres.<project-ref>`) |
 | `Timed out fetching a new connection from the connection pool` (`P2024`) | — | Pool exhaustion, not a pooler-mode problem. See the `max` note above |
 
 When `42P05` or `26000` appears, work through these in order — the cause is one of them, and it is
@@ -446,19 +447,20 @@ Notes on the mechanism, from <https://vercel.com/docs/cron-jobs> and
   authorisation, and requiring a bearer token would also stop the pre-demonstration check in
   `README.md` from being a URL somebody can simply open on a phone.
 
-### Check the first cron invocation actually returned `200`
+### The first cron invocation returned `200`
 
-This is a verification step, not a formality, and it is the one silent failure mode left in the R4
+This was a verification step, not a formality, and it closed the one silent failure mode in the R4
 mitigation. **Vercel's documentation does not say whether a cron invocation is exempt from
 Deployment Protection.** Cron is absent from the list of callers allowed through Vercel
 Authentication, and the protection page says protection *"requires authentication for all
-requests"* without naming cron either way. If protection does apply, the cron records a `401`, never
-reaches the route, never reaches Supabase — and the schedule keeps reporting that it ran, every day,
-while the project pauses anyway.
+requests"* without naming cron either way. Had protection applied, the cron would have recorded a
+`401`, never reached the route, never reached Supabase — and the schedule would have kept reporting
+that it ran, every day, while the project paused anyway.
 
-So after the first scheduled run, open **Vercel → the project → Cron Jobs** and read the status of
-the invocation. `200` means the mitigation works. `401` means it does not, and there are two ways
-out, neither free:
+**Observed 2026-08-26:** the first scheduled invocation, read from **Vercel → the project → Cron
+Jobs**, returned `200`. Cron passes Deployment Protection on this project — the request reached the
+function and reached Supabase — with no bypass secret configured and no protection setting changed.
+If a future project ever shows `401` here instead, there are two ways out, neither free:
 
 - Turn Vercel Authentication off for the project. On Hobby that only un-protects preview and
   generated deployment URLs — the production domain was already public — but those previews share
@@ -468,7 +470,7 @@ out, neither free:
   `vercel.json`, which is committed**, so it is not an option here as written. A Deployment
   Protection Exception is the supported alternative and is Pro-and-above only.
 
-Until that invocation has been read, treat R4 as mitigated *on paper*.
+R4 is now mitigated in practice, confirmed by the first invocation, not only on paper.
 
 ### One more thing to settle before this is the real deployment
 

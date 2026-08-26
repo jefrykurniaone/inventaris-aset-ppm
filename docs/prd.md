@@ -456,10 +456,11 @@ Mitigations:
    slept — and `vercel.json` schedules one daily cron against it. Vercel cron rather than a GitHub
    Actions schedule because GitHub disables scheduled workflows in a quiet repository after 60 days,
    which is precisely this risk's scenario; `docs/deployment.md` §8 carries the full comparison.
-   *Awaiting observation:* whether the cron invocation is exempt from Vercel's Deployment
-   Protection. Vercel's documentation does not say, and a `401` there would be silent — the schedule
-   would report success daily while nothing reached Supabase. Reading the first invocation's status
-   is a checklist item in `docs/deployment.md` §5.
+   **Observed 2026-08-26:** the first Vercel cron invocation of `GET /api/health` returned HTTP
+   `200` in the expected window (schedule `0 3 * * *` UTC, fired 10:55 WIB — Vercel Hobby honours
+   the hour, not the minute). This also answers the question Vercel's own documentation left open:
+   cron invocations are **not** blocked by Deployment Protection. The request reached the function
+   and returned `200`, so no bypass secret and no protection change were needed.
 3. Confirm the deployment is awake and responding the day before any demonstration. This belongs on
    a demonstration checklist, not in someone's memory — it is now the three-step *Before a
    demonstration* section in `README.md`.
@@ -484,21 +485,25 @@ created in wave 0, runs migrations through the session-mode connection, points t
 the `asset-photos` bucket, and confirms the public scan page works from a phone on the deployed URL.
 Until it closes, no claim is made that the application's **database** runs on Supabase.
 
-**Narrowed on paper by issue #17, not yet by observation.** The sharp edge turns out to be sharper
-than described above, and in an unexpected direction: with a Prisma **driver adapter**,
-`?pgbouncer=true` and `connection_limit=1` are both inert. They were Prisma *engine* URL flags, and
-Prisma 7 hands the connection string to `@prisma/adapter-pg` and then to `pg`, which drops
-unrecognised query parameters without an error or a warning. What actually makes transaction mode
-safe here is the adapter's default: it supplies a statement `name` to node-postgres only when given
-a `statementNameGenerator`, and `src/lib/db.ts` gives it none, so every query is an unnamed
-extended-protocol query — which Supavisor transaction mode supports. The consequence of the second
-inert parameter is real but small at this scale: the pool is `pg`'s, defaulting to ten connections
-per warm instance rather than one. `docs/deployment.md` §7 records the verification, the sources,
-the error shapes to expect (`42P05`, `26000`) and the one-line fix if pool exhaustion ever appears.
+**Narrowed on paper by issue #17, and confirmed by observation on 2026-08-23.** The sharp edge turns
+out to be sharper than described above, and in an unexpected direction: with a Prisma
+**driver adapter**, `?pgbouncer=true` and `connection_limit=1` are both inert. They were Prisma
+*engine* URL flags, and Prisma 7 hands the connection string to `@prisma/adapter-pg` and then to
+`pg`, which drops unrecognised query parameters without an error or a warning. What actually makes
+transaction mode safe here is the adapter's default: it supplies a statement `name` to node-postgres
+only when given a `statementNameGenerator`, and `src/lib/db.ts` gives it none, so every query is an
+unnamed extended-protocol query — which Supavisor transaction mode supports. The consequence of the
+second inert parameter is real but small at this scale: the pool is `pg`'s, defaulting to ten
+connections per warm instance rather than one. `docs/deployment.md` §7 records the verification, the
+sources, the error shapes to expect (`42P05`, `26000`) and the one-line fix if pool exhaustion ever
+appears. The inert-flags finding stands unchanged by observation — it was read off the installed
+packages before the cutover, and the cutover did not contradict it.
 
-*Still awaiting observation, and the whole reason this risk stays open:* no query from this
-application has yet reached Supabase Postgres. The reasoning above is read off the installed
-packages, which is stronger than a documentation page and weaker than a request that ran.
+**Observed clean on 2026-08-23.** The first application query ever to cross the Supavisor
+transaction pooler was `GET /api/health`'s `SELECT 1`, which succeeded with no prepared-statement
+error. The full demonstration seed then ran through the same pooler under sustained write load — 60
+assets through the real `createAsset` mutation with its advisory lock, 20 photo records, 5 loans, and
+their activity rows — with zero pooler errors.
 
 ### R3 — No fixed demonstration date
 
