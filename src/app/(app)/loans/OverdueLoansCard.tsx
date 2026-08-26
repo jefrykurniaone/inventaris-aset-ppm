@@ -4,19 +4,22 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { formatInteger } from "@/lib/format-number";
 import { LOANS_PATH } from "@/lib/paths";
 
-import { countOverdueLoans } from "./list-queries";
-
 /**
- * The dashboard's overdue-loans figure (PRD FR-6.4), as a self-contained card:
- * it takes no props, runs its own count, and links to the loans list already
+ * The dashboard's overdue-loans figure (PRD FR-6.4), as a card that renders a
+ * count its caller has already fetched and links to the loans list already
  * filtered to `overdue`.
  *
- * No props on purpose. Issue #13 rebuilds the landing page in parallel with
- * this ticket, and a card that needs nothing wired to it can be mounted with
- * one import and one element wherever that page ends up — no aggregation to
- * plumb, no shape for the two branches to disagree about.
+ * The count arrives as a prop rather than from a `countOverdueLoans` call in
+ * this body, which is a deliberate reversal of how the card shipped in issue
+ * #15. An async server component's own queries cannot start until the page
+ * component that renders it has finished awaiting, so a self-contained card
+ * bought its independence at the price of one extra serialised database round
+ * trip on every dashboard navigation — against a database in Singapore, that
+ * was the difference the card charged for asking its own question (issue #83).
+ * `loadDashboardMetrics` now asks it inside the same `Promise.all` as the
+ * asset aggregates.
  *
- * The number and the link are the same question asked twice:
+ * The number and the link are still the same question asked twice:
  * `countOverdueLoans` and the list's `overdue` filter both come from
  * `buildOverdueLoanWhere`, so the count is exactly the number of rows the link
  * leads to.
@@ -24,11 +27,16 @@ import { countOverdueLoans } from "./list-queries";
 
 const OVERDUE_FILTER_HREF = `${LOANS_PATH}?state=overdue`;
 
-export async function OverdueLoansCard() {
-  const [locale, t, count] = await Promise.all([
+interface OverdueLoansCardProps {
+  readonly count: number;
+}
+
+export async function OverdueLoansCard({
+  count,
+}: Readonly<OverdueLoansCardProps>) {
+  const [locale, t] = await Promise.all([
     getLocale(),
     getTranslations("LoansPage"),
-    countOverdueLoans(new Date()),
   ]);
 
   return (

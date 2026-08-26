@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
 import { auth } from "@/lib/auth";
 import { NOT_AUTHORIZED_PATH, SIGN_IN_PATH } from "@/lib/paths";
@@ -18,11 +19,23 @@ export type SessionUser = NonNullable<Session>["user"];
  * so `requireUser` and `requireAdmin` below — and anything that only wants to
  * know who is signed in without enforcing it, such as the sign-in page's
  * already-authenticated check — all read the session the same way.
+ *
+ * Wrapped in React's `cache()` so the lookup runs **once per request** rather
+ * than once per caller (issue #83). The `(app)` route-group layout and the
+ * page nested inside it both call `requireUser()` on every navigation, and
+ * each call used to be its own `auth.api.getSession` — a session row read
+ * across the Pacific, twice. `cache()` memoizes on the argument list, and
+ * this function takes none, so every caller in one request shares one entry.
+ *
+ * The memoization is a pure saving, never a behaviour change: outside a React
+ * request scope — a Vitest unit test, a `tsx` script — `react`'s non-server
+ * build of `cache()` is a straight pass-through to the wrapped function, so
+ * the "no session means no user" contract holds identically either way.
  */
-export async function getSessionUser(): Promise<SessionUser | null> {
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const session = await auth.api.getSession({ headers: await headers() });
   return session?.user ?? null;
-}
+});
 
 /**
  * The server-side authorisation boundary every server action and route

@@ -108,11 +108,12 @@ function DashboardChartsSection({
  * staff session's response payload from ever carrying that figure, not a
  * conditional render of an already-fetched number (PRD FR-9.1: "admin only").
  *
- * `OverdueLoansCard` (issue #15, PRD FR-6.4) is self-contained — it runs its
- * own count and links to the loans list pre-filtered to `overdue` — and it
- * renders even for an empty register, because "0 overdue" is a true and
- * useful figure where the asset cards' empty state stands in for meaningless
- * zeros.
+ * `OverdueLoansCard` (issue #15, PRD FR-6.4) links to the loans list
+ * pre-filtered to `overdue`, and renders even for an empty register, because
+ * "0 overdue" is a true and useful figure where the asset cards' empty state
+ * stands in for meaningless zeros. Its count comes from `metrics` rather than
+ * from a query of its own so that it dispatches with the asset aggregates
+ * instead of after them (issue #83).
  */
 export default async function HomePage() {
   const user = await requireUser();
@@ -146,7 +147,7 @@ export default async function HomePage() {
           attentionValue={formatInteger(metrics.attentionCount, locale)}
         />
       )}
-      <OverdueLoansCard />
+      <OverdueLoansCard count={metrics.overdueLoanCount} />
       <DashboardChartsSection metrics={metrics} locale={locale} t={t} />
     </div>
   );

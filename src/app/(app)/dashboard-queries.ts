@@ -11,6 +11,8 @@ import {
 } from "@/lib/dashboard-metrics";
 import { db } from "@/lib/db";
 
+import { countOverdueLoans } from "./loans/list-queries";
+
 /**
  * The dashboard's reads (PRD FR-9.1, FR-9.2). Every figure here is one
  * aggregate query — `count`, `groupBy`, or `aggregate` — against the `where`
@@ -90,6 +92,16 @@ async function loadTotalAcquisitionValue(
   return computeTotalAcquisitionValue(result._sum.purchasePrice);
 }
 
+/** The overdue-loans figure `OverdueLoansCard` renders (PRD FR-6.4). It lives
+ * in this batch rather than in the card's own body so it dispatches with the
+ * asset aggregates instead of after them: an async server component's queries
+ * only start once the page component's own `await` has settled, which on a
+ * Singapore database read from a US function was one more full round trip
+ * added to every dashboard navigation (issue #83). */
+async function loadOverdueLoanCount(): Promise<number> {
+  return countOverdueLoans(new Date());
+}
+
 export interface DashboardMetrics {
   readonly totalAssets: number;
   /** `null` for a staff session — see `loadTotalAcquisitionValue`. */
@@ -98,6 +110,7 @@ export interface DashboardMetrics {
   readonly attentionCount: number;
   readonly categoryCounts: readonly CategoryCountRow[];
   readonly yearCounts: readonly YearCountRow[];
+  readonly overdueLoanCount: number;
 }
 
 export interface LoadDashboardMetricsOptions {
@@ -110,8 +123,15 @@ export interface LoadDashboardMetricsOptions {
 
 /**
  * Every dashboard figure, fetched in parallel. Six aggregate queries against
- * the asset table — never a `findMany` over it — plus one small lookup for
- * category labels.
+ * the asset table — never a `findMany` over it — plus the overdue-loan count
+ * and one small lookup for category labels.
+ *
+ * One `Promise.all` is the whole point: the dashboard's figures are
+ * independent of one another, so the page costs one database round trip's
+ * latency rather than one per figure. `loadCategoryCounts` is the single
+ * exception, and it is not an exception to the rule so much as a consequence
+ * of it — its label lookup takes the ids the `groupBy` returned, so it cannot
+ * dispatch before that `groupBy` answers.
  */
 export async function loadDashboardMetrics({
   includeTotalValue,
@@ -123,6 +143,7 @@ export async function loadDashboardMetrics({
     categoryCounts,
     yearCounts,
     totalAcquisitionValue,
+    overdueLoanCount,
   ] = await Promise.all([
     loadTotalAssetsCount(),
     loadAttentionCount(),
@@ -130,6 +151,7 @@ export async function loadDashboardMetrics({
     loadCategoryCounts(),
     loadYearCounts(),
     loadTotalAcquisitionValue(includeTotalValue),
+    loadOverdueLoanCount(),
   ]);
 
   return {
@@ -139,5 +161,6 @@ export async function loadDashboardMetrics({
     attentionCount,
     categoryCounts,
     yearCounts,
+    overdueLoanCount,
   };
 }
