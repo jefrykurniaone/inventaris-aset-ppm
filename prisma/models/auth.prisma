@@ -48,10 +48,14 @@ model User {
   accounts      Account[]
 
   // Reverse sides of the application relations. Relation fields only.
-  createdAssets  Asset[]
-  uploadedPhotos AssetPhoto[]
-  handledLoans   Loan[]
-  activities     AssetActivity[]
+  // `UserActivity` points at this model twice — the account acted on and the
+  // admin who acted — so both sides carry an explicit relation name.
+  createdAssets     Asset[]
+  uploadedPhotos    AssetPhoto[]
+  handledLoans      Loan[]
+  activities        AssetActivity[]
+  activityAsSubject UserActivity[]  @relation("UserActivitySubject")
+  activityAsActor   UserActivity[]  @relation("UserActivityActor")
 
   @@unique([email])
   @@map("user")

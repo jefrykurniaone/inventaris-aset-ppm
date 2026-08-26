@@ -39,3 +39,16 @@ enum ActivityType {
 
   @@map("activity_type")
 }
+
+// The two halves of a user account's deactivation history (issue #86). Kept
+// apart from `ActivityType` on purpose: that enum belongs to `AssetActivity`,
+// whose every row must hang off a real asset, and widening it would mean
+// loosening that model's `assetId` invariant for rows that are not about
+// assets. `UserActivity` is its own table instead, so this is its own enum.
+
+enum UserActivityType {
+  deactivated
+  reactivated
+
+  @@map("user_activity_type")
+}
