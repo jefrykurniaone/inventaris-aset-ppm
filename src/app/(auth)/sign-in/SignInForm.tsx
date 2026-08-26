@@ -177,8 +177,10 @@ function SignInField({
 
 /**
  * The sign-in form itself (PRD FR-1.1): inline validation, a submit
- * disabled while pending, and a redirect home on success. Everything that
- * is not presentation lives in `resolveSignInState` above.
+ * disabled while pending, and a redirect home on success — followed by
+ * `router.refresh()` so a previous account's Router Cache entries for the
+ * home route do not get served to the freshly signed-in account. Everything
+ * that is not presentation lives in `resolveSignInState` above.
  */
 export function SignInForm() {
   const t = useTranslations("SignInForm");
@@ -191,6 +193,14 @@ export function SignInForm() {
     const nextState = await resolveSignInState(formData, t);
     if (nextState.isSuccess) {
       router.push(HOME_PATH);
+      // Refresh queues behind the pending push in Next's router action
+      // queue, so it runs against the destination route: it re-fetches the
+      // root layout and page from the server, replacing the Router Cache
+      // entries that still hold the previous account's session-derived
+      // name, menu, and dashboard data. Calling it before push would get it
+      // discarded instead, since a navigate action preempts a pending
+      // refresh.
+      router.refresh();
     }
     return nextState;
   }
