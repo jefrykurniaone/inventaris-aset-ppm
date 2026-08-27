@@ -3,6 +3,8 @@ import { getTranslations } from "next-intl/server";
 
 import { DeleteControl } from "@/components/DeleteControl";
 import { Button } from "@/components/ui/button";
+import type { Locale } from "@/i18n/config";
+import { formatDate } from "@/lib/format-date";
 
 import { deleteAssetAction } from "./actions";
 import { CONDITION_LABEL_KEYS, STATUS_LABEL_KEYS } from "./asset-field-specs";
@@ -14,13 +16,14 @@ type AssetsT = Awaited<ReturnType<typeof getTranslations<"AssetsPage">>>;
 
 interface AssetRowProps {
   readonly asset: AssetListRow;
+  readonly locale: Locale;
   readonly t: AssetsT;
 }
 
 /** One row of the asset list's desktop table, split out of `AssetTable` so
  * every function in this feature stays under the project's 40-line limit.
  * `AssetCard` is this same row's data, laid out for a phone. */
-export function AssetRow({ asset, t }: Readonly<AssetRowProps>) {
+export function AssetRow({ asset, locale, t }: Readonly<AssetRowProps>) {
   return (
     <tr className="border-border border-b align-top">
       <td className="py-2 pr-4">
@@ -53,6 +56,11 @@ export function AssetRow({ asset, t }: Readonly<AssetRowProps>) {
       <td className="py-2 pr-4">{t(STATUS_LABEL_KEYS[asset.status])}</td>
       <td className="py-2 pr-4">{t(CONDITION_LABEL_KEYS[asset.condition])}</td>
       <td className="py-2 pr-4">{asset.acquisitionYear}</td>
+      <td className="py-2 pr-4 whitespace-nowrap">
+        <time dateTime={asset.createdAt.toISOString()}>
+          {formatDate(asset.createdAt, locale)}
+        </time>
+      </td>
       <td className="py-2 pr-4">
         <Button asChild variant="outline" size="sm">
           <Link href={`/assets/${asset.id}/edit`}>{t("edit")}</Link>

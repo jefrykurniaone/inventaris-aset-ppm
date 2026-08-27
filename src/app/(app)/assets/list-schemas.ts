@@ -1,17 +1,20 @@
 import { z } from "zod";
 
 import {
-  ASSET_LIST_SORT_DIRECTIONS,
   ASSET_LIST_SORT_KEYS,
-  DEFAULT_ASSET_LIST_PAGE_SIZE,
   DEFAULT_ASSET_LIST_SORT_DIRECTION,
   DEFAULT_ASSET_LIST_SORT_KEY,
-  FIRST_ASSET_LIST_PAGE,
-  MAX_ASSET_LIST_PAGE_SIZE,
-  MIN_ASSET_LIST_PAGE_SIZE,
   type AssetListSortDirection,
   type AssetListSortKey,
 } from "@/lib/asset-list-query";
+import {
+  readPageParam,
+  readPageSizeParam,
+  readParamInt,
+  readParamString,
+  readSortDirection,
+  readSortKey,
+} from "@/lib/table-sort";
 
 import {
   ASSET_CONDITIONS,
@@ -37,25 +40,12 @@ import {
 
 const SEARCH_MAX_LENGTH = 200;
 
-/** A raw search-param value, trimmed, or `undefined` for anything that is
- * not a plain non-empty string — including the `string[]` shape a repeated
- * query param produces. */
-function readParam(raw: unknown): string | undefined {
-  if (typeof raw !== "string") {
-    return undefined;
-  }
-  const trimmed = raw.trim();
-  return trimmed === "" ? undefined : trimmed;
-}
-
-function readInt(raw: unknown): number | undefined {
-  const value = readParam(raw);
-  if (value === undefined) {
-    return undefined;
-  }
-  const parsed = Number(value);
-  return Number.isInteger(parsed) ? parsed : undefined;
-}
+/** The trimming, integer and whitelist readers live in `@/lib/table-sort`
+ * (issue #87): seven tables now read the same four view params, and one copy
+ * of "is this page size inside the bounds" is what stops the bounds drifting
+ * apart between them. */
+const readParam = readParamString;
+const readInt = readParamInt;
 
 /** A free-form id filter: any non-empty string is accepted — a value that
  * matches no row simply returns zero results, which is not an error the
@@ -116,46 +106,26 @@ const attentionFilter = z
 const sortKeyParam = z
   .unknown()
   .optional()
-  .transform((raw): AssetListSortKey => {
-    const value = readParam(raw);
-    return value !== undefined &&
-      (ASSET_LIST_SORT_KEYS as readonly string[]).includes(value)
-      ? (value as AssetListSortKey)
-      : DEFAULT_ASSET_LIST_SORT_KEY;
-  });
+  .transform((raw): AssetListSortKey =>
+    readSortKey(raw, ASSET_LIST_SORT_KEYS, DEFAULT_ASSET_LIST_SORT_KEY),
+  );
 
 const sortDirectionParam = z
   .unknown()
   .optional()
-  .transform((raw): AssetListSortDirection => {
-    const value = readParam(raw);
-    return value !== undefined &&
-      (ASSET_LIST_SORT_DIRECTIONS as readonly string[]).includes(value)
-      ? (value as AssetListSortDirection)
-      : DEFAULT_ASSET_LIST_SORT_DIRECTION;
-  });
+  .transform((raw): AssetListSortDirection =>
+    readSortDirection(raw, DEFAULT_ASSET_LIST_SORT_DIRECTION),
+  );
 
 const pageParam = z
   .unknown()
   .optional()
-  .transform((raw) => {
-    const parsed = readInt(raw);
-    return parsed !== undefined && parsed >= FIRST_ASSET_LIST_PAGE
-      ? parsed
-      : FIRST_ASSET_LIST_PAGE;
-  });
+  .transform((raw) => readPageParam(raw));
 
 const pageSizeParam = z
   .unknown()
   .optional()
-  .transform((raw) => {
-    const parsed = readInt(raw);
-    return parsed !== undefined &&
-      parsed >= MIN_ASSET_LIST_PAGE_SIZE &&
-      parsed <= MAX_ASSET_LIST_PAGE_SIZE
-      ? parsed
-      : DEFAULT_ASSET_LIST_PAGE_SIZE;
-  });
+  .transform((raw) => readPageSizeParam(raw));
 
 export const assetListSearchParamsSchema = z.object({
   q: searchTerm,

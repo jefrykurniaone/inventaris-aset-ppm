@@ -6,6 +6,8 @@ import {
   buildLoanListWhere,
   buildOverdueLoanWhere,
   DEFAULT_LOAN_LIST_PAGE_SIZE,
+  DEFAULT_LOAN_LIST_SORT_DIRECTION,
+  DEFAULT_LOAN_LIST_SORT_KEY,
   FIRST_LOAN_LIST_PAGE,
   totalLoanListPageCount,
 } from "./loan-list-query";
@@ -77,8 +79,37 @@ describe("buildLoanListWhere", () => {
 });
 
 describe("buildLoanListOrderBy", () => {
-  it("sorts by due date, oldest first, with a stable tie-break", () => {
-    expect(buildLoanListOrderBy()).toEqual([{ dueAt: "asc" }, { id: "asc" }]);
+  it("sorts by the default due date, oldest first, with a stable tie-break", () => {
+    expect(
+      buildLoanListOrderBy(
+        DEFAULT_LOAN_LIST_SORT_KEY,
+        DEFAULT_LOAN_LIST_SORT_DIRECTION,
+      ),
+    ).toEqual([{ dueAt: "asc" }, { id: "asc" }]);
+  });
+
+  it.each([
+    { sortKey: "checkedOutAt" as const, expected: { checkedOutAt: "desc" } },
+    { sortKey: "returnedAt" as const, expected: { returnedAt: "desc" } },
+    { sortKey: "dueAt" as const, expected: { dueAt: "desc" } },
+  ])("orders by $sortKey on its own column", ({ sortKey, expected }) => {
+    expect(buildLoanListOrderBy(sortKey, "desc")).toEqual([
+      expected,
+      { id: "desc" },
+    ]);
+  });
+
+  it("orders by asset code through the relation, not a loan column", () => {
+    expect(buildLoanListOrderBy("assetCode", "asc")).toEqual([
+      { asset: { assetCode: "asc" } },
+      { id: "asc" },
+    ]);
+  });
+
+  it("keeps due-soonest-first and a ten-row page as the list's defaults", () => {
+    expect(DEFAULT_LOAN_LIST_SORT_KEY).toBe("dueAt");
+    expect(DEFAULT_LOAN_LIST_SORT_DIRECTION).toBe("asc");
+    expect(DEFAULT_LOAN_LIST_PAGE_SIZE).toBe(10);
   });
 });
 
@@ -102,9 +133,9 @@ describe("totalLoanListPageCount", () => {
   it.each([
     { totalCount: 0, expected: FIRST_LOAN_LIST_PAGE },
     { totalCount: 1, expected: 1 },
-    { totalCount: 20, expected: 1 },
-    { totalCount: 21, expected: 2 },
-    { totalCount: 40, expected: 2 },
+    { totalCount: 10, expected: 1 },
+    { totalCount: 11, expected: 2 },
+    { totalCount: 40, expected: 4 },
   ])(
     "spans $expected pages for $totalCount rows",
     ({ totalCount, expected }) => {

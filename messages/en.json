@@ -7,6 +7,7 @@
     "codeRequired": "Code is required.",
     "columnActive": "Activate/Deactivate",
     "columnCode": "Code",
+    "columnCreatedAt": "Created",
     "columnDelete": "Delete",
     "columnEdit": "Edit",
     "columnName": "Name",
@@ -48,6 +49,7 @@
     "codeLabel": "Code",
     "columnActive": "Activate/Deactivate",
     "columnCode": "Code",
+    "columnCreatedAt": "Created",
     "columnDelete": "Delete",
     "columnEdit": "Edit",
     "columnName": "Name (Indonesian)",
@@ -86,6 +88,7 @@
     "backToList": "Back to list",
     "cancel": "Cancel",
     "columnActive": "Activate/Deactivate",
+    "columnCreatedAt": "Created",
     "columnDelete": "Delete",
     "columnEdit": "Edit",
     "columnName": "Name",
@@ -133,6 +136,7 @@
     "columnActive": "Activate/Deactivate",
     "columnBuilding": "Building",
     "columnCode": "Code",
+    "columnCreatedAt": "Created",
     "columnDelete": "Delete",
     "columnEdit": "Edit",
     "columnName": "Name",
@@ -172,6 +176,7 @@
   "AdminUsersPage": {
     "cancel": "Cancel",
     "columnActions": "Actions",
+    "columnCreatedAt": "Created",
     "columnEmail": "Email",
     "columnName": "Name",
     "columnReason": "Deactivation reason",
@@ -322,6 +327,7 @@
     "columnAssetCode": "Asset code",
     "columnCategory": "Category",
     "columnCondition": "Condition",
+    "columnCreatedAt": "Registered",
     "columnDelete": "Delete",
     "columnEdit": "Edit",
     "columnName": "Name",
@@ -568,6 +574,14 @@
   "SignOutButton": {
     "label": "Sign out",
     "pending": "Signing out…"
+  },
+  "TableControls": {
+    "pageSizeApply": "Apply",
+    "pageSizeLabel": "Rows per page",
+    "paginationLabel": "Page navigation",
+    "paginationNext": "Next",
+    "paginationPrevious": "Previous",
+    "paginationSummary": "Page {page, number} of {pageCount, number} — {totalCount, number} rows"
   },
   "ThemeToggle": {
     "labelToDark": "Switch to dark theme",

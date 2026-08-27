@@ -209,10 +209,10 @@ describe("assetExportFileName", () => {
 });
 
 const LIST_STATE: AssetListUrlState = {
-  sort: "assetCode",
-  dir: "asc",
+  sort: "createdAt",
+  dir: "desc",
   page: 1,
-  pageSize: 20,
+  pageSize: 10,
 };
 
 describe("buildAssetExportHref", () => {
@@ -226,14 +226,14 @@ describe("buildAssetExportHref", () => {
       q: "proyektor",
       status: "active",
       sort: "name",
-      dir: "desc",
+      dir: "asc",
     });
     const query = new URLSearchParams(href.split("?")[1]);
 
     expect(query.get("q")).toBe("proyektor");
     expect(query.get("status")).toBe("active");
     expect(query.get("sort")).toBe("name");
-    expect(query.get("dir")).toBe("desc");
+    expect(query.get("dir")).toBe("asc");
   });
 
   it("drops the page and page size, which describe the screen and not the selection", () => {

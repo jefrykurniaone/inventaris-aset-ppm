@@ -2,6 +2,8 @@ import { getTranslations } from "next-intl/server";
 
 import { RoleBadge } from "@/components/RoleBadge";
 import { SubmitButton } from "@/components/SubmitButton";
+import type { Locale } from "@/i18n/config";
+import { formatDate } from "@/lib/format-date";
 
 import { reactivateUserAction } from "./actions";
 import { DeactivateUserDialog } from "./DeactivateUserDialog";
@@ -60,6 +62,7 @@ function UserRowControl({ user, t }: Readonly<UserRowControlProps>) {
 interface UserRowProps {
   readonly user: AdminUserRowUser;
   readonly isSelf: boolean;
+  readonly locale: Locale;
   readonly t: AdminUsersT;
 }
 
@@ -75,9 +78,10 @@ interface UserRowProps {
  * renders, and `AdminUsersPage` calls `requireAdmin()` again itself. No other
  * surface in the application selects `banReason` at all.
  */
-export function UserRow({ user, isSelf, t }: Readonly<UserRowProps>) {
+export function UserRow({ user, isSelf, locale, t }: Readonly<UserRowProps>) {
   const isDeactivated = Boolean(user.banned);
   const deactivationReason = isDeactivated ? (user.banReason ?? "") : "";
+  const createdAt = new Date(user.createdAt);
 
   return (
     <tr className="border-border border-b">
@@ -88,6 +92,11 @@ export function UserRow({ user, isSelf, t }: Readonly<UserRowProps>) {
       </td>
       <td className="py-2 pr-4">
         {isDeactivated ? t("statusDeactivated") : t("statusActive")}
+      </td>
+      <td className="py-2 pr-4 whitespace-nowrap">
+        <time dateTime={createdAt.toISOString()}>
+          {formatDate(createdAt, locale)}
+        </time>
       </td>
       <td className="py-2 pr-4">{deactivationReason}</td>
       <td className="py-2">

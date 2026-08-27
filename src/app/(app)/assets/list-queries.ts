@@ -36,6 +36,9 @@ export interface AssetListRow {
   readonly status: AssetStatus;
   readonly condition: AssetCondition;
   readonly acquisitionYear: number;
+  /** When the row was registered. A column of its own since issue #87, so
+   * the list's newest-first default order is visible rather than implied. */
+  readonly createdAt: Date;
   readonly thumbnailUrl: string | null;
 }
 
@@ -51,6 +54,7 @@ interface AssetListRowSource {
   readonly status: AssetStatus;
   readonly condition: AssetCondition;
   readonly acquisitionYear: number;
+  readonly createdAt: Date;
   readonly category: { readonly name: string };
   readonly room: {
     readonly name: string;
@@ -81,6 +85,7 @@ function toAssetListRow(asset: AssetListRowSource): AssetListRow {
     status: asset.status,
     condition: asset.condition,
     acquisitionYear: asset.acquisitionYear,
+    createdAt: asset.createdAt,
     thumbnailUrl: toThumbnailUrl(asset.photos),
   };
 }
@@ -120,6 +125,7 @@ export async function listAssetsPage(
         status: true,
         condition: true,
         acquisitionYear: true,
+        createdAt: true,
         category: { select: { name: true } },
         room: { select: { name: true, building: { select: { name: true } } } },
         photos: {

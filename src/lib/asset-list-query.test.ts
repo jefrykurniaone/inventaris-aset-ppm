@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ASSET_LIST_SORT_KEYS,
   buildAssetListOrderBy,
   buildAssetListPageWindow,
   buildAssetListWhere,
   DEFAULT_ASSET_LIST_PAGE_SIZE,
+  DEFAULT_ASSET_LIST_SORT_DIRECTION,
+  DEFAULT_ASSET_LIST_SORT_KEY,
   totalAssetListPageCount,
 } from "./asset-list-query";
 
@@ -143,9 +146,26 @@ describe("buildAssetListOrderBy", () => {
     expect(buildAssetListOrderBy("acquisitionYear", "asc")).toEqual({
       acquisitionYear: "asc",
     });
-    expect(buildAssetListOrderBy("updatedAt", "desc")).toEqual({
-      updatedAt: "desc",
+    expect(buildAssetListOrderBy("createdAt", "desc")).toEqual({
+      createdAt: "desc",
     });
+  });
+});
+
+describe("asset list defaults", () => {
+  it("orders newest registration first and pages ten rows at a time", () => {
+    expect(DEFAULT_ASSET_LIST_SORT_KEY).toBe("createdAt");
+    expect(DEFAULT_ASSET_LIST_SORT_DIRECTION).toBe("desc");
+    expect(DEFAULT_ASSET_LIST_PAGE_SIZE).toBe(10);
+  });
+
+  it("offers exactly the four curated sortable columns", () => {
+    expect(ASSET_LIST_SORT_KEYS).toEqual([
+      "assetCode",
+      "name",
+      "acquisitionYear",
+      "createdAt",
+    ]);
   });
 });
 

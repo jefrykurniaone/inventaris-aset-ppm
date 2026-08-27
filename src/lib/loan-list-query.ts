@@ -1,5 +1,14 @@
 import type { db } from "@/lib/db";
 import type { LoanState } from "@/lib/loan-transitions";
+import {
+  buildTablePageWindow,
+  countTablePages,
+  DEFAULT_TABLE_PAGE_SIZE,
+  FIRST_TABLE_PAGE,
+  MAX_TABLE_PAGE_SIZE,
+  MIN_TABLE_PAGE_SIZE,
+  type SortDirection,
+} from "@/lib/table-sort";
 
 /**
  * Pure translation from the loans list's parsed filters and page number into
@@ -41,15 +50,39 @@ export interface LoanListFilters {
   readonly state?: LoanState;
 }
 
+/**
+ * The curated set of sortable columns (issue #87): the asset's identity code
+ * and the loan's three dates. Borrower and state carry no header sort —
+ * borrower is three stacked fields with no single column to order by, and
+ * state is derived from `dueAt` and `returnedAt` rather than stored, so there
+ * is nothing for a database `ORDER BY` to name.
+ */
+export const LOAN_LIST_SORT_KEYS = [
+  "assetCode",
+  "checkedOutAt",
+  "dueAt",
+  "returnedAt",
+] as const;
+
+export type LoanListSortKey = (typeof LOAN_LIST_SORT_KEYS)[number];
+
+/** Due soonest first, unchanged by issue #87. This list's job is chasing due
+ * dates, so the most overdue item heads it — the one table whose default is
+ * deliberately not newest-first. */
+export const DEFAULT_LOAN_LIST_SORT_KEY: LoanListSortKey = "dueAt";
+export const DEFAULT_LOAN_LIST_SORT_DIRECTION: SortDirection = "asc";
+
 export interface LoanListQueryInput extends LoanListFilters {
+  readonly sortKey: LoanListSortKey;
+  readonly sortDirection: SortDirection;
   readonly page: number;
   readonly pageSize: number;
 }
 
-export const FIRST_LOAN_LIST_PAGE = 1;
-export const DEFAULT_LOAN_LIST_PAGE_SIZE = 20;
-export const MIN_LOAN_LIST_PAGE_SIZE = 10;
-export const MAX_LOAN_LIST_PAGE_SIZE = 100;
+export const FIRST_LOAN_LIST_PAGE = FIRST_TABLE_PAGE;
+export const DEFAULT_LOAN_LIST_PAGE_SIZE = DEFAULT_TABLE_PAGE_SIZE;
+export const MIN_LOAN_LIST_PAGE_SIZE = MIN_TABLE_PAGE_SIZE;
+export const MAX_LOAN_LIST_PAGE_SIZE = MAX_TABLE_PAGE_SIZE;
 
 /**
  * Derived from `db` itself rather than imported from `@/generated/prisma` —
@@ -108,13 +141,23 @@ export function buildLoanListWhere(
 export type LoanListOrderBy = Record<string, "asc" | "desc">[];
 
 /**
- * Earliest due date first, so the most overdue item heads the list, with `id`
- * as a tie-break. The tie-break is not cosmetic: `uuid(7)` is time-ordered, so
- * it gives the result set a total order and stops a row with a shared `dueAt`
- * from appearing on two pages or on neither as the reader pages through.
+ * The requested column, with `id` as a tie-break. The tie-break is not
+ * cosmetic: `uuid(7)` is time-ordered, so it gives the result set a total
+ * order and stops a row with a shared sort value from appearing on two pages
+ * or on neither as the reader pages through.
+ *
+ * `assetCode` lives on the related asset, so it orders through the relation
+ * rather than through a column of `loan`.
  */
-export function buildLoanListOrderBy(): LoanListOrderBy {
-  return [{ dueAt: "asc" }, { id: "asc" }];
+export function buildLoanListOrderBy(
+  sortKey: LoanListSortKey,
+  sortDirection: SortDirection,
+): LoanListOrderBy {
+  const primary =
+    sortKey === "assetCode"
+      ? { asset: { assetCode: sortDirection } }
+      : { [sortKey]: sortDirection };
+  return [primary as Record<string, "asc" | "desc">, { id: sortDirection }];
 }
 
 export interface LoanListPageWindow {
@@ -129,8 +172,7 @@ export function buildLoanListPageWindow(
   page: number,
   pageSize: number,
 ): LoanListPageWindow {
-  const safePage = page < FIRST_LOAN_LIST_PAGE ? FIRST_LOAN_LIST_PAGE : page;
-  return { skip: (safePage - 1) * pageSize, take: pageSize };
+  return buildTablePageWindow(page, pageSize);
 }
 
 /** How many pages a result set spans. Zero rows is one empty page, not zero
@@ -139,8 +181,5 @@ export function totalLoanListPageCount(
   totalCount: number,
   pageSize: number,
 ): number {
-  if (totalCount <= 0) {
-    return FIRST_LOAN_LIST_PAGE;
-  }
-  return Math.ceil(totalCount / pageSize);
+  return countTablePages(totalCount, pageSize);
 }

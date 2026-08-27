@@ -7,6 +7,7 @@
     "codeRequired": "Kode wajib diisi.",
     "columnActive": "Aktifkan/Nonaktifkan",
     "columnCode": "Kode",
+    "columnCreatedAt": "Dibuat",
     "columnDelete": "Hapus",
     "columnEdit": "Ubah",
     "columnName": "Nama",
@@ -48,6 +49,7 @@
     "codeLabel": "Kode",
     "columnActive": "Aktifkan/Nonaktifkan",
     "columnCode": "Kode",
+    "columnCreatedAt": "Dibuat",
     "columnDelete": "Hapus",
     "columnEdit": "Ubah",
     "columnName": "Nama (Indonesia)",
@@ -86,6 +88,7 @@
     "backToList": "Kembali ke daftar",
     "cancel": "Batal",
     "columnActive": "Aktifkan/Nonaktifkan",
+    "columnCreatedAt": "Dibuat",
     "columnDelete": "Hapus",
     "columnEdit": "Ubah",
     "columnName": "Nama",
@@ -133,6 +136,7 @@
     "columnActive": "Aktifkan/Nonaktifkan",
     "columnBuilding": "Gedung",
     "columnCode": "Kode",
+    "columnCreatedAt": "Dibuat",
     "columnDelete": "Hapus",
     "columnEdit": "Ubah",
     "columnName": "Nama",
@@ -172,6 +176,7 @@
   "AdminUsersPage": {
     "cancel": "Batal",
     "columnActions": "Aksi",
+    "columnCreatedAt": "Dibuat",
     "columnEmail": "Email",
     "columnName": "Nama",
     "columnReason": "Alasan penonaktifan",
@@ -322,6 +327,7 @@
     "columnAssetCode": "Kode aset",
     "columnCategory": "Kategori",
     "columnCondition": "Kondisi",
+    "columnCreatedAt": "Terdaftar",
     "columnDelete": "Hapus",
     "columnEdit": "Ubah",
     "columnName": "Nama",
@@ -568,6 +574,14 @@
   "SignOutButton": {
     "label": "Keluar",
     "pending": "Keluar…"
+  },
+  "TableControls": {
+    "pageSizeApply": "Terapkan",
+    "pageSizeLabel": "Baris per halaman",
+    "paginationLabel": "Navigasi halaman",
+    "paginationNext": "Berikutnya",
+    "paginationPrevious": "Sebelumnya",
+    "paginationSummary": "Halaman {page, number} dari {pageCount, number} — {totalCount, number} baris"
   },
   "ThemeToggle": {
     "labelToDark": "Beralih ke tema gelap",

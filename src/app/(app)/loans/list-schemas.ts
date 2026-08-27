@@ -2,11 +2,23 @@ import { z } from "zod";
 
 import {
   DEFAULT_LOAN_LIST_PAGE_SIZE,
+  DEFAULT_LOAN_LIST_SORT_DIRECTION,
+  DEFAULT_LOAN_LIST_SORT_KEY,
   FIRST_LOAN_LIST_PAGE,
-  MAX_LOAN_LIST_PAGE_SIZE,
-  MIN_LOAN_LIST_PAGE_SIZE,
+  LOAN_LIST_SORT_KEYS,
+  type LoanListSortKey,
 } from "@/lib/loan-list-query";
 import { LOAN_STATES, type LoanState } from "@/lib/loan-transitions";
+import {
+  appendTableViewParams,
+  readPageParam,
+  readPageSizeParam,
+  readParamString,
+  readSortDirection,
+  readSortKey,
+  type SortDirection,
+  type TableViewDefaults,
+} from "@/lib/table-sort";
 
 /**
  * Validates `/loans`'s URL search params (PRD FR-6). A search param is an HTTP
@@ -26,24 +38,10 @@ import { LOAN_STATES, type LoanState } from "@/lib/loan-transitions";
 
 const SEARCH_MAX_LENGTH = 200;
 
-/** A raw search-param value, trimmed, or `undefined` for anything that is not
- * a plain non-empty string. */
-function readParam(raw: unknown): string | undefined {
-  if (typeof raw !== "string") {
-    return undefined;
-  }
-  const trimmed = raw.trim();
-  return trimmed === "" ? undefined : trimmed;
-}
-
-function readInt(raw: unknown): number | undefined {
-  const value = readParam(raw);
-  if (value === undefined) {
-    return undefined;
-  }
-  const parsed = Number(value);
-  return Number.isInteger(parsed) ? parsed : undefined;
-}
+/** Trimming, whitelisting and clamping all come from `@/lib/table-sort`
+ * (issue #87), so every table in this application reads its view params
+ * through exactly one implementation. */
+const readParam = readParamString;
 
 const searchTerm = z
   .unknown()
@@ -66,45 +64,54 @@ const stateFilter = z
       : undefined;
   });
 
+const sortKeyParam = z
+  .unknown()
+  .optional()
+  .transform((raw): LoanListSortKey =>
+    readSortKey(raw, LOAN_LIST_SORT_KEYS, DEFAULT_LOAN_LIST_SORT_KEY),
+  );
+
+const sortDirectionParam = z
+  .unknown()
+  .optional()
+  .transform((raw): SortDirection =>
+    readSortDirection(raw, DEFAULT_LOAN_LIST_SORT_DIRECTION),
+  );
+
 const pageParam = z
   .unknown()
   .optional()
-  .transform((raw) => {
-    const parsed = readInt(raw);
-    return parsed !== undefined && parsed >= FIRST_LOAN_LIST_PAGE
-      ? parsed
-      : FIRST_LOAN_LIST_PAGE;
-  });
+  .transform((raw) => readPageParam(raw));
 
 const pageSizeParam = z
   .unknown()
   .optional()
-  .transform((raw) => {
-    const parsed = readInt(raw);
-    return parsed !== undefined &&
-      parsed >= MIN_LOAN_LIST_PAGE_SIZE &&
-      parsed <= MAX_LOAN_LIST_PAGE_SIZE
-      ? parsed
-      : DEFAULT_LOAN_LIST_PAGE_SIZE;
-  });
+  .transform((raw) => readPageSizeParam(raw));
 
 export const loanListSearchParamsSchema = z.object({
   q: searchTerm,
   state: stateFilter,
+  sort: sortKeyParam,
+  dir: sortDirectionParam,
   page: pageParam,
   pageSize: pageSizeParam,
 });
 
 export type LoanListSearchParams = z.infer<typeof loanListSearchParamsSchema>;
 
-/** The query string for one page of the current view, with every other param
- * preserved. Built here rather than in the pager so the one function that
- * writes a loans-list URL is next to the one that reads it — and so it is
- * plain to see that nothing but the user's own search term ever goes in. */
-export function withLoanListPage(
+const VIEW_DEFAULTS: TableViewDefaults = {
+  sort: DEFAULT_LOAN_LIST_SORT_KEY,
+  dir: DEFAULT_LOAN_LIST_SORT_DIRECTION,
+};
+
+/** Every param of one loans-list view, defaults omitted. The one function
+ * that writes a loans-list URL, kept next to the one that reads it — so it
+ * is plain to see that nothing but the user's own search term ever goes in.
+ * The pager, the sort headers, the filter form and the page-size control all
+ * go through it. */
+export function buildLoanListSearchParams(
   params: LoanListSearchParams,
-  page: number,
-): string {
+): URLSearchParams {
   const search = new URLSearchParams();
   if (params.q) {
     search.set("q", params.q);
@@ -112,9 +119,53 @@ export function withLoanListPage(
   if (params.state) {
     search.set("state", params.state);
   }
-  if (params.pageSize !== DEFAULT_LOAN_LIST_PAGE_SIZE) {
-    search.set("pageSize", String(params.pageSize));
-  }
-  search.set("page", String(page));
-  return search.toString();
+  return appendTableViewParams(search, params, VIEW_DEFAULTS);
+}
+
+/** The query string for one page of the current view, with every other param
+ * preserved. */
+export function withLoanListPage(
+  params: LoanListSearchParams,
+  page: number,
+): string {
+  return buildLoanListSearchParams({ ...params, page }).toString();
+}
+
+/** The view a sortable column header leads to: same filters, requested
+ * ordering, back to page 1. */
+export function withLoanListSort(
+  params: LoanListSearchParams,
+  sort: LoanListSortKey,
+  dir: SortDirection,
+): URLSearchParams {
+  return buildLoanListSearchParams({
+    ...params,
+    sort,
+    dir,
+    page: FIRST_LOAN_LIST_PAGE,
+  });
+}
+
+/** Only the view controls, for the filter form's hidden fields — `page`
+ * reset, because a changed filter belongs on page 1. */
+export function buildLoanListViewParams(
+  params: LoanListSearchParams,
+): URLSearchParams {
+  return appendTableViewParams(
+    new URLSearchParams(),
+    { ...params, page: FIRST_LOAN_LIST_PAGE },
+    VIEW_DEFAULTS,
+  );
+}
+
+/** Everything except the page size, for the page-size form's hidden fields —
+ * its `<select>` supplies that one, and `page` resets with it. */
+export function buildLoanListParamsWithoutPageSize(
+  params: LoanListSearchParams,
+): URLSearchParams {
+  return buildLoanListSearchParams({
+    ...params,
+    page: FIRST_LOAN_LIST_PAGE,
+    pageSize: DEFAULT_LOAN_LIST_PAGE_SIZE,
+  });
 }

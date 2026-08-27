@@ -4,6 +4,9 @@ import { getTranslations } from "next-intl/server";
 import { DeleteControl } from "@/components/DeleteControl";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Button } from "@/components/ui/button";
+import type { Locale } from "@/i18n/config";
+import { formatDate } from "@/lib/format-date";
+import { ADMIN_CATEGORIES_PATH } from "@/lib/paths";
 
 import {
   deactivateCategoryAction,
@@ -71,9 +74,17 @@ function DeleteOrReferencedNote({ category, t }: Readonly<CategoryRowProps>) {
   );
 }
 
+interface CategoryRowRenderProps extends CategoryRowProps {
+  readonly locale: Locale;
+}
+
 /** One row of the category list, split out of `CategoryTable` to keep every
  * function in this feature under the project's 40-line limit. */
-export function CategoryRow({ category, t }: Readonly<CategoryRowProps>) {
+export function CategoryRow({
+  category,
+  locale,
+  t,
+}: Readonly<CategoryRowRenderProps>) {
   return (
     <tr className="border-border border-b align-top">
       <td className="py-2 pr-4 font-mono">{category.code}</td>
@@ -82,9 +93,16 @@ export function CategoryRow({ category, t }: Readonly<CategoryRowProps>) {
       <td className="py-2 pr-4">
         {category.isActive ? t("statusActive") : t("statusDeactivated")}
       </td>
+      <td className="py-2 pr-4 whitespace-nowrap">
+        <time dateTime={category.createdAt.toISOString()}>
+          {formatDate(category.createdAt, locale)}
+        </time>
+      </td>
       <td className="py-2 pr-4">
         <Button asChild variant="outline" size="sm">
-          <Link href={`/admin/categories/${category.id}`}>{t("edit")}</Link>
+          <Link href={`${ADMIN_CATEGORIES_PATH}/${category.id}`}>
+            {t("edit")}
+          </Link>
         </Button>
       </td>
       <td className="py-2 pr-4">

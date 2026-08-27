@@ -100,7 +100,7 @@ export async function listLoansPage(
   const [loans, totalCount] = await Promise.all([
     db.loan.findMany({
       where,
-      orderBy: buildLoanListOrderBy(),
+      orderBy: buildLoanListOrderBy(query.sortKey, query.sortDirection),
       skip,
       take,
       select: LOAN_LIST_SELECT,
