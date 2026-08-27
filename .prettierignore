@@ -8,6 +8,9 @@ build
 coverage
 playwright-report
 test-results
+# Playwright MCP session snapshots. Ignored by `.gitignore` too, but Prettier
+# does not read that file, so both entries are needed.
+.playwright-mcp
 .storage
 src/generated
 # The vendored browser-image-compression worker: a verbatim copy of the
