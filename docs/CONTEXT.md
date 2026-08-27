@@ -24,6 +24,14 @@ stay indistinguishable from a wrong password. Distinct from deactivation, which 
 permanent until reversed, and attached to an account rather than to an address.
 _Avoid_: Lock account, block, ban, throttle
 
+**Sign-in activity**:
+The admin-only audit trail of `/sign-in/email` attempts (issue #125): the attempted address, its
+outcome (succeeded / failed / blocked), and when, newest first, kept for the same thirty days as
+the lock-out counter's own retention. Distinct from "Lock out (sign-in)" itself: this is the
+read-only record of what was attempted, not the refusal mechanism, and unlike a lock state it is
+deliberately visible to an administrator.
+_Avoid_: Login history, audit log (generic)
+
 **Deactivate (master data)**:
 Marking a category, building, room, or funding source as no longer selectable for new records,
 without deleting it. Same word as user deactivation on purpose; context disambiguates.

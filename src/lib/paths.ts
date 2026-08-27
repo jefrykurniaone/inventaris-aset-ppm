@@ -15,6 +15,7 @@ export const NEW_ASSET_PATH = "/assets/new";
 export const ASSETS_EXPORT_PATH = "/assets/export";
 export const LOANS_PATH = "/loans";
 export const ADMIN_USERS_PATH = "/admin/users";
+export const ADMIN_SIGN_IN_ACTIVITY_PATH = "/admin/sign-in-activity";
 export const ADMIN_CATEGORIES_PATH = "/admin/categories";
 export const ADMIN_BUILDINGS_PATH = "/admin/buildings";
 export const ADMIN_ROOMS_PATH = "/admin/rooms";
