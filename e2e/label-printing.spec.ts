@@ -2,8 +2,13 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 /**
  * The full demo-critical smoke path (PRD §7.2, issue #12): sign in, create an
- * asset, upload a photo, open its bulk label print view, then open the
- * public scan URL the printed label encodes and confirm it renders.
+ * asset with its first photo attached in the same submission, open its bulk
+ * label print view, then open the public scan URL the printed label encodes
+ * and confirm it renders.
+ *
+ * The photo is picked on the create form rather than on the edit page (issue
+ * #85), so reaching the list is what proves the compress-and-upload pipeline
+ * ran; the edit page is only where the photo is deleted again.
  *
  * Authored here but **never executed** by issue #12's executor — CLAUDE.md's
  * "never start a dev server, never run Playwright" rule for this ticket. The
@@ -80,9 +85,10 @@ async function signIn(page: Page): Promise<void> {
   await page.waitForURL((url) => !url.pathname.startsWith("/sign-in"));
 }
 
-/** Fills every field `assetSchema` requires — see `photo-upload.spec.ts` for
- * why each one is here. */
-async function createAsset(page: Page, name: string): Promise<void> {
+/** Fills every field `assetSchema` requires and picks the first photo on the
+ * same form — see `photo-upload.spec.ts` for why each field is here, and why
+ * reaching the list is what proves the upload ran. */
+async function createAssetWithPhoto(page: Page, name: string): Promise<void> {
   await page.goto("/assets/new");
 
   await assetField(page, "name").fill(name);
@@ -95,8 +101,14 @@ async function createAsset(page: Page, name: string): Promise<void> {
     });
   }
 
+  await page.getByLabel(CHOOSE_FILE_LABEL).setInputFiles({
+    name: "e2e-label-pixel.webp",
+    mimeType: "image/webp",
+    buffer: Buffer.from(ONE_PIXEL_WEBP_BASE64, "base64"),
+  });
+
   await page.getByRole("button", { name: SAVE_ASSET_BUTTON }).click();
-  await page.waitForURL("**/assets");
+  await page.waitForURL("**/assets", { timeout: UPLOAD_TIMEOUT_MS });
 }
 
 /**
@@ -125,21 +137,15 @@ async function openAssetEditPage(page: Page, name: string): Promise<string> {
   return match[1];
 }
 
-/** Uploads one photo and deletes it again, same round trip
- * `photo-upload.spec.ts` performs — this spec only needs the row to have had
- * a photo attached at some point, not to still have one. */
-async function uploadAndRemoveOnePhoto(page: Page): Promise<void> {
+/** Deletes the photo the create step attached, so this run leaves nothing in
+ * the bucket — this spec only needs the row to have had a photo at some
+ * point, not to still have one. */
+async function removeTheOnePhoto(page: Page): Promise<void> {
   const photos = page.getByRole("region", { name: PHOTOS_REGION });
   await expect(photos).toBeVisible();
 
-  await photos.getByLabel(CHOOSE_FILE_LABEL).setInputFiles({
-    name: "e2e-label-pixel.webp",
-    mimeType: "image/webp",
-    buffer: Buffer.from(ONE_PIXEL_WEBP_BASE64, "base64"),
-  });
-
   const photoCard = photos.getByRole("listitem");
-  await expect(photoCard).toHaveCount(1, { timeout: UPLOAD_TIMEOUT_MS });
+  await expect(photoCard).toHaveCount(1);
 
   await photoCard.getByRole("button", { name: DELETE_PHOTO_BUTTON }).click();
   await page
@@ -186,10 +192,10 @@ test.describe("bulk label printing and the public scan path", () => {
 
     const name = uniqueAssetName();
     await signIn(page);
-    await createAsset(page, name);
+    await createAssetWithPhoto(page, name);
 
     const assetId = await openAssetEditPage(page, name);
-    await uploadAndRemoveOnePhoto(page);
+    await removeTheOnePhoto(page);
 
     await page.goto(`/assets/${assetId}`);
     await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();

@@ -2,8 +2,16 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 /**
  * The photo half of the smoke path in `docs/prd.md` §7.2: sign in, create an
- * asset, upload a photo to the **real** `asset-photos-dev` bucket, and check
- * that the stored object is reachable at its public URL.
+ * asset **with its first photo attached in the same submission**, uploading
+ * to the **real** `asset-photos-dev` bucket, and check that the stored object
+ * is reachable at its public URL.
+ *
+ * The photo is picked on the create form, not on the edit page (issue #85).
+ * One submission covers both writes: the server action registers the row and
+ * returns its id, then the browser compresses, uploads to a signed URL and
+ * attaches — so the navigation to the list is what proves the whole pipeline
+ * ran. The edit page is still where this spec goes to look at the stored
+ * photo and to delete it, and that flow is unchanged.
  *
  * This is the only test in the suite that touches the network deliberately.
  * That is the accepted cost of ADR 0005: there is no local storage driver, so
@@ -53,8 +61,9 @@ const HTTP_OK = 200;
  */
 const TEST_TIMEOUT_MS = 180_000;
 
-/** How long the compress-and-upload round trip may take before the photo is
- * expected to appear. */
+/** How long the create submission may take before the list appears. It now
+ * carries the compress-and-upload round trip as well as the row write, so it
+ * is the create step that this budget is spent on. */
 const UPLOAD_TIMEOUT_MS = 45_000;
 
 /**
@@ -123,12 +132,12 @@ async function signIn(page: Page): Promise<void> {
 
 /**
  * Creates one asset through the real form, filling **every** field
- * `assetSchema` requires.
+ * `assetSchema` requires and picking the first photo on the same form.
  *
  * `acquisitionYear` is the current year, which is always inside the schema's
  * `1970 … currentYear + 1` window, so this does not go stale.
  */
-async function createAsset(page: Page, name: string): Promise<void> {
+async function createAssetWithPhoto(page: Page, name: string): Promise<void> {
   await page.goto("/assets/new");
 
   await assetField(page, "name").fill(name);
@@ -141,12 +150,23 @@ async function createAsset(page: Page, name: string): Promise<void> {
     });
   }
 
+  // Picking here only remembers the file. Nothing is compressed or uploaded
+  // until the row exists and has an id to key its object paths on.
+  await page.getByLabel(CHOOSE_FILE_LABEL).setInputFiles({
+    name: "e2e-pixel.webp",
+    mimeType: "image/webp",
+    buffer: Buffer.from(ONE_PIXEL_WEBP_BASE64, "base64"),
+  });
+
   await page.getByRole("button", { name: SAVE_ASSET_BUTTON }).click();
 
-  // A successful create redirects to the list. A rejected one re-renders the
-  // form with inline errors and never navigates, so this is also the assertion
-  // that every required field above was actually filled.
-  await page.waitForURL("**/assets");
+  // A create that succeeded, photo and all, navigates to the list. A rejected
+  // one re-renders the form with inline errors and never navigates, and a
+  // create whose photo failed replaces the form with the "asset saved, photo
+  // not uploaded" notice and stays put — so this one wait is the assertion
+  // that every required field was filled *and* that the photo reached
+  // storage.
+  await page.waitForURL("**/assets", { timeout: UPLOAD_TIMEOUT_MS });
 }
 
 /**
@@ -183,31 +203,27 @@ test.describe("photo pipeline against the real development bucket", () => {
     "E2E_EMAIL and E2E_PASSWORD must be set; this spec performs a real sign-in.",
   );
 
-  test("uploads a photo, serves it from storage, and deletes both row and object", async ({
+  test("attaches a photo while creating the asset, serves it from storage, and deletes both row and object", async ({
     page,
   }) => {
     test.setTimeout(TEST_TIMEOUT_MS);
 
     const name = uniqueAssetName();
     await signIn(page);
-    await createAsset(page, name);
+    await createAssetWithPhoto(page, name);
     await openAssetPhotoPage(page, name);
 
     const photos = page.getByRole("region", { name: PHOTOS_REGION });
     await expect(photos).toBeVisible();
 
-    await photos.getByLabel(CHOOSE_FILE_LABEL).setInputFiles({
-      name: "e2e-pixel.webp",
-      mimeType: "image/webp",
-      buffer: Buffer.from(ONE_PIXEL_WEBP_BASE64, "base64"),
-    });
-
-    // One `<li>` per photo. Everything about the stored photo is asserted
-    // inside the card rather than across the whole section: the section's own
-    // description paragraph also contains the words "primary photo", and an
-    // unscoped text match counted it as a second primary.
+    // One `<li>` per photo. The photo is already there — it was uploaded
+    // during the create submission — so this is a plain assertion rather than
+    // a wait. Everything about the stored photo is asserted inside the card
+    // rather than across the whole section: the section's own description
+    // paragraph also contains the words "primary photo", and an unscoped text
+    // match counted it as a second primary.
     const photoCard = photos.getByRole("listitem");
-    await expect(photoCard).toHaveCount(1, { timeout: UPLOAD_TIMEOUT_MS });
+    await expect(photoCard).toHaveCount(1);
 
     const image = photoCard.getByRole("img");
     await expect(image).toBeVisible();

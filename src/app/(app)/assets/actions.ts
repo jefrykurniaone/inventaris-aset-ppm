@@ -154,6 +154,17 @@ function toFailureState(t: Translate, reason: MutationFailureReason) {
  * Creates an asset. Both identifiers are generated server-side inside
  * `createAsset` — the form never submits an `assetCode` or a `qrToken`, so
  * there is nothing here for a bypassed client to forge.
+ *
+ * **It returns the new id rather than redirecting** (issue #85). The create
+ * form now takes an optional first photo, and a photo object path is keyed by
+ * the asset id, so the row has to exist before the browser can upload
+ * anything. Redirecting here would end the request before the client had the
+ * id to upload against; instead `CreateAssetForm` reads `createdAssetId`,
+ * runs the upload pipeline, and navigates itself.
+ *
+ * No photo is submitted to this action. The image bytes go straight from the
+ * browser to object storage over a signed URL (ADR 0005), and never through a
+ * server function.
  */
 export async function createAssetAction(
   _previousState: AssetFormState,
@@ -177,7 +188,12 @@ export async function createAssetAction(
   }
 
   revalidatePath(ASSETS_PATH);
-  redirect(ASSETS_PATH);
+  return {
+    fieldErrors: {},
+    formError: null,
+    isSuccess: true,
+    createdAssetId: result.assetId,
+  };
 }
 
 /**

@@ -4,14 +4,19 @@ import { getTranslations } from "next-intl/server";
 import { ASSETS_PATH } from "@/lib/paths";
 import { requireUser } from "@/lib/require-user";
 
-import { createAssetAction } from "../actions";
-import { AssetForm } from "../AssetForm";
 import { listAssetFormOptions } from "../queries";
+
+import { CreateAssetForm } from "./CreateAssetForm";
 
 /**
  * Asset creation (PRD FR-2.1 to FR-2.4). No `assetCode` and no `qrToken`
  * appear on this form: both are generated server-side inside `createAsset`,
  * so there is nothing here for a bypassed client to submit.
+ *
+ * The first photo is optional and is attached in the same submission (issue
+ * #85). It is `CreateAssetForm` that does that, because the object path is
+ * keyed by the asset id: the row is written first, then the browser uploads
+ * against the id the action returned, then the page navigates.
  */
 export default async function NewAssetPage() {
   await requireUser();
@@ -26,12 +31,7 @@ export default async function NewAssetPage() {
       <h1 className="text-2xl font-semibold tracking-tight">
         {t("createTitle")}
       </h1>
-      <AssetForm
-        action={createAssetAction}
-        submitLabel={t("createSubmit")}
-        submitPendingLabel={t("createSubmitPending")}
-        options={options}
-      />
+      <CreateAssetForm options={options} />
     </div>
   );
 }
