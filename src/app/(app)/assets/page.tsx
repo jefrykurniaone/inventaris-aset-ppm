@@ -1,13 +1,15 @@
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
+import { TablePageSizeSelect } from "@/components/TablePageSizeSelect";
 import { Button } from "@/components/ui/button";
 import { buildAssetExportHref } from "@/lib/asset-export";
 import {
   totalAssetListPageCount,
   type AssetListQueryInput,
 } from "@/lib/asset-list-query";
-import { NEW_ASSET_PATH } from "@/lib/paths";
+import { buildAssetListParamsWithoutPageSize } from "@/lib/asset-list-url";
+import { ASSETS_PATH, NEW_ASSET_PATH } from "@/lib/paths";
 import { requireUser } from "@/lib/require-user";
 
 import { AssetFilters } from "./AssetFilters";
@@ -81,8 +83,11 @@ export default async function AssetsPage({
   searchParams,
 }: Readonly<AssetsPageProps>) {
   await requireUser();
-  const t = await getTranslations("AssetsPage");
-  const tExport = await getTranslations("AssetExport");
+  const [locale, t, tExport] = await Promise.all([
+    getLocale(),
+    getTranslations("AssetsPage"),
+    getTranslations("AssetExport"),
+  ]);
   const params = assetListSearchParamsSchema.parse(await searchParams);
 
   const [{ rows, totalCount }, filterOptions] = await Promise.all([
@@ -112,17 +117,27 @@ export default async function AssetsPage({
         <AssetSelectionToolbar />
         <AssetTable
           assets={rows}
+          urlState={params}
+          locale={locale}
           t={t}
           isFilteredView={isFilteredView(params)}
         />
       </AssetSelectionProvider>
-      <AssetPagination
-        urlState={params}
-        page={params.page}
-        pageCount={totalAssetListPageCount(totalCount, params.pageSize)}
-        totalCount={totalCount}
-        t={t}
-      />
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <TablePageSizeSelect
+          action={ASSETS_PATH}
+          params={buildAssetListParamsWithoutPageSize(params)}
+          pageSize={params.pageSize}
+          id="asset-list-page-size"
+        />
+        <AssetPagination
+          urlState={params}
+          page={params.page}
+          pageCount={totalAssetListPageCount(totalCount, params.pageSize)}
+          totalCount={totalCount}
+          t={t}
+        />
+      </div>
     </div>
   );
 }

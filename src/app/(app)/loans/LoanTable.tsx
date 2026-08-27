@@ -1,6 +1,12 @@
+import type { TableColumnSpec } from "@/components/table-columns";
+import { TableHeaderCells } from "@/components/TableHeaderCells";
 import type { Locale } from "@/i18n/config";
+import type { LoanListSortKey } from "@/lib/loan-list-query";
+import { LOANS_PATH } from "@/lib/paths";
+import type { SortDirection } from "@/lib/table-sort";
 
 import type { LoansPlainMessageKey, LoansTranslate } from "./loan-field-specs";
+import { withLoanListSort, type LoanListSearchParams } from "./list-schemas";
 import type { LoanListRow } from "./list-queries";
 import { LoanCard, LoanRow } from "./LoanRow";
 
@@ -12,17 +18,50 @@ import { LoanCard, LoanRow } from "./LoanRow";
  * The same construction `AssetTable` uses, for the same reasons.
  */
 
-const COLUMN_KEYS: readonly LoansPlainMessageKey[] = [
-  "columnAsset",
-  "columnBorrower",
-  "columnCheckedOutAt",
-  "columnDueAt",
-  "columnReturnedAt",
-  "columnState",
+interface LoanColumn {
+  readonly id: string;
+  readonly labelKey: LoansPlainMessageKey;
+  readonly sortKey?: LoanListSortKey;
+  readonly initialDirection?: SortDirection;
+}
+
+/** The curated sortable set (issue #87): the asset's code and the three
+ * dates. Borrower is three stacked fields with no single column behind it,
+ * and state is derived rather than stored — neither is something a database
+ * `ORDER BY` can name. */
+const LOAN_COLUMNS: readonly LoanColumn[] = [
+  { id: "asset", labelKey: "columnAsset", sortKey: "assetCode" },
+  { id: "borrower", labelKey: "columnBorrower" },
+  {
+    id: "checkedOutAt",
+    labelKey: "columnCheckedOutAt",
+    sortKey: "checkedOutAt",
+    initialDirection: "desc",
+  },
+  { id: "dueAt", labelKey: "columnDueAt", sortKey: "dueAt" },
+  {
+    id: "returnedAt",
+    labelKey: "columnReturnedAt",
+    sortKey: "returnedAt",
+    initialDirection: "desc",
+  },
+  { id: "state", labelKey: "columnState" },
 ];
+
+function toColumnSpecs(
+  t: LoansTranslate,
+): readonly TableColumnSpec<LoanListSortKey>[] {
+  return LOAN_COLUMNS.map((column) => ({
+    id: column.id,
+    label: t(column.labelKey),
+    sortKey: column.sortKey,
+    initialDirection: column.initialDirection,
+  }));
+}
 
 interface LoanTableProps {
   readonly loans: readonly LoanListRow[];
+  readonly params: LoanListSearchParams;
   readonly locale: Locale;
   readonly t: LoansTranslate;
   /** Distinguishes the two empty states: an empty register reads "no loans
@@ -34,6 +73,7 @@ interface LoanTableProps {
 
 export function LoanTable({
   loans,
+  params,
   locale,
   t,
   isFilteredView,
@@ -49,11 +89,15 @@ export function LoanTable({
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-border border-b">
-              {COLUMN_KEYS.map((key) => (
-                <th key={key} scope="col" className="py-2 pr-4 font-medium">
-                  {t(key)}
-                </th>
-              ))}
+              <TableHeaderCells
+                action={LOANS_PATH}
+                columns={toColumnSpecs(t)}
+                sortKey={params.sort}
+                direction={params.dir}
+                paramsFor={(sortKey, direction) =>
+                  withLoanListSort(params, sortKey, direction)
+                }
+              />
             </tr>
           </thead>
           <tbody>

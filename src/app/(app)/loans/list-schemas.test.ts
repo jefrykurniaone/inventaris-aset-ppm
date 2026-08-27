@@ -2,12 +2,20 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_LOAN_LIST_PAGE_SIZE,
+  DEFAULT_LOAN_LIST_SORT_DIRECTION,
+  DEFAULT_LOAN_LIST_SORT_KEY,
   FIRST_LOAN_LIST_PAGE,
   MAX_LOAN_LIST_PAGE_SIZE,
   MIN_LOAN_LIST_PAGE_SIZE,
 } from "@/lib/loan-list-query";
 
-import { loanListSearchParamsSchema, withLoanListPage } from "./list-schemas";
+import {
+  buildLoanListParamsWithoutPageSize,
+  buildLoanListViewParams,
+  loanListSearchParamsSchema,
+  withLoanListPage,
+  withLoanListSort,
+} from "./list-schemas";
 
 function parse(raw: Record<string, unknown>) {
   return loanListSearchParamsSchema.parse(raw);
@@ -18,9 +26,33 @@ describe("loanListSearchParamsSchema", () => {
     expect(parse({})).toEqual({
       q: undefined,
       state: undefined,
+      sort: DEFAULT_LOAN_LIST_SORT_KEY,
+      dir: DEFAULT_LOAN_LIST_SORT_DIRECTION,
       page: FIRST_LOAN_LIST_PAGE,
       pageSize: DEFAULT_LOAN_LIST_PAGE_SIZE,
     });
+  });
+
+  it.each(["assetCode", "checkedOutAt", "dueAt", "returnedAt"])(
+    "accepts %s as a sort key",
+    (sort) => {
+      expect(parse({ sort }).sort).toBe(sort);
+    },
+  );
+
+  it.each([
+    { label: "an unknown sort key", raw: { sort: "borrowerName" } },
+    { label: "a repeated sort param", raw: { sort: ["dueAt", "assetCode"] } },
+    { label: "a non-string sort key", raw: { sort: 3 } },
+  ])("falls back to the default sort key for $label", ({ raw }) => {
+    expect(parse(raw).sort).toBe(DEFAULT_LOAN_LIST_SORT_KEY);
+  });
+
+  it.each([
+    { label: "an unknown direction", raw: { dir: "sideways" } },
+    { label: "a repeated direction param", raw: { dir: ["asc", "desc"] } },
+  ])("falls back to the default direction for $label", ({ raw }) => {
+    expect(parse(raw).dir).toBe(DEFAULT_LOAN_LIST_SORT_DIRECTION);
   });
 
   it.each(["active", "overdue", "returned"])(
@@ -97,19 +129,59 @@ describe("withLoanListPage", () => {
     expect(withLoanListPage(params, 2)).toBe("state=overdue&page=2");
   });
 
-  it("omits a default page size", () => {
-    expect(withLoanListPage(parse({}), 1)).toBe("page=1");
+  it("omits the first page and the default page size", () => {
+    expect(withLoanListPage(parse({}), 1)).toBe("");
   });
 
   it("keeps a non-default page size", () => {
-    const params = parse({ pageSize: String(MIN_LOAN_LIST_PAGE_SIZE) });
-    expect(withLoanListPage(params, 1)).toBe(
-      `pageSize=${MIN_LOAN_LIST_PAGE_SIZE}&page=1`,
+    const params = parse({ pageSize: String(MAX_LOAN_LIST_PAGE_SIZE) });
+    expect(withLoanListPage(params, 2)).toBe(
+      `page=2&pageSize=${MAX_LOAN_LIST_PAGE_SIZE}`,
     );
   });
 
   it("round-trips a search term the user typed", () => {
     const params = parse({ q: "budi" });
     expect(withLoanListPage(params, 3)).toBe("q=budi&page=3");
+  });
+});
+
+describe("withLoanListSort", () => {
+  it("keeps the filters, applies the ordering and returns to the first page", () => {
+    const params = withLoanListSort(
+      parse({ state: "overdue", page: "4" }),
+      "assetCode",
+      "desc",
+    );
+
+    expect(params.get("state")).toBe("overdue");
+    expect(params.get("sort")).toBe("assetCode");
+    expect(params.get("dir")).toBe("desc");
+    expect(params.has("page")).toBe(false);
+  });
+});
+
+describe("buildLoanListViewParams", () => {
+  it("carries only the non-default view controls, never a filter", () => {
+    const params = buildLoanListViewParams(
+      parse({ q: "budi", sort: "assetCode", pageSize: "50" }),
+    );
+
+    expect(params.has("q")).toBe(false);
+    expect(params.get("sort")).toBe("assetCode");
+    expect(params.get("pageSize")).toBe("50");
+  });
+});
+
+describe("buildLoanListParamsWithoutPageSize", () => {
+  it("drops the page size and the page, keeping filters and ordering", () => {
+    const params = buildLoanListParamsWithoutPageSize(
+      parse({ q: "budi", sort: "assetCode", page: "4", pageSize: "100" }),
+    );
+
+    expect(params.get("q")).toBe("budi");
+    expect(params.get("sort")).toBe("assetCode");
+    expect(params.has("pageSize")).toBe(false);
+    expect(params.has("page")).toBe(false);
   });
 });

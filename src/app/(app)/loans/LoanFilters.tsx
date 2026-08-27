@@ -4,12 +4,16 @@ import {
   AssetFilterSelect,
   AssetFilterTextInput,
 } from "@/app/(app)/assets/AssetFilterFields";
+import { HiddenSearchParams } from "@/components/HiddenSearchParams";
 import { Button } from "@/components/ui/button";
 import { LOAN_STATES } from "@/lib/loan-transitions";
 import { LOANS_PATH } from "@/lib/paths";
 
 import { LOAN_STATE_LABEL_KEYS, type LoansTranslate } from "./loan-field-specs";
-import type { LoanListSearchParams } from "./list-schemas";
+import {
+  buildLoanListViewParams,
+  type LoanListSearchParams,
+} from "./list-schemas";
 
 /**
  * The loans list's search-and-filter form (PRD FR-6). One plain `GET` form with
@@ -59,6 +63,7 @@ export function LoanFilters({ params, t }: Readonly<LoanFiltersProps>) {
         defaultValue={params.state ?? ""}
         options={stateOptions}
       />
+      <HiddenSearchParams params={buildLoanListViewParams(params)} />
       <div className="flex items-end gap-2">
         <Button type="submit">{t("filterSubmit")}</Button>
         <Button asChild variant="outline">

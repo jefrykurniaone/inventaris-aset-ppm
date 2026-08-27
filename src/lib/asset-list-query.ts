@@ -1,6 +1,15 @@
 import type { AssetCondition, AssetStatus } from "@/app/(app)/assets/schemas";
 import { buildAttentionWhere } from "@/lib/asset-attention";
 import type { db } from "@/lib/db";
+import {
+  buildTablePageWindow,
+  countTablePages,
+  DEFAULT_TABLE_PAGE_SIZE,
+  FIRST_TABLE_PAGE,
+  MAX_TABLE_PAGE_SIZE,
+  MIN_TABLE_PAGE_SIZE,
+  type SortDirection,
+} from "@/lib/table-sort";
 
 /**
  * Pure translation from the asset list's parsed filters, sort key and page
@@ -11,27 +20,38 @@ import type { db } from "@/lib/db";
  * function with no database, no `next/headers`, and unit tests beside it.
  */
 
+/**
+ * The curated set of sortable columns (issue #87): the identity code, the
+ * name, the acquisition year and the creation time. `updatedAt` is gone with
+ * the sort dropdown it used to live in — sorting is now done by clicking a
+ * column header, and the list has no "last updated" column to click. A
+ * bookmarked `?sort=updatedAt` falls back to the default, like any other
+ * unknown key.
+ */
 export const ASSET_LIST_SORT_KEYS = [
   "assetCode",
   "name",
   "acquisitionYear",
-  "updatedAt",
+  "createdAt",
 ] as const;
 
 export type AssetListSortKey = (typeof ASSET_LIST_SORT_KEYS)[number];
 
-export const ASSET_LIST_SORT_DIRECTIONS = ["asc", "desc"] as const;
+export type AssetListSortDirection = SortDirection;
 
-export type AssetListSortDirection =
-  (typeof ASSET_LIST_SORT_DIRECTIONS)[number];
+/**
+ * Newest first (issue #87). The register's most common question is "what did
+ * we just add", and asset codes ascend by category and year rather than by
+ * when the row was written, so code order buried every new asset at the back
+ * of the list.
+ */
+export const DEFAULT_ASSET_LIST_SORT_KEY: AssetListSortKey = "createdAt";
+export const DEFAULT_ASSET_LIST_SORT_DIRECTION: AssetListSortDirection = "desc";
 
-export const DEFAULT_ASSET_LIST_SORT_KEY: AssetListSortKey = "assetCode";
-export const DEFAULT_ASSET_LIST_SORT_DIRECTION: AssetListSortDirection = "asc";
-
-export const FIRST_ASSET_LIST_PAGE = 1;
-export const DEFAULT_ASSET_LIST_PAGE_SIZE = 20;
-export const MIN_ASSET_LIST_PAGE_SIZE = 10;
-export const MAX_ASSET_LIST_PAGE_SIZE = 100;
+export const FIRST_ASSET_LIST_PAGE = FIRST_TABLE_PAGE;
+export const DEFAULT_ASSET_LIST_PAGE_SIZE = DEFAULT_TABLE_PAGE_SIZE;
+export const MIN_ASSET_LIST_PAGE_SIZE = MIN_TABLE_PAGE_SIZE;
+export const MAX_ASSET_LIST_PAGE_SIZE = MAX_TABLE_PAGE_SIZE;
 
 /** The six PRD FR-2.6 free-text fields. Every one goes through Prisma's
  * `contains`/`insensitive`, never a `RegExp` built from what a visitor
@@ -151,16 +171,14 @@ export interface AssetListPageWindow {
   readonly take: number;
 }
 
-/** Zero-based `skip`/`take` from a one-based page number. A `page` below 1
- * is treated as page 1 rather than producing a negative `skip` — the caller
- * (`list-schemas.ts`) already clamps this, but the function stays correct on
- * its own rather than trusting that. */
+/** Zero-based `skip`/`take` from a one-based page number. Delegates to the
+ * shared arithmetic in `@/lib/table-sort` — every table pages the same way,
+ * and this name is kept so the asset list's callers read as one feature. */
 export function buildAssetListPageWindow(
   page: number,
   pageSize: number,
 ): AssetListPageWindow {
-  const safePage = page < FIRST_ASSET_LIST_PAGE ? FIRST_ASSET_LIST_PAGE : page;
-  return { skip: (safePage - 1) * pageSize, take: pageSize };
+  return buildTablePageWindow(page, pageSize);
 }
 
 /** How many pages a result set spans. A pageless result (zero rows) is still
@@ -170,8 +188,5 @@ export function totalAssetListPageCount(
   totalCount: number,
   pageSize: number,
 ): number {
-  if (totalCount <= 0) {
-    return FIRST_ASSET_LIST_PAGE;
-  }
-  return Math.ceil(totalCount / pageSize);
+  return countTablePages(totalCount, pageSize);
 }

@@ -3,6 +3,8 @@ import { getTranslations } from "next-intl/server";
 
 import { DeleteControl } from "@/components/DeleteControl";
 import { Button } from "@/components/ui/button";
+import type { Locale } from "@/i18n/config";
+import { formatDate } from "@/lib/format-date";
 
 import { deleteAssetAction } from "./actions";
 import { CONDITION_LABEL_KEYS, STATUS_LABEL_KEYS } from "./asset-field-specs";
@@ -14,12 +16,14 @@ type AssetsT = Awaited<ReturnType<typeof getTranslations<"AssetsPage">>>;
 
 interface AssetCardProps {
   readonly asset: AssetListRow;
+  readonly locale: Locale;
   readonly t: AssetsT;
 }
 
-/** The category/room/status/condition/year block, split out of `AssetCard`
- * so that component's own body stays under the project's 40-line limit. */
-function AssetCardDetails({ asset, t }: Readonly<AssetCardProps>) {
+/** The category/room/status/condition/year/registered block, split out of
+ * `AssetCard` so that component's own body stays under the project's 40-line
+ * limit. */
+function AssetCardDetails({ asset, locale, t }: Readonly<AssetCardProps>) {
   return (
     <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
       <dt className="text-muted-foreground">{t("columnCategory")}</dt>
@@ -34,12 +38,22 @@ function AssetCardDetails({ asset, t }: Readonly<AssetCardProps>) {
         {t("filterAcquisitionYearLabel")}
       </dt>
       <dd>{asset.acquisitionYear}</dd>
+      <dt className="text-muted-foreground">{t("columnCreatedAt")}</dt>
+      <dd>
+        <time dateTime={asset.createdAt.toISOString()}>
+          {formatDate(asset.createdAt, locale)}
+        </time>
+      </dd>
     </dl>
   );
 }
 
-/** The edit and delete controls, same split reason as `AssetCardDetails`. */
-function AssetCardActions({ asset, t }: Readonly<AssetCardProps>) {
+/** The edit and delete controls, same split reason as `AssetCardDetails`.
+ * Takes no `locale`: nothing here is a date. */
+function AssetCardActions({
+  asset,
+  t,
+}: Readonly<Omit<AssetCardProps, "locale">>) {
   return (
     <div className="flex justify-end gap-2">
       <Button asChild variant="outline" size="sm">
@@ -67,7 +81,7 @@ function AssetCardActions({ asset, t }: Readonly<AssetCardProps>) {
  * detection is needed and nothing here risks a server/client render
  * mismatch.
  */
-export function AssetCard({ asset, t }: Readonly<AssetCardProps>) {
+export function AssetCard({ asset, locale, t }: Readonly<AssetCardProps>) {
   return (
     <li className="border-border flex flex-col gap-3 rounded-md border p-4">
       <div className="flex items-start gap-3">
@@ -90,7 +104,7 @@ export function AssetCard({ asset, t }: Readonly<AssetCardProps>) {
           <span className="font-medium">{asset.name}</span>
         </Link>
       </div>
-      <AssetCardDetails asset={asset} t={t} />
+      <AssetCardDetails asset={asset} locale={locale} t={t} />
       <AssetCardActions asset={asset} t={t} />
     </li>
   );

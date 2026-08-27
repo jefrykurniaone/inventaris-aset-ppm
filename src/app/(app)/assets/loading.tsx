@@ -3,11 +3,12 @@ import { getTranslations } from "next-intl/server";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /** One per field `AssetFilters` renders: the search box, the six
- * spec-driven selects, the acquisition-year box, and the three sort
- * controls — see `AssetFilterInputs`/`AssetSortControls`. The key names
+ * spec-driven selects and the acquisition-year box — see
+ * `AssetFilterInputs`. The three sort controls that used to be here went
+ * with the sort dropdowns in issue #87; ordering is now a click on a column
+ * header and the page size is its own control below the table. The key names
  * carry no meaning beyond being stable and distinct, the same reason
- * `AssetTable`'s `COLUMN_KEYS` is a literal list rather than an array
- * index. */
+ * `AssetTable`'s columns are a literal list rather than an array index. */
 const FILTER_FIELD_KEYS = [
   "q",
   "categoryId",
@@ -17,9 +18,6 @@ const FILTER_FIELD_KEYS = [
   "condition",
   "fundingSourceId",
   "acquisitionYear",
-  "sort",
-  "dir",
-  "pageSize",
 ] as const;
 
 const TABLE_ROW_KEYS = [
@@ -31,7 +29,7 @@ const TABLE_ROW_KEYS = [
   "row-6",
 ] as const;
 
-/** One column per `COLUMN_KEYS` entry in `AssetTable`, plus the leading
+/** One column per `ASSET_COLUMNS` entry in `AssetTable`, plus the leading
  * select-all checkbox column. */
 const TABLE_COLUMN_KEYS = [
   "select",
@@ -43,6 +41,7 @@ const TABLE_COLUMN_KEYS = [
   "status",
   "condition",
   "acquisitionYear",
+  "createdAt",
   "edit",
   "delete",
 ] as const;

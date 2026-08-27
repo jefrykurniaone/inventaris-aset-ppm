@@ -1,12 +1,15 @@
 import { getLocale, getTranslations } from "next-intl/server";
 
+import { TablePageSizeSelect } from "@/components/TablePageSizeSelect";
 import { totalLoanListPageCount } from "@/lib/loan-list-query";
+import { LOANS_PATH } from "@/lib/paths";
 import { requireUser } from "@/lib/require-user";
 
 import { LoanFilters } from "./LoanFilters";
 import { LoanPagination } from "./LoanPagination";
 import { LoanTable } from "./LoanTable";
 import {
+  buildLoanListParamsWithoutPageSize,
   loanListSearchParamsSchema,
   type LoanListSearchParams,
 } from "./list-schemas";
@@ -52,6 +55,8 @@ export default async function LoansPage({
     {
       search: params.q,
       state: params.state,
+      sortKey: params.sort,
+      sortDirection: params.dir,
       page: params.page,
       pageSize: params.pageSize,
     },
@@ -67,16 +72,25 @@ export default async function LoansPage({
       <LoanFilters params={params} t={t} />
       <LoanTable
         loans={rows}
+        params={params}
         locale={locale}
         t={t}
         isFilteredView={isFilteredView(params)}
       />
-      <LoanPagination
-        params={params}
-        pageCount={totalLoanListPageCount(totalCount, params.pageSize)}
-        totalCount={totalCount}
-        t={t}
-      />
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <TablePageSizeSelect
+          action={LOANS_PATH}
+          params={buildLoanListParamsWithoutPageSize(params)}
+          pageSize={params.pageSize}
+          id="loan-list-page-size"
+        />
+        <LoanPagination
+          params={params}
+          pageCount={totalLoanListPageCount(totalCount, params.pageSize)}
+          totalCount={totalCount}
+          t={t}
+        />
+      </div>
     </div>
   );
 }

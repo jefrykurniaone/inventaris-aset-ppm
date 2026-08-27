@@ -4,6 +4,9 @@ import { getTranslations } from "next-intl/server";
 import { DeleteControl } from "@/components/DeleteControl";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Button } from "@/components/ui/button";
+import type { Locale } from "@/i18n/config";
+import { formatDate } from "@/lib/format-date";
+import { ADMIN_FUNDING_SOURCES_PATH } from "@/lib/paths";
 
 import {
   deactivateFundingSourceAction,
@@ -71,12 +74,17 @@ function DeleteOrReferencedNote({
   );
 }
 
+interface FundingSourceRowRenderProps extends FundingSourceRowProps {
+  readonly locale: Locale;
+}
+
 /** One row of the funding source list, split out of `FundingSourceTable` to
  * keep every function in this feature under the project's 40-line limit. */
 export function FundingSourceRow({
   fundingSource,
+  locale,
   t,
-}: Readonly<FundingSourceRowProps>) {
+}: Readonly<FundingSourceRowRenderProps>) {
   return (
     <tr className="border-border border-b align-top">
       <td className="py-2 pr-4">{fundingSource.name}</td>
@@ -84,9 +92,14 @@ export function FundingSourceRow({
       <td className="py-2 pr-4">
         {fundingSource.isActive ? t("statusActive") : t("statusDeactivated")}
       </td>
+      <td className="py-2 pr-4 whitespace-nowrap">
+        <time dateTime={fundingSource.createdAt.toISOString()}>
+          {formatDate(fundingSource.createdAt, locale)}
+        </time>
+      </td>
       <td className="py-2 pr-4">
         <Button asChild variant="outline" size="sm">
-          <Link href={`/admin/funding-sources/${fundingSource.id}`}>
+          <Link href={`${ADMIN_FUNDING_SOURCES_PATH}/${fundingSource.id}`}>
             {t("edit")}
           </Link>
         </Button>

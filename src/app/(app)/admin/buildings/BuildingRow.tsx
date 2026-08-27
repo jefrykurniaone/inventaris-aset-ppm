@@ -4,6 +4,9 @@ import { getTranslations } from "next-intl/server";
 import { DeleteControl } from "@/components/DeleteControl";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Button } from "@/components/ui/button";
+import type { Locale } from "@/i18n/config";
+import { formatDate } from "@/lib/format-date";
+import { ADMIN_BUILDINGS_PATH } from "@/lib/paths";
 
 import {
   deactivateBuildingAction,
@@ -69,9 +72,17 @@ function DeleteOrReferencedNote({ building, t }: Readonly<BuildingRowProps>) {
   );
 }
 
+interface BuildingRowRenderProps extends BuildingRowProps {
+  readonly locale: Locale;
+}
+
 /** One row of the building list, split out of `BuildingTable` to keep every
  * function in this feature under the project's 40-line limit. */
-export function BuildingRow({ building, t }: Readonly<BuildingRowProps>) {
+export function BuildingRow({
+  building,
+  locale,
+  t,
+}: Readonly<BuildingRowRenderProps>) {
   return (
     <tr className="border-border border-b align-top">
       <td className="py-2 pr-4 font-mono">{building.code}</td>
@@ -79,9 +90,16 @@ export function BuildingRow({ building, t }: Readonly<BuildingRowProps>) {
       <td className="py-2 pr-4">
         {building.isActive ? t("statusActive") : t("statusDeactivated")}
       </td>
+      <td className="py-2 pr-4 whitespace-nowrap">
+        <time dateTime={building.createdAt.toISOString()}>
+          {formatDate(building.createdAt, locale)}
+        </time>
+      </td>
       <td className="py-2 pr-4">
         <Button asChild variant="outline" size="sm">
-          <Link href={`/admin/buildings/${building.id}`}>{t("edit")}</Link>
+          <Link href={`${ADMIN_BUILDINGS_PATH}/${building.id}`}>
+            {t("edit")}
+          </Link>
         </Button>
       </td>
       <td className="py-2 pr-4">

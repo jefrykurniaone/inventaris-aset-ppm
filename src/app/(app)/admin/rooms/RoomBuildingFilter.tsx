@@ -1,8 +1,10 @@
 import { getTranslations } from "next-intl/server";
 
+import { HiddenSearchParams } from "@/components/HiddenSearchParams";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { ADMIN_ROOMS_PATH } from "@/lib/paths";
 
 type AdminRoomsT = Awaited<
   ReturnType<typeof getTranslations<"AdminRoomsPage">>
@@ -17,6 +19,10 @@ interface BuildingOption {
 interface RoomBuildingFilterProps {
   readonly buildingOptions: readonly BuildingOption[];
   readonly selectedBuildingId?: string;
+  /** The sort key, direction and page size, carried as hidden fields so
+   * changing the building keeps the ordering the reader chose. A `GET` form
+   * replaces the query string wholesale, so anything not a field is lost. */
+  readonly viewParams: URLSearchParams;
   readonly t: AdminRoomsT;
 }
 
@@ -29,14 +35,16 @@ interface RoomBuildingFilterProps {
 export function RoomBuildingFilter({
   buildingOptions,
   selectedBuildingId,
+  viewParams,
   t,
 }: Readonly<RoomBuildingFilterProps>) {
   return (
     <form
-      action="/admin/rooms"
+      action={ADMIN_ROOMS_PATH}
       method="get"
       className="flex flex-wrap items-end gap-2"
     >
+      <HiddenSearchParams params={viewParams} />
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="room-building-filter">{t("filterBuildingLabel")}</Label>
         <Select

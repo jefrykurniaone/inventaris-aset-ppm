@@ -4,6 +4,9 @@ import { getTranslations } from "next-intl/server";
 import { DeleteControl } from "@/components/DeleteControl";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Button } from "@/components/ui/button";
+import type { Locale } from "@/i18n/config";
+import { formatDate } from "@/lib/format-date";
+import { ADMIN_ROOMS_PATH } from "@/lib/paths";
 
 import {
   deactivateRoomAction,
@@ -66,9 +69,13 @@ function DeleteOrReferencedNote({ room, t }: Readonly<RoomRowProps>) {
   );
 }
 
+interface RoomRowRenderProps extends RoomRowProps {
+  readonly locale: Locale;
+}
+
 /** One row of the room list, split out of `RoomTable` to keep every
  * function in this feature under the project's 40-line limit. */
-export function RoomRow({ room, t }: Readonly<RoomRowProps>) {
+export function RoomRow({ room, locale, t }: Readonly<RoomRowRenderProps>) {
   return (
     <tr className="border-border border-b align-top">
       <td className="py-2 pr-4">{`${room.buildingCode} — ${room.buildingName}`}</td>
@@ -77,9 +84,14 @@ export function RoomRow({ room, t }: Readonly<RoomRowProps>) {
       <td className="py-2 pr-4">
         {room.isActive ? t("statusActive") : t("statusDeactivated")}
       </td>
+      <td className="py-2 pr-4 whitespace-nowrap">
+        <time dateTime={room.createdAt.toISOString()}>
+          {formatDate(room.createdAt, locale)}
+        </time>
+      </td>
       <td className="py-2 pr-4">
         <Button asChild variant="outline" size="sm">
-          <Link href={`/admin/rooms/${room.id}`}>{t("edit")}</Link>
+          <Link href={`${ADMIN_ROOMS_PATH}/${room.id}`}>{t("edit")}</Link>
         </Button>
       </td>
       <td className="py-2 pr-4">

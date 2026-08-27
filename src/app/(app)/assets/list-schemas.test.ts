@@ -16,10 +16,10 @@ describe("assetListSearchParamsSchema", () => {
       condition: undefined,
       acquisitionYear: undefined,
       attention: false,
-      sort: "assetCode",
-      dir: "asc",
+      sort: "createdAt",
+      dir: "desc",
       page: 1,
-      pageSize: 20,
+      pageSize: 10,
     });
   });
 
@@ -38,10 +38,10 @@ describe("assetListSearchParamsSchema", () => {
 
     expect(parsed.status).toBeUndefined();
     expect(parsed.condition).toBeUndefined();
-    expect(parsed.sort).toBe("assetCode");
-    expect(parsed.dir).toBe("asc");
+    expect(parsed.sort).toBe("createdAt");
+    expect(parsed.dir).toBe("desc");
     expect(parsed.page).toBe(1);
-    expect(parsed.pageSize).toBe(20);
+    expect(parsed.pageSize).toBe(10);
     expect(parsed.acquisitionYear).toBeUndefined();
     expect(parsed.categoryId).toBeUndefined();
     expect(parsed.attention).toBe(false);

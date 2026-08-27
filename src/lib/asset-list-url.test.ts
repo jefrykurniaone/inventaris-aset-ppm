@@ -1,16 +1,19 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildAssetListParamsWithoutPageSize,
   buildAssetListSearchParams,
+  buildAssetListViewParams,
   withAssetListPage,
+  withAssetListSort,
   type AssetListUrlState,
 } from "./asset-list-url";
 
 const DEFAULT_STATE: AssetListUrlState = {
-  sort: "assetCode",
-  dir: "asc",
+  sort: "createdAt",
+  dir: "desc",
   page: 1,
-  pageSize: 20,
+  pageSize: 10,
 };
 
 describe("buildAssetListSearchParams", () => {
@@ -45,15 +48,62 @@ describe("buildAssetListSearchParams", () => {
     const params = buildAssetListSearchParams({
       ...DEFAULT_STATE,
       sort: "name",
-      dir: "desc",
+      dir: "asc",
       page: 3,
       pageSize: 50,
     });
 
     expect(params.get("sort")).toBe("name");
-    expect(params.get("dir")).toBe("desc");
+    expect(params.get("dir")).toBe("asc");
     expect(params.get("page")).toBe("3");
     expect(params.get("pageSize")).toBe("50");
+  });
+});
+
+describe("withAssetListSort", () => {
+  it("keeps the filters, applies the ordering and returns to the first page", () => {
+    const params = withAssetListSort(
+      { ...DEFAULT_STATE, q: "proj", page: 4 },
+      "name",
+      "asc",
+    );
+
+    expect(params.get("q")).toBe("proj");
+    expect(params.get("sort")).toBe("name");
+    expect(params.get("dir")).toBe("asc");
+    expect(params.has("page")).toBe(false);
+  });
+});
+
+describe("buildAssetListViewParams", () => {
+  it("carries only the non-default view controls, never a filter", () => {
+    const params = buildAssetListViewParams({
+      ...DEFAULT_STATE,
+      q: "proj",
+      sort: "assetCode",
+      pageSize: 50,
+    });
+
+    expect(params.has("q")).toBe(false);
+    expect(params.get("sort")).toBe("assetCode");
+    expect(params.get("pageSize")).toBe("50");
+  });
+});
+
+describe("buildAssetListParamsWithoutPageSize", () => {
+  it("drops the page size and the page, keeping filters and ordering", () => {
+    const params = buildAssetListParamsWithoutPageSize({
+      ...DEFAULT_STATE,
+      q: "proj",
+      sort: "name",
+      page: 4,
+      pageSize: 100,
+    });
+
+    expect(params.get("q")).toBe("proj");
+    expect(params.get("sort")).toBe("name");
+    expect(params.has("pageSize")).toBe(false);
+    expect(params.has("page")).toBe(false);
   });
 });
 

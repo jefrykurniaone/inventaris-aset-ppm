@@ -1,7 +1,9 @@
 import Link from "next/link";
 
+import { HiddenSearchParams } from "@/components/HiddenSearchParams";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Button } from "@/components/ui/button";
+import { buildAssetListViewParams } from "@/lib/asset-list-url";
 import { ASSETS_PATH } from "@/lib/paths";
 
 import type { AssetsTranslate } from "./asset-field-specs";
@@ -11,7 +13,6 @@ import {
   type AssetFilterSelectName,
 } from "./asset-filter-specs";
 import { AssetFilterSelect, AssetFilterTextInput } from "./AssetFilterFields";
-import { AssetSortControls } from "./AssetSortControls";
 import type { AssetListSearchParams } from "./list-schemas";
 import type { AssetListFilterOptions } from "./list-queries";
 import { ASSET_CONDITIONS, ASSET_STATUSES, type AssetOption } from "./schemas";
@@ -112,13 +113,17 @@ interface AssetFiltersProps {
 }
 
 /**
- * The asset list's search-and-filter form (PRD FR-2.6): free text, six
- * filters, sort key, sort direction and page size, all in one plain `GET`
- * form — no client-side JavaScript, so choosing a filter never triggers an
- * unannounced page change (WCAG 3.2.2), matching `RoomBuildingFilter`'s
- * pattern. Submitting always lands on page 1: `page` is never one of this
- * form's fields, so a changed filter drops whatever page number was in the
- * URL before it.
+ * The asset list's search-and-filter form (PRD FR-2.6): free text and seven
+ * filters in one plain `GET` form — no client-side JavaScript, so choosing a
+ * filter never triggers an unannounced page change (WCAG 3.2.2), matching
+ * `RoomBuildingFilter`'s pattern. Submitting always lands on page 1: `page`
+ * is never one of this form's fields, so a changed filter drops whatever page
+ * number was in the URL before it.
+ *
+ * Sorting moved onto the column headers with issue #87, so the two sort
+ * dropdowns are gone; the sort key, direction and page size ride along as
+ * hidden fields instead, because a `GET` form replaces the query string
+ * wholesale and applying a filter must not silently reset the ordering.
  */
 export function AssetFilters({
   params,
@@ -149,12 +154,7 @@ export function AssetFilters({
         type="number"
         inputMode="numeric"
       />
-      <AssetSortControls
-        sort={params.sort}
-        dir={params.dir}
-        pageSize={params.pageSize}
-        t={t}
-      />
+      <HiddenSearchParams params={buildAssetListViewParams(params)} />
       <AssetFilterActions t={t} />
     </form>
   );
