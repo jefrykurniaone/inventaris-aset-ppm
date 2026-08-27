@@ -200,3 +200,17 @@ category. Semantic elements before ARIA roles.
 Before adding a package, check bundle size, maintenance status, licence, and known CVEs. Nothing
 unmaintained for two or more years without written justification. Remove unused dependencies
 before merge.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in this repo's GitHub Issues, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-role vocabulary, matching the labels already on the repo. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context; the glossary lives at `docs/CONTEXT.md` (not the repo root), ADRs at `docs/adr/`. See `docs/agents/domain.md`.
