@@ -33,9 +33,9 @@ const mockedHeaders = vi.mocked(headers);
 const mockedRedirect = vi.mocked(redirect);
 const mockedGetSession = vi.mocked(auth.api.getSession);
 
-function sessionFor(role: string | null) {
+function sessionFor(role: string | null, banned = false) {
   return {
-    user: { id: "user-1", email: "user@example.invalid", role },
+    user: { id: "user-1", email: "user@example.invalid", role, banned },
     session: { id: "session-1" },
   } as unknown as Awaited<ReturnType<typeof auth.api.getSession>>;
 }
@@ -62,6 +62,12 @@ describe("getSessionUser", () => {
 
     await expect(getSessionUser()).resolves.toBeNull();
   });
+
+  it("returns null for a banned user even with a valid session (issue #114)", async () => {
+    mockedGetSession.mockResolvedValue(sessionFor(STAFF_ROLE, true));
+
+    await expect(getSessionUser()).resolves.toBeNull();
+  });
 });
 
 describe("requireUser", () => {
@@ -81,6 +87,13 @@ describe("requireUser", () => {
 
   it("redirects to sign-in when no session exists, and never returns a user", async () => {
     mockedGetSession.mockResolvedValue(null);
+
+    await expect(requireUser()).rejects.toThrow(`REDIRECT:${SIGN_IN_PATH}`);
+    expect(mockedRedirect).toHaveBeenCalledWith(SIGN_IN_PATH);
+  });
+
+  it("redirects a banned user to sign-in even with a valid session (issue #114)", async () => {
+    mockedGetSession.mockResolvedValue(sessionFor(STAFF_ROLE, true));
 
     await expect(requireUser()).rejects.toThrow(`REDIRECT:${SIGN_IN_PATH}`);
     expect(mockedRedirect).toHaveBeenCalledWith(SIGN_IN_PATH);

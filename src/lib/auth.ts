@@ -101,6 +101,10 @@ const staffAccess = accessControl.newRole({
  */
 export const auth = betterAuth({
   database: prismaAdapter(db, { provider: "postgresql" }),
+  // No `session.cookieCache` here (issue #114): enabling it later requires
+  // also re-checking `user.banned` on the cached path, because
+  // `src/lib/require-user.ts`'s guard only re-reads that flag on the
+  // uncached, per-request session lookup this config currently produces.
   emailAndPassword: {
     enabled: true,
     disableSignUp: true,

@@ -31,10 +31,22 @@ export type SessionUser = NonNullable<Session>["user"];
  * request scope — a Vitest unit test, a `tsx` script — `react`'s non-server
  * build of `cache()` is a straight pass-through to the wrapped function, so
  * the "no session means no user" contract holds identically either way.
+ *
+ * A banned user is treated as having no session at all (issue #114). Session
+ * invalidation on ban already works — `auth.api.banUser` deletes every
+ * session row, and the admin plugin refuses a new sign-in for a banned user —
+ * but that only holds while `session.cookieCache` stays off in
+ * `src/lib/auth.ts`, since the cached fast path never re-reads `banned`.
+ * Checking it here, rather than depending on that library-config detail,
+ * costs nothing extra: `banned` is already on the `user` object the session
+ * call returns.
  */
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const session = await auth.api.getSession({ headers: await headers() });
-  return session?.user ?? null;
+  if (!session || session.user.banned) {
+    return null;
+  }
+  return session.user;
 });
 
 /**
