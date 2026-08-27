@@ -3,10 +3,11 @@
 import { useActionState } from "react";
 
 import { FieldError } from "@/components/FieldError";
+import { FieldLabel } from "@/components/FieldLabel";
 import { FormError } from "@/components/FormError";
+import { FormRequiredLegend } from "@/components/FormRequiredLegend";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 
 import { INITIAL_ROOM_FORM_STATE, type RoomFormState } from "./schemas";
@@ -28,6 +29,9 @@ interface TextFieldProps {
   readonly label: string;
   readonly defaultValue?: string;
   readonly error?: string;
+  /** Code and name are both required (issue #105); carried as a prop rather
+   * than re-derived so `TextField` stays free of field-name knowledge. */
+  readonly isMarkedRequired?: boolean;
 }
 
 /** A module-level sibling of `RoomForm`, not defined inside its render
@@ -38,11 +42,16 @@ function TextField({
   label,
   defaultValue,
   error,
+  isMarkedRequired,
 }: Readonly<TextFieldProps>) {
   const errorId = `${id}-error`;
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <FieldLabel
+        htmlFor={id}
+        label={label}
+        isMarkedRequired={isMarkedRequired}
+      />
       <Input
         id={id}
         name={name}
@@ -76,7 +85,7 @@ function BuildingField({
   const errorId = "room-building-error";
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor="room-building">{label}</Label>
+      <FieldLabel htmlFor="room-building" label={label} isMarkedRequired />
       <Select
         id="room-building"
         name="buildingId"
@@ -142,6 +151,7 @@ export function RoomForm({
     >
       <h2 className="text-lg font-medium">{heading}</h2>
       {id && <input type="hidden" name="id" value={id} />}
+      <FormRequiredLegend />
       <BuildingField
         label={buildingLabel}
         buildingOptions={buildingOptions}
@@ -155,6 +165,7 @@ export function RoomForm({
         label={codeLabel}
         defaultValue={defaultCode}
         error={state.fieldErrors.code}
+        isMarkedRequired
       />
       <TextField
         id="room-name"
@@ -162,6 +173,7 @@ export function RoomForm({
         label={nameLabel}
         defaultValue={defaultName}
         error={state.fieldErrors.name}
+        isMarkedRequired
       />
       <FormError message={state.formError} />
       <SubmitButton idleLabel={submitLabel} pendingLabel={submitPendingLabel} />

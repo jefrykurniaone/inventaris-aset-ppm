@@ -3,10 +3,11 @@
 import { useActionState } from "react";
 
 import { FieldError } from "@/components/FieldError";
+import { FieldLabel } from "@/components/FieldLabel";
 import { FormError } from "@/components/FormError";
+import { FormRequiredLegend } from "@/components/FormRequiredLegend";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 import { INITIAL_BUILDING_FORM_STATE, type BuildingFormState } from "./schemas";
 
@@ -21,6 +22,9 @@ interface TextFieldProps {
   readonly label: string;
   readonly defaultValue?: string;
   readonly error?: string;
+  /** Both of this form's fields are required (issue #105); carried as a prop
+   * rather than re-derived so `TextField` stays free of field-name knowledge. */
+  readonly isMarkedRequired?: boolean;
 }
 
 /** A module-level sibling of `BuildingForm`, not defined inside its render
@@ -31,11 +35,16 @@ function TextField({
   label,
   defaultValue,
   error,
+  isMarkedRequired,
 }: Readonly<TextFieldProps>) {
   const errorId = `${id}-error`;
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <FieldLabel
+        htmlFor={id}
+        label={label}
+        isMarkedRequired={isMarkedRequired}
+      />
       <Input
         id={id}
         name={name}
@@ -87,12 +96,14 @@ export function BuildingForm({
     >
       <h2 className="text-lg font-medium">{heading}</h2>
       {id && <input type="hidden" name="id" value={id} />}
+      <FormRequiredLegend />
       <TextField
         id="building-code"
         name="code"
         label={codeLabel}
         defaultValue={defaultCode}
         error={state.fieldErrors.code}
+        isMarkedRequired
       />
       <TextField
         id="building-name"
@@ -100,6 +111,7 @@ export function BuildingForm({
         label={nameLabel}
         defaultValue={defaultName}
         error={state.fieldErrors.name}
+        isMarkedRequired
       />
       <FormError message={state.formError} />
       <SubmitButton idleLabel={submitLabel} pendingLabel={submitPendingLabel} />
