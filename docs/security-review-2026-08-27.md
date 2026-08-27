@@ -266,7 +266,32 @@ The secret is referenced by environment-variable name only and must never be pas
 
 Expect the missing response headers of F-03 to dominate the results. Raw output need not be committed.
 
-<!-- ORCHESTRATOR: ZAP baseline results go here -->
+### 9.1 Scan run
+
+OWASP ZAP 2.17.0, passive baseline only — a traditional spider followed by the passive scanner, no active attack rules and no load generation. Run on 2026-08-27 against the production deployment at `https://inventaris-aset-ppm.vercel.app` (public under Standard Protection, so no bypass header was needed). The spider reached 19 URLs; the passive scanner raised 64 alerts across 8 types. Raw output is not committed, per the acceptance criteria.
+
+### 9.2 Results
+
+| Risk | Alert (CWE) | Count | Where | Disposition |
+|---|---|---|---|---|
+| Medium | Content Security Policy (CSP) Header Not Set (CWE-693) | 3 | `/`, `/sign-in`, `/robots.txt`, `/sitemap.xml` | **Confirms F-03** ([#113](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/113)) |
+| Medium | Missing Anti-clickjacking Header (CWE-1021) | 1 | `/sign-in` | **Confirms F-03** ([#113](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/113)) |
+| Low | X-Content-Type-Options Header Missing (CWE-693) | 15 | document routes and `_next/static` chunks | **Confirms F-03** ([#113](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/113)) |
+| Medium | Cross-Domain Misconfiguration (CWE-264) | 14 | `_next/static/chunks/*.js` only | Not actionable — see below |
+| Low | Big Redirect Detected (CWE-201) | 2 | `/` and its trailing-slash form | Not actionable — see below |
+| Low | Server Leaks Information via `X-Powered-By` (CWE-497) | 5 | all document routes | New; folded into F-03's remediation ([#113](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/113)) |
+| Informational | Modern Web Application (CWE--1) | 5 | document routes | No action — a fingerprint, not a defect |
+| Informational | Retrieved from Cache (CWE-525) | 19 | document routes and chunks | No action — Vercel edge cache, expected |
+
+As predicted, the missing response headers dominate the scan, and every Medium and every actionable Low reduces to **F-03** — the passive scan raised no finding that the manual header audit had not already named. The scan surfaced **no** alert touching the two crown jewels: nothing under broken access control, nothing exposing restricted or personal data, no injection, no authentication bypass. That silence is itself evidence, consistent with sections 3, 4 and 7.
+
+Three alerts were examined and dismissed rather than filed:
+
+- **Cross-Domain Misconfiguration** fires only on the `_next/static/chunks/*.js` assets, which Vercel's CDN serves with `Access-Control-Allow-Origin: *`. Wildcard CORS on immutable, public, credential-free build artefacts is the intended behaviour of a static CDN; no document route and no data endpoint carries it. Not a vulnerability.
+- **Big Redirect Detected** fires on the root `/`, which issues the locale/auth redirect. The response is a framework-standard redirect whose body lists no sensitive data. Not a vulnerability.
+- **X-Powered-By** is a genuine but minor information leak — the framework advertises itself in a response header. It is squarely part of hardening the HTTP response headers, so rather than open a near-duplicate of F-03 it is folded into [#113](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/113) as an additional item (`poweredByHeader: false` in `next.config.ts`, alongside the headers that issue already covers).
+
+**Net: the automated baseline opened no new issue.** It corroborated F-03 with concrete evidence and added one small remediation item to it. The findings table in section 10 stands unchanged at four.
 
 ## 10. Findings summary
 
