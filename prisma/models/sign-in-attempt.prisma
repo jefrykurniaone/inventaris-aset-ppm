@@ -1,0 +1,36 @@
+// Append-only log of `/sign-in/email` outcomes (issue #112) — and the lockout
+// counter at the same time. The streak of consecutive `failed` rows *is* the
+// counter, so there is no second, mutable piece of state that could drift out
+// of step with the log it is supposed to summarise. Like `UserActivity` and
+// `AssetActivity`, a row is written and never amended, so the model carries no
+// `updatedAt`; the absence is deliberate.
+//
+// `email` is a plain string with no relation to `User`, and that is the point
+// rather than an oversight. The attempt most worth counting is one against an
+// address that has no account: a `userId` foreign key could not store it at
+// all, and a nullable one would make "never had an account" and "account since
+// deleted" indistinguishable. Keying on the submitted address also means the
+// lock state carries no information about whether an account exists, which is
+// what keeps a locked address indistinguishable from a wrong password.
+//
+// The address is stored the way `src/lib/sign-in-lockout.ts` normalises it,
+// which follows how Better Auth normalises it for lookup — `dist/api/routes/
+// sign-in.mjs` calls `findUserByEmail(email.toLowerCase())` — so a mixed-case
+// retry lands in the same bucket instead of starting a fresh counter.
+//
+// This is restricted data: a list of addresses somebody tried to sign in with.
+// No public query reads this table, and nothing in the application selects it
+// outside `src/lib/sign-in-attempts.ts`.
+//
+// One index serves both queries the table has: the newest few rows for one
+// address, and the retention delete for one address.
+
+model SignInAttempt {
+  id        String               @id @default(uuid(7))
+  email     String
+  outcome   SignInAttemptOutcome
+  createdAt DateTime             @default(now())
+
+  @@index([email, createdAt])
+  @@map("sign_in_attempt")
+}

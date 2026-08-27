@@ -52,3 +52,23 @@ enum UserActivityType {
 
   @@map("user_activity_type")
 }
+
+// The outcome of one `/sign-in/email` attempt (issue #112). Three members and
+// not two, because only one of them may move an address towards a lock:
+//
+//   `failed`    — credentials rejected. Counts towards the threshold.
+//   `succeeded` — a session was created. Breaks the consecutive-failure streak.
+//   `blocked`   — refused because the lock was already in force. Recorded so an
+//                 ongoing campaign stays visible, and deliberately *not*
+//                 counted: if a refused attempt extended the lock, an attacker
+//                 could hold a known address locked for as long as they cared
+//                 to keep sending requests, which is exactly the
+//                 denial-of-service lever a temporary lock exists to avoid.
+
+enum SignInAttemptOutcome {
+  succeeded
+  failed
+  blocked
+
+  @@map("sign_in_attempt_outcome")
+}
