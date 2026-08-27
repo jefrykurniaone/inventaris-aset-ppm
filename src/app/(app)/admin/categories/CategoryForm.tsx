@@ -3,10 +3,11 @@
 import { useActionState } from "react";
 
 import { FieldError } from "@/components/FieldError";
+import { FieldLabel } from "@/components/FieldLabel";
 import { FormError } from "@/components/FormError";
+import { FormRequiredLegend } from "@/components/FormRequiredLegend";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 import { INITIAL_CATEGORY_FORM_STATE, type CategoryFormState } from "./schemas";
 
@@ -21,6 +22,9 @@ interface TextFieldProps {
   readonly label: string;
   readonly defaultValue?: string;
   readonly error?: string;
+  /** Name and English name are both required (issue #105); carried as a prop
+   * rather than re-derived so `TextField` stays free of field-name knowledge. */
+  readonly isMarkedRequired?: boolean;
 }
 
 /** One labelled text input plus its inline error, a module-level sibling of
@@ -32,11 +36,16 @@ function TextField({
   label,
   defaultValue,
   error,
+  isMarkedRequired,
 }: Readonly<TextFieldProps>) {
   const errorId = `${id}-error`;
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <FieldLabel
+        htmlFor={id}
+        label={label}
+        isMarkedRequired={isMarkedRequired}
+      />
       <Input
         id={id}
         name={name}
@@ -59,7 +68,8 @@ interface CodeFieldProps {
 }
 
 /** The `code` field, split out because it carries the extra
- * referenced-so-locked notice the other two fields never need. */
+ * referenced-so-locked notice the other two fields never need. Always
+ * required (issue #105), so it takes no `isMarkedRequired` prop of its own. */
 function CodeField({
   label,
   defaultValue,
@@ -78,7 +88,7 @@ function CodeField({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor="category-code">{label}</Label>
+      <FieldLabel htmlFor="category-code" label={label} isMarkedRequired />
       <Input
         id="category-code"
         name="code"
@@ -148,6 +158,7 @@ export function CategoryForm({
     >
       <h2 className="text-lg font-medium">{heading}</h2>
       {id && <input type="hidden" name="id" value={id} />}
+      <FormRequiredLegend />
       <CodeField
         label={codeLabel}
         defaultValue={defaultCode}
@@ -161,6 +172,7 @@ export function CategoryForm({
         label={nameLabel}
         defaultValue={defaultName}
         error={state.fieldErrors.name}
+        isMarkedRequired
       />
       <TextField
         id="category-name-en"
@@ -168,6 +180,7 @@ export function CategoryForm({
         label={nameEnLabel}
         defaultValue={defaultNameEn}
         error={state.fieldErrors.nameEn}
+        isMarkedRequired
       />
       <FormError message={state.formError} />
       <SubmitButton idleLabel={submitLabel} pendingLabel={submitPendingLabel} />

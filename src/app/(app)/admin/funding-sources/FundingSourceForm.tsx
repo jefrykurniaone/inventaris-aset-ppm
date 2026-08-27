@@ -3,10 +3,11 @@
 import { useActionState } from "react";
 
 import { FieldError } from "@/components/FieldError";
+import { FieldLabel } from "@/components/FieldLabel";
 import { FormError } from "@/components/FormError";
+import { FormRequiredLegend } from "@/components/FormRequiredLegend";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 import {
   INITIAL_FUNDING_SOURCE_FORM_STATE,
@@ -25,6 +26,10 @@ interface FieldProps {
   readonly defaultValue?: string | null;
   readonly error?: string;
   readonly required?: boolean;
+  /** Only `name` is required (issue #105); `notes` stays unmarked. Kept
+   * separate from `required` since the marker never changes `required` /
+   * `aria-required` on the control. */
+  readonly isMarkedRequired?: boolean;
 }
 
 /** A module-level sibling of `FundingSourceForm`, not defined inside its
@@ -36,11 +41,16 @@ function Field({
   defaultValue,
   error,
   required = false,
+  isMarkedRequired,
 }: Readonly<FieldProps>) {
   const errorId = `${id}-error`;
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <FieldLabel
+        htmlFor={id}
+        label={label}
+        isMarkedRequired={isMarkedRequired}
+      />
       <Input
         id={id}
         name={name}
@@ -92,6 +102,7 @@ export function FundingSourceForm({
     >
       <h2 className="text-lg font-medium">{heading}</h2>
       {id && <input type="hidden" name="id" value={id} />}
+      <FormRequiredLegend />
       <Field
         id="funding-source-name"
         name="name"
@@ -99,6 +110,7 @@ export function FundingSourceForm({
         defaultValue={defaultName}
         error={state.fieldErrors.name}
         required
+        isMarkedRequired
       />
       <Field
         id="funding-source-notes"
