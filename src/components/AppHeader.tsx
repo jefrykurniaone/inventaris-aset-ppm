@@ -5,7 +5,11 @@ import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { RoleBadge } from "@/components/RoleBadge";
 import { SignOutButton } from "@/components/SignOutButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { ASSETS_PATH, LOANS_PATH } from "@/lib/paths";
+import {
+  ADMIN_SIGN_IN_ACTIVITY_PATH,
+  ASSETS_PATH,
+  LOANS_PATH,
+} from "@/lib/paths";
 import { ADMIN_ROLE } from "@/lib/roles";
 import type { SessionUser } from "@/lib/require-user";
 
@@ -63,6 +67,9 @@ export async function AppHeader({ user }: Readonly<AppHeaderProps>) {
             </Link>
             <Link href="/admin/funding-sources" className={NAV_LINK_CLASS}>
               {t("navAdminFundingSources")}
+            </Link>
+            <Link href={ADMIN_SIGN_IN_ACTIVITY_PATH} className={NAV_LINK_CLASS}>
+              {t("navAdminSignInActivity")}
             </Link>
           </>
         )}

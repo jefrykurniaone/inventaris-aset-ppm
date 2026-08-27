@@ -173,6 +173,23 @@
     "title": "Manajemen Ruangan",
     "unexpectedError": "Terjadi kesalahan. Coba lagi."
   },
+  "AdminSignInActivityPage": {
+    "columnAddress": "Alamat",
+    "columnOutcome": "Hasil",
+    "columnTimestamp": "Waktu",
+    "emptyState": "Belum ada percobaan masuk yang tercatat.",
+    "emptyStateFiltered": "Tidak ada percobaan yang cocok dengan filter ini.",
+    "filterOutcomeAll": "Semua hasil",
+    "filterOutcomeLabel": "Hasil",
+    "filterReset": "Atur ulang",
+    "filterSearchLabel": "Cari berdasarkan alamat",
+    "filterSubmit": "Terapkan filter",
+    "outcomeBlocked": "Diblokir",
+    "outcomeFailed": "Gagal",
+    "outcomeSucceeded": "Berhasil",
+    "retentionNote": "Percobaan masuk disimpan selama {days, number} hari; yang lebih lama dihapus otomatis.",
+    "title": "Aktivitas Masuk"
+  },
   "AdminUsersPage": {
     "cancel": "Batal",
     "columnActions": "Aksi",
@@ -216,6 +233,7 @@
     "navAdminCategories": "Manajemen Kategori",
     "navAdminFundingSources": "Manajemen Sumber Dana",
     "navAdminRooms": "Manajemen Ruangan",
+    "navAdminSignInActivity": "Aktivitas Masuk",
     "navAdminUsers": "Manajemen Pengguna",
     "navAssets": "Aset",
     "navHome": "Beranda",

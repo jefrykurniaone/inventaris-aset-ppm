@@ -173,6 +173,23 @@
     "title": "Room Management",
     "unexpectedError": "Something went wrong. Please try again."
   },
+  "AdminSignInActivityPage": {
+    "columnAddress": "Address",
+    "columnOutcome": "Outcome",
+    "columnTimestamp": "Timestamp",
+    "emptyState": "No sign-in attempts have been recorded yet.",
+    "emptyStateFiltered": "No attempt matches these filters.",
+    "filterOutcomeAll": "All outcomes",
+    "filterOutcomeLabel": "Outcome",
+    "filterReset": "Reset",
+    "filterSearchLabel": "Search by address",
+    "filterSubmit": "Apply filters",
+    "outcomeBlocked": "Blocked",
+    "outcomeFailed": "Failed",
+    "outcomeSucceeded": "Succeeded",
+    "retentionNote": "Sign-in attempts are kept for {days, number} days; older ones are removed automatically.",
+    "title": "Sign-in Activity"
+  },
   "AdminUsersPage": {
     "cancel": "Cancel",
     "columnActions": "Actions",
@@ -216,6 +233,7 @@
     "navAdminCategories": "Category Management",
     "navAdminFundingSources": "Funding Source Management",
     "navAdminRooms": "Room Management",
+    "navAdminSignInActivity": "Sign-in Activity",
     "navAdminUsers": "User Management",
     "navAssets": "Assets",
     "navHome": "Home",

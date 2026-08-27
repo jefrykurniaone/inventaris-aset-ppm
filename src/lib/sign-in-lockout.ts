@@ -78,8 +78,18 @@ export const SIGN_IN_LOCK_DURATION_MS =
  */
 export const CREDENTIALS_REJECTED_STATUS = 401;
 
-/** Mirrors the `SignInAttemptOutcome` enum in `prisma/models/enums.prisma`. */
-export type SignInAttemptOutcome = "succeeded" | "failed" | "blocked";
+/** Mirrors the `SignInAttemptOutcome` enum in `prisma/models/enums.prisma`, in
+ * the same declared order. Exported as a tuple, not only as a type, so the
+ * admin sign-in activity trail (issue #125) can build its outcome filter's
+ * options from one place rather than a hand-typed second list that could drift
+ * from the enum. */
+export const SIGN_IN_ATTEMPT_OUTCOMES = [
+  "succeeded",
+  "failed",
+  "blocked",
+] as const;
+
+export type SignInAttemptOutcome = (typeof SIGN_IN_ATTEMPT_OUTCOMES)[number];
 
 /** One logged attempt, reduced to the two columns a lock decision reads. */
 export interface SignInAttemptRecord {
