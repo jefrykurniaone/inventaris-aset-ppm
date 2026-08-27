@@ -3,7 +3,9 @@
 import { useActionState } from "react";
 
 import { FieldError } from "@/components/FieldError";
+import { FieldLabel } from "@/components/FieldLabel";
 import { FormError } from "@/components/FormError";
+import { FormRequiredLegend } from "@/components/FormRequiredLegend";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -70,7 +72,9 @@ interface LoanTextFieldProps {
 }
 
 /** A module-level sibling of `CheckOutForm`, never defined inside its render
- * (S6478) — the same shape `BuildingForm`'s `TextField` takes. */
+ * (S6478) — the same shape `BuildingForm`'s `TextField` takes. Every field
+ * built from `TEXT_FIELD_SPECS` is required, so the marker is passed
+ * directly rather than derived (issue #104). */
 function LoanTextField({
   name,
   type,
@@ -81,7 +85,7 @@ function LoanTextField({
   const errorId = `${id}-error`;
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <FieldLabel htmlFor={id} label={label} isMarkedRequired />
       <Input
         id={id}
         name={name}
@@ -132,6 +136,9 @@ export function CheckOutForm({
       <h3 className="font-medium">{labels.heading}</h3>
       <p className="text-muted-foreground text-sm">{labels.intro}</p>
       <input type="hidden" name="assetId" value={assetId} />
+      {/* Once per form, above the fields it explains (issue #104). Notes has
+          no marker — it is the one field on this form left unrequired. */}
+      <FormRequiredLegend />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {TEXT_FIELD_SPECS.map((spec) => (
           <LoanTextField

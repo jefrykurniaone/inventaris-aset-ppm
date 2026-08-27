@@ -6,9 +6,10 @@ import { useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { FieldError } from "@/components/FieldError";
+import { FieldLabel } from "@/components/FieldLabel";
 import { FormError } from "@/components/FormError";
+import { FormRequiredLegend } from "@/components/FormRequiredLegend";
 import { authClient } from "@/lib/auth-client";
 import { HOME_PATH } from "@/lib/paths";
 
@@ -147,7 +148,9 @@ interface SignInFieldProps {
   readonly error?: string;
 }
 
-/** One labelled input plus its inline, `aria-describedby`-linked error. */
+/** One labelled input plus its inline, `aria-describedby`-linked error. Both
+ * fields are always required, so the marker is passed directly rather than
+ * derived (issue #104). */
 function SignInField({
   id,
   name,
@@ -160,7 +163,7 @@ function SignInField({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <FieldLabel htmlFor={id} label={label} isMarkedRequired />
       <Input
         id={id}
         name={name}
@@ -209,6 +212,10 @@ export function SignInForm() {
 
   return (
     <form action={formAction} className="flex flex-col gap-4" noValidate>
+      {/* Once per form, above the fields — the first form anyone meets, so
+          this is where the app-wide required-field convention is taught
+          (issue #104). */}
+      <FormRequiredLegend />
       {FIELDS.map((field) => (
         <SignInField
           key={field.name}
