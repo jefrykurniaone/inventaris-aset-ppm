@@ -28,6 +28,10 @@ coverage/
 playwright-report/
 test-results/
 .playwright/
+# Per-session page snapshots written into the working copy by the Playwright
+# MCP browser tooling. Scratch output that carries whatever page was open at
+# the time, and nothing here may depend on it.
+.playwright-mcp/
 
 # Vercel
 .vercel
