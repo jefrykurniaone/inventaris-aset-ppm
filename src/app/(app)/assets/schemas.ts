@@ -272,10 +272,16 @@ export const EMPTY_ASSET_FORM_DEFAULTS: AssetFormDefaults = {
   custodianEmail: "",
 };
 
-/** One entry of a picker backed by master data (PRD FR-3.1). */
+/** One entry of a picker backed by master data (PRD FR-3.1). Structurally the
+ * `ComboboxOption` the searchable pickers take (issue #88), so the same array
+ * feeds a native `<select>` and a combobox without conversion. */
 export interface AssetOption {
   readonly id: string;
   readonly label: string;
+  /** The heading a searchable picker lists this option under — set on rooms,
+   * which group by building, and absent everywhere else. A native `<select>`
+   * ignores it. */
+  readonly group?: string;
 }
 
 export interface AssetFormOptions {

@@ -20,6 +20,13 @@ export interface AssetFilterSelectSpec {
   readonly name: AssetFilterSelectName;
   readonly labelKey: AssetsPlainMessageKey;
   readonly allLabelKey: AssetsPlainMessageKey;
+  /**
+   * Rendered as a searchable combobox rather than a native `<select>` (issue
+   * #88), matching the write form's two searchable pickers. Categories and
+   * rooms grow without a bound; building, status, condition and funding source
+   * do not, so those four stay native selects.
+   */
+  readonly isSearchable?: boolean;
 }
 
 export const ASSET_FILTER_SELECT_SPECS: readonly AssetFilterSelectSpec[] = [
@@ -27,6 +34,7 @@ export const ASSET_FILTER_SELECT_SPECS: readonly AssetFilterSelectSpec[] = [
     name: "categoryId",
     labelKey: "filterCategoryLabel",
     allLabelKey: "filterAllCategories",
+    isSearchable: true,
   },
   {
     name: "buildingId",
@@ -37,6 +45,7 @@ export const ASSET_FILTER_SELECT_SPECS: readonly AssetFilterSelectSpec[] = [
     name: "roomId",
     labelKey: "filterRoomLabel",
     allLabelKey: "filterAllRooms",
+    isSearchable: true,
   },
   {
     name: "status",

@@ -12,7 +12,7 @@ import {
   ASSET_FILTER_SELECT_SPECS,
   type AssetFilterSelectName,
 } from "./asset-filter-specs";
-import { AssetFilterSelect, AssetFilterTextInput } from "./AssetFilterFields";
+import { AssetFilterControl, AssetFilterTextInput } from "./AssetFilterFields";
 import type { AssetListSearchParams } from "./list-schemas";
 import type { AssetListFilterOptions } from "./list-queries";
 import { ASSET_CONDITIONS, ASSET_STATUSES, type AssetOption } from "./schemas";
@@ -70,14 +70,12 @@ function AssetFilterInputs({
         inputMode="search"
       />
       {ASSET_FILTER_SELECT_SPECS.map((spec) => (
-        <AssetFilterSelect
+        <AssetFilterControl
           key={spec.name}
-          id={`asset-list-${spec.name}`}
-          name={spec.name}
-          label={t(spec.labelKey)}
-          allLabel={t(spec.allLabelKey)}
+          spec={spec}
           defaultValue={params[spec.name] ?? ""}
           options={optionsByFilterName[spec.name]}
+          t={t}
         />
       ))}
     </>

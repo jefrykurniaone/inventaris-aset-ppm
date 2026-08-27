@@ -441,6 +441,11 @@
     "warrantyUntilInvalid": "Enter a valid warranty date.",
     "warrantyUntilLabel": "Warranty until"
   },
+  "Combobox": {
+    "clearSelection": "Clear selection",
+    "noResults": "No matching options.",
+    "searchPlaceholder": "Type to search…"
+  },
   "DashboardPage": {
     "attentionLabel": "Requires attention",
     "categoryChartEmpty": "No category data to show yet.",
