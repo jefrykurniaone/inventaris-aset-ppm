@@ -28,6 +28,23 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  /**
+   * `tsconfig.json` sets `jsx: "preserve"`, because Next.js — not tsc — owns the
+   * JSX transform for the application build. Vite reads that same field, so
+   * without this a test that imports any `.tsx` fails to even parse it:
+   * "Failed to parse source for import analysis because the content contains
+   * invalid JS syntax." The transform is named here for the test run only, and
+   * `tsconfig.json` is left alone.
+   *
+   * `automatic` is React 19's runtime, the one Next.js compiles with, so a
+   * component under test is transformed the way it is in the application.
+   *
+   * This is Vite 8's `oxc` option, not the `esbuild` one it replaced — Vitest 4
+   * runs on Rolldown, and the old key is silently ignored here.
+   */
+  oxc: {
+    jsx: { runtime: "automatic" },
+  },
   test: {
     environment: "node",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],

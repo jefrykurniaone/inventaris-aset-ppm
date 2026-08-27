@@ -459,6 +459,9 @@
     "yearChartEmpty": "Belum ada data tahun perolehan untuk ditampilkan.",
     "yearChartTitle": "Perolehan per tahun"
   },
+  "Forms": {
+    "requiredFieldLegend": "* wajib diisi"
+  },
   "LoansPage": {
     "assetAlreadyLoaned": "Aset ini sedang dipinjam. Catat pengembaliannya sebelum dipinjamkan lagi.",
     "assetNotAvailable": "Aset ini tidak tersedia untuk dipinjamkan dalam statusnya sekarang.",

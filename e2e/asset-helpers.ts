@@ -83,6 +83,21 @@ const FIRST_REAL_OPTION_INDEX = 1;
 const REQUIRED_SELECT_FIELDS = ["condition"] as const;
 const REQUIRED_COMBOBOX_FIELDS = ["categoryId", "roomId"] as const;
 
+/**
+ * Issue #103's required-field markers, named by what they are checked against.
+ *
+ * `name` is required and marked; `brand` is optional and must stay unmarked —
+ * one of each is what makes the assertion mean something, since "no asterisk
+ * anywhere" would pass a check that only looked at the optional field.
+ *
+ * The legend regex is bilingual like every other locator here: these specs run
+ * against whichever locale the session lands on.
+ */
+const REQUIRED_LEGEND = /(required field|wajib diisi)/i;
+const REQUIRED_MARKER = "*";
+const MARKED_FIELD = "name";
+const UNMARKED_FIELD = "brand";
+
 const SIGN_IN_BUTTON = /(sign in|masuk)/i;
 const SAVE_ASSET_BUTTON = /(save asset|simpan aset)/i;
 const EDIT_LINK = /^(edit|ubah)$/i;
@@ -134,6 +149,27 @@ async function chooseFirstComboboxOption(page: Page, name: string) {
   await option.click();
 }
 
+/**
+ * The required-field markers on the form as it first renders (issue #103).
+ *
+ * Labels are located by their `for` attribute rather than by text, for the same
+ * reason `assetField` exists: a bilingual text regex matches more than one
+ * label. The marker itself is `aria-hidden`, so it is read out of the label's
+ * text content and never looked for by role.
+ *
+ * The legend is asserted to appear exactly once. Two would mean a form nested
+ * inside a form, or the component rendered per fieldset.
+ */
+async function expectRequiredFieldMarkers(page: Page): Promise<void> {
+  await expect(page.getByText(REQUIRED_LEGEND)).toHaveCount(1);
+  await expect(
+    page.locator(`label[for="asset-${MARKED_FIELD}"]`),
+  ).toContainText(REQUIRED_MARKER);
+  await expect(
+    page.locator(`label[for="asset-${UNMARKED_FIELD}"]`),
+  ).not.toContainText(REQUIRED_MARKER);
+}
+
 /** Fills every field `assetSchema` requires. `acquisitionYear` is the current
  * year, which is always inside the schema's `1970 … currentYear + 1` window,
  * so this does not go stale. */
@@ -164,6 +200,7 @@ export async function createAssetWithPhoto(
   name: string,
 ): Promise<void> {
   await page.goto("/assets/new");
+  await expectRequiredFieldMarkers(page);
   await fillRequiredAssetFields(page, name);
 
   await page.getByLabel(CHOOSE_FILE_LABEL).setInputFiles({

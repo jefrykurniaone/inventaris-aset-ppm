@@ -1,6 +1,7 @@
 "use client";
 
 import { OptionComboboxField } from "@/components/OptionComboboxField";
+import { isMarkedRequired } from "@/lib/required-marker";
 
 import type {
   AssetFieldSpec,
@@ -37,6 +38,9 @@ interface SharedFieldProps {
   readonly label: string;
   readonly defaultValue: string;
   readonly error?: string;
+  /** Derived once here from the spec, so no control re-decides it and none of
+   * them knows a field name (issue #103). */
+  readonly isMarkedRequired: boolean;
 }
 
 interface AssetSelectControlProps {
@@ -111,6 +115,7 @@ export function AssetField({
     label: t(spec.labelKey),
     defaultValue: defaults[spec.name],
     error: errors[spec.name],
+    isMarkedRequired: isMarkedRequired(spec),
   };
 
   if (spec.kind === "select") {

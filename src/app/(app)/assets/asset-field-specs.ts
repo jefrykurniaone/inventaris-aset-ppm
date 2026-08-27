@@ -71,6 +71,18 @@ interface CommonFieldSpec {
   readonly name: AssetFieldName;
   readonly labelKey: AssetsPlainMessageKey;
   readonly isRequired?: boolean;
+  /**
+   * Required by `assetSchema`, yet the form arrives with a valid value already
+   * in it — so it can never be submitted empty, and the required marker on its
+   * label would warn about nothing (issue #103).
+   *
+   * Carried here rather than checked by field name inside `RequiredMarker`:
+   * "which labels get an asterisk" is a fact about this table, and a second
+   * pre-filled field is then declared here instead of edited into a shared
+   * component. `isMarkedRequired` in `@/lib/required-marker` is the one place
+   * the two flags are combined.
+   */
+  readonly hasPrefilledDefault?: boolean;
 }
 
 export interface AssetTextFieldSpec extends CommonFieldSpec {
@@ -129,12 +141,16 @@ export const ASSET_DETAIL_FIELD_SPECS: readonly AssetFieldSpec[] = [
     isRequired: true,
   },
   {
+    // `EMPTY_ASSET_FORM_DEFAULTS` presets this to `active`, so it is valid
+    // before the user touches the form and carries no marker — the one field
+    // where required and marked-required part company.
     kind: "select",
     name: "status",
     labelKey: "statusLabel",
     placeholderKey: "statusPlaceholder",
     optionsKey: "statuses",
     isRequired: true,
+    hasPrefilledDefault: true,
   },
   {
     kind: "text",

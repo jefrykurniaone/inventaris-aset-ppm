@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useActionState, type ReactNode } from "react";
 
 import { FormError } from "@/components/FormError";
+import { FormRequiredLegend } from "@/components/FormRequiredLegend";
 import { SubmitButton } from "@/components/SubmitButton";
 
 import {
@@ -149,6 +150,10 @@ export function AssetForm({
     >
       {assetId && <input type="hidden" name="id" value={assetId} />}
       {assetCode && <AssetCodeNotice assetCode={assetCode} t={t} />}
+      {/* Once per form and above every field, so the asterisks below are
+          explained before they are met. Both pages funnel through this
+          component, so create and edit each get exactly one (issue #103). */}
+      <FormRequiredLegend />
       <AssetFieldset
         legend={t("sectionDetails")}
         specs={ASSET_DETAIL_FIELD_SPECS}
