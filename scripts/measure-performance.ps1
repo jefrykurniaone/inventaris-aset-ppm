@@ -9,8 +9,9 @@
     Measures "/" and "/assets" (authenticated) and "/a/<token>" (anonymous):
     a TTFB proxy from 5 sequential raw HTTP fetches (median reported), and
     LCP from one Lighthouse run per route. It also reports which element
-    each route's LCP was measured against, from Lighthouse's
-    largest-contentful-paint-element audit.
+    each route's LCP was measured against, read from whichever of
+    Lighthouse's LCP audits the running version ships - see
+    $LCP_ELEMENT_AUDIT_IDS.
 
     Signs in once with SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD (read from
     the environment, or from ../.env.local if present) - these values are
@@ -192,22 +193,51 @@ function Measure-RouteFetch([System.Net.Http.HttpClient]$client, [string]$url, [
 
 # --- Lighthouse (LCP) ---
 
-# The `largest-contentful-paint-element` audit names the element LCP was
-# measured against. Issue #110 had to infer it from the source because this
-# script only ever read the timing, so it reports the element too now: a number
-# that moved is only evidence once it is clear which element it belongs to.
-# Lighthouse 10 and later wrap the node table in a `list`; earlier versions put
-# the table at the top level, so both shapes are walked.
-function Get-LcpElementSnippet($audit) {
-    if (-not $audit -or -not $audit.details) {
-        return "unknown"
+# Naming the element LCP was measured against: a number that moved is only
+# evidence once it is clear which element it belongs to, and issue #110 had to
+# infer that from the source because this script read only the timing.
+#
+# The first attempt read `largest-contentful-paint-element` and printed
+# "unknown" for all three routes. That audit does not exist in the pinned
+# lighthouse@13.4.1 - version 13 replaced it with the "insight" audits, and
+# `$result.audits.'largest-contentful-paint-element'` is simply $null there.
+# `lcp-discovery-insight` is asked first because it is scored rather than
+# merely informative; `lcp-breakdown-insight` carries the same node; the
+# removed id stays last so an older lighthouse still reports.
+$LCP_ELEMENT_AUDIT_IDS = @(
+    "lcp-discovery-insight",
+    "lcp-breakdown-insight",
+    "largest-contentful-paint-element"
+)
+
+# Inside an insight audit, `details.items` is a heterogeneous list and the
+# element is a direct member of it - `type: "node"`, with `snippet` on the item
+# itself. The old audit nested it one level deeper, as `node.snippet` on a
+# table row, which is why walking only rows found nothing. Both shapes are
+# tried; a checklist item's `items` is an object rather than an array, and
+# falls out of the row walk without matching.
+function Get-LcpNodeSnippet($details) {
+    if (-not $details) {
+        return $null
     }
-    $tables = if ($audit.details.type -eq "list") { $audit.details.items } else { @($audit.details) }
-    foreach ($table in $tables) {
-        foreach ($row in $table.items) {
+    foreach ($item in @($details.items)) {
+        if ($item.type -eq "node" -and $item.snippet) {
+            return $item.snippet
+        }
+        foreach ($row in @($item.items)) {
             if ($row.node -and $row.node.snippet) {
                 return $row.node.snippet
             }
+        }
+    }
+    return $null
+}
+
+function Get-LcpElementSnippet($audits) {
+    foreach ($auditId in $LCP_ELEMENT_AUDIT_IDS) {
+        $snippet = Get-LcpNodeSnippet $audits.$auditId.details
+        if ($snippet) {
+            return $snippet
         }
     }
     return "unknown"
@@ -262,7 +292,7 @@ function Invoke-LighthouseLcp([string]$url, [string]$cookieHeader, [string]$labe
     return [pscustomobject]@{
         Label            = $label
         LcpMs            = [math]::Round($result.audits.'largest-contentful-paint'.numericValue)
-        LcpElement       = Get-LcpElementSnippet $result.audits.'largest-contentful-paint-element'
+        LcpElement       = Get-LcpElementSnippet $result.audits
         LighthouseVer    = $result.lighthouseVersion
         ChromeUserAgent  = $result.environment.hostUserAgent
     }
@@ -337,7 +367,7 @@ try {
     )
     $rows | Format-Table -AutoSize | Out-String | Write-Host
 
-    Write-Host "=== LCP element per route (largest-contentful-paint-element) ==="
+    Write-Host "=== LCP element per route ==="
     foreach ($lighthouseRun in @($dashboardLh, $assetsLh, $scanLh)) {
         $snippet = $lighthouseRun.LcpElement
         if ($snippet.Length -gt $LCP_ELEMENT_SNIPPET_MAX_CHARS) {
