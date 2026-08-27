@@ -28,7 +28,8 @@
  *
  *     npx tsx scripts/check-encoding.ts docs/prd.md
  *
- * Run it over every tracked file, which is how CI invokes it:
+ * Run it over every tracked file, which is how CI invokes it. The file list is
+ * piped in rather than gathered by this script; see `filesToCheck` for why:
  *
  *     npm run check:encoding
  *
@@ -41,7 +42,6 @@
  * document that needs to discuss mojibake should quote the bytes in hex for
  * the same reason.
  */
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
 /** `EF BB BF`. Compared against the first three bytes of a file. */
@@ -57,7 +57,12 @@ const BINARY_SNIFF_LIMIT = 8_000;
 
 const LINE_FEED = 0x0a;
 const FIRST_LINE = 1;
+
+/** `readFileSync` accepts a file descriptor, and 0 is standard input. */
+const STDIN_FILE_DESCRIPTOR = 0;
+
 const EXIT_DAMAGE_FOUND = 1;
+const EXIT_NO_INPUT = 2;
 
 /** One byte sequence that only occurs in damaged text, and what it means. */
 interface DamagePattern {
@@ -164,20 +169,47 @@ function checkFile(file: string): Finding[] {
 }
 
 /**
- * The paths given as arguments, or every tracked file when there are none.
- * `-z` makes git emit raw NUL-separated paths, so `core.quotepath` cannot turn
- * a non-ASCII filename into an escaped form that `readFileSync` would miss.
+ * The paths given as arguments, or a NUL-separated list read from standard
+ * input when there are none.
+ *
+ * Producing the list is the caller's job so that this script spawns no process
+ * of its own. Resolving a bare `git` through `PATH` is what `typescript:S4036`
+ * warns about, and an absolute path cannot be hardcoded here: a developer's
+ * git may be any installation, including one bundled inside another
+ * application. `package.json` pipes `git ls-files -z` in, which is byte-exact
+ * under bash and under cmd.exe, the shell npm uses on Windows.
+ *
+ * NUL-separated rather than newline-separated because `-z` also turns off
+ * `core.quotepath`, so a non-ASCII filename arrives as raw bytes instead of an
+ * escaped form that `readFileSync` would fail to open.
  */
 function filesToCheck(): string[] {
   const fromArguments = process.argv.slice(2);
   if (fromArguments.length > 0) {
     return fromArguments;
   }
-  const tracked = execFileSync("git", ["ls-files", "-z"]);
-  return tracked
-    .toString("utf8")
-    .split("\0")
-    .filter((path) => path.length > 0);
+  const piped = process.stdin.isTTY
+    ? []
+    : readFileSync(STDIN_FILE_DESCRIPTOR)
+        .toString("utf8")
+        .split("\0")
+        .filter((path) => path.length > 0);
+
+  // An empty list is treated as a failure, never as a clean tree. Nothing
+  // legitimate produces one: `lint-staged` is not invoked with no files, and a
+  // repository always has tracked ones. What does produce one is the upstream
+  // `git ls-files` failing, and neither npm's shell nor a GitHub Actions `run`
+  // step sets `pipefail`, so that failure would otherwise be swallowed and
+  // reported as a pass.
+  if (piped.length === 0) {
+    console.error(
+      "check-encoding: no paths to check. Pass them as arguments or pipe a" +
+        " NUL-separated list in; `npm run check:encoding` checks every tracked" +
+        " file. Nothing was verified.",
+    );
+    process.exitCode = EXIT_NO_INPUT;
+  }
+  return piped;
 }
 
 function report(findings: readonly Finding[]): void {
