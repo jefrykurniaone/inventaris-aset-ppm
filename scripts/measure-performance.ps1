@@ -8,7 +8,9 @@
 .DESCRIPTION
     Measures "/" and "/assets" (authenticated) and "/a/<token>" (anonymous):
     a TTFB proxy from 5 sequential raw HTTP fetches (median reported), and
-    LCP from one Lighthouse run per route.
+    LCP from one Lighthouse run per route. It also reports which element
+    each route's LCP was measured against, from Lighthouse's
+    largest-contentful-paint-element audit.
 
     Signs in once with SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD (read from
     the environment, or from ../.env.local if present) - these values are
@@ -60,6 +62,9 @@ $ASSETS_PATH = "/assets"
 $SESSION_COOKIE_NAME_HINT = "*session_token*"
 $ASSET_ID_PATTERN = '/assets/([A-Za-z0-9_-]{8,})"'
 $SCAN_TOKEN_PATTERN = '/a/([A-Za-z0-9_-]{6,})'
+# An LCP element snippet is a whole opening tag with every attribute on it, so
+# it is truncated for the console rather than wrapped over several lines.
+$LCP_ELEMENT_SNIPPET_MAX_CHARS = 160
 
 # --- Environment ---
 function Import-DevEnv {
@@ -186,6 +191,28 @@ function Measure-RouteFetch([System.Net.Http.HttpClient]$client, [string]$url, [
 }
 
 # --- Lighthouse (LCP) ---
+
+# The `largest-contentful-paint-element` audit names the element LCP was
+# measured against. Issue #110 had to infer it from the source because this
+# script only ever read the timing, so it reports the element too now: a number
+# that moved is only evidence once it is clear which element it belongs to.
+# Lighthouse 10 and later wrap the node table in a `list`; earlier versions put
+# the table at the top level, so both shapes are walked.
+function Get-LcpElementSnippet($audit) {
+    if (-not $audit -or -not $audit.details) {
+        return "unknown"
+    }
+    $tables = if ($audit.details.type -eq "list") { $audit.details.items } else { @($audit.details) }
+    foreach ($table in $tables) {
+        foreach ($row in $table.items) {
+            if ($row.node -and $row.node.snippet) {
+                return $row.node.snippet
+            }
+        }
+    }
+    return "unknown"
+}
+
 function Invoke-LighthouseLcp([string]$url, [string]$cookieHeader, [string]$label, [string]$workDir, [string]$lighthouseVersion) {
     $outFile = Join-Path $workDir ("lh-" + [System.IO.Path]::GetRandomFileName() + ".json")
     $lighthouseArgs = @(
@@ -235,6 +262,7 @@ function Invoke-LighthouseLcp([string]$url, [string]$cookieHeader, [string]$labe
     return [pscustomobject]@{
         Label            = $label
         LcpMs            = [math]::Round($result.audits.'largest-contentful-paint'.numericValue)
+        LcpElement       = Get-LcpElementSnippet $result.audits.'largest-contentful-paint-element'
         LighthouseVer    = $result.lighthouseVersion
         ChromeUserAgent  = $result.environment.hostUserAgent
     }
@@ -308,6 +336,16 @@ try {
         }
     )
     $rows | Format-Table -AutoSize | Out-String | Write-Host
+
+    Write-Host "=== LCP element per route (largest-contentful-paint-element) ==="
+    foreach ($lighthouseRun in @($dashboardLh, $assetsLh, $scanLh)) {
+        $snippet = $lighthouseRun.LcpElement
+        if ($snippet.Length -gt $LCP_ELEMENT_SNIPPET_MAX_CHARS) {
+            $snippet = $snippet.Substring(0, $LCP_ELEMENT_SNIPPET_MAX_CHARS) + " ..."
+        }
+        Write-Host ("  {0}: {1}" -f $lighthouseRun.Label, $snippet)
+    }
+    Write-Host ""
 
     $anyFail = $rows | Where-Object { $_.TtfbVerdict -eq "FAIL" -or $_.LcpVerdict -eq "FAIL" }
     if ($anyFail) {
