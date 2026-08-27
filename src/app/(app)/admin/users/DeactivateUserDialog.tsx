@@ -3,7 +3,9 @@
 import { useActionState } from "react";
 
 import { FieldError } from "@/components/FieldError";
+import { FieldLabel } from "@/components/FieldLabel";
 import { FormError } from "@/components/FormError";
+import { FormRequiredLegend } from "@/components/FormRequiredLegend";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,14 +17,20 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { isMarkedRequired } from "@/lib/required-marker";
+import type { RequiredMarkerFieldSpec } from "@/lib/required-marker";
 
 import { deactivateUserAction } from "./actions";
 import {
   DEACTIVATION_REASON_MAX_LENGTH,
   INITIAL_DEACTIVATE_USER_STATE,
 } from "./schemas";
+
+/** The reason field is schema-required and never pre-filled, so it always
+ * carries the marker — expressed as data, the same shape the create-user
+ * form's fields and the asset form's spec table use. */
+const REASON_FIELD_SPEC: RequiredMarkerFieldSpec = { isRequired: true };
 
 /**
  * Every string this dialog renders, resolved by the server component that
@@ -86,8 +94,13 @@ export function DeactivateUserDialog({
         </DialogHeader>
         <form action={formAction} className="flex flex-col gap-4" noValidate>
           <input type="hidden" name="userId" value={userId} />
+          <FormRequiredLegend />
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor={reasonId}>{labels.reasonLabel}</Label>
+            <FieldLabel
+              htmlFor={reasonId}
+              label={labels.reasonLabel}
+              isMarkedRequired={isMarkedRequired(REASON_FIELD_SPEC)}
+            />
             <Textarea
               id={reasonId}
               name="reason"
