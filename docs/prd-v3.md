@@ -1,8 +1,8 @@
 ﻿# PRD v3 — Required-field asterisk markers
 
 Version 3.0 — 2026-08-27. Follows `docs/prd-v2.md` (v2.0, delivered by spec #81). This document is
-the repository copy of PRD issue #100. Spec and execution map issue references are added here as
-those stages create them. The domain glossary lives in `docs/CONTEXT.md`.
+the repository copy of PRD issue #100; the spec is issue #102; the execution map is issue #107;
+the tickets are #103-#106, sub-issues of #102. The domain glossary lives in `docs/CONTEXT.md`.
 ## Problem statement
 
 Nothing on any form tells the user which fields are mandatory before they submit. The Add asset form is the worst case â€” six of its eighteen fields are required, and the only way to discover which is to submit an incomplete form and read the red validation messages. The same gap exists on every other data-entry form: loan check-out, the four master-data forms, user administration, and sign-in. Requiredness is enforced correctly server-side and announced correctly to assistive technology; it is simply invisible to sighted users until after a failed attempt.
