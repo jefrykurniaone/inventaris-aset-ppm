@@ -1,49 +1,28 @@
 <#
 .SYNOPSIS
-    Scripted performance measurement against the production deployment
-    (issue #89). Single-user, sequential, no load generation.
+    Scripted perf measurement against production (issue #89). Single-user,
+    sequential, no load generation. Full method notes live in
+    docs/performance-evidence.md; this header covers only what that doc
+    does not already record.
 
 .DESCRIPTION
-    Measures three routes on the production deployment:
-      - "/"        the dashboard (authenticated)
-      - "/assets"  the asset list (authenticated)
-      - "/a/<token>" the public scan page (anonymous)
+    Measures "/" and "/assets" (authenticated) and "/a/<token>" (anonymous):
+    a TTFB proxy from 5 sequential raw HTTP fetches (median reported), and
+    LCP from one Lighthouse run per route.
 
-    Two kinds of evidence are collected per route:
-      1. TTFB proxy: 5 sequential raw HTTP fetches, timed end-to-end
-         (matches the method the orchestrator used for the baseline/
-         post-fix numbers recorded on issue #89, so the three data
-         points stay comparable). The median of the 5 samples is the
-         reported figure.
-      2. LCP: a Lighthouse run per route (performance category only).
-         Lighthouse's own `server-response-time` audit is NOT used for
-         TTFB here - on this deployment it reads the Vercel edge cache
-         response, not the real database round trip, so it understates
-         TTFB by roughly two orders of magnitude. LCP is unaffected by
-         that and is read from Lighthouse's `largest-contentful-paint`
-         audit.
-
-    Authentication: signs in once with the credentials named
-    SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD (read from the environment,
-    falling back to ../.env.local if present - never printed, logged,
-    or written to any output file). The resulting session cookie is
-    reused for the two authenticated routes' raw fetches and passed to
-    Lighthouse via --extra-headers for its two authenticated runs. The
-    public scan page is fetched and audited with no cookie at all.
-
-    Token discovery: the public route's token is discovered at runtime
-    from a real asset detail page (the first asset returned by the
-    asset list) unless -Token is passed explicitly. Nothing about a
-    specific asset or its custodian is printed or recorded.
+    Signs in once with SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD (read from
+    the environment, or from ../.env.local if present) - these values are
+    never printed, logged, or written to any output file. The session
+    cookie is reused for the two authenticated raw fetches and passed to
+    Lighthouse via --extra-headers; the public route is measured with no
+    cookie at all.
 
     Uses System.Net.Http.HttpClient rather than Invoke-WebRequest /
-    WebRequestSession: in this environment Invoke-WebRequest throws a
+    WebRequestSession: on this host, Invoke-WebRequest throws a
     NullReferenceException from its internal ShouldContinue/
-    PromptForChoice path on a non-interactive host. HttpClient with an
-    explicit CookieContainer gives the same "one signed-in session,
-    reused across requests" behaviour without going through that code
-    path, and does not hit PowerShell's restricted-header handling for
-    a hand-set Cookie header either.
+    PromptForChoice path because the host is non-interactive. HttpClient
+    with an explicit CookieContainer gives the same reused-session
+    behaviour without that code path.
 
 .PARAMETER BaseUrl
     Root URL of the deployment to measure. Defaults to production.
@@ -57,9 +36,6 @@
 
 .EXAMPLE
     ./scripts/measure-performance.ps1
-
-.EXAMPLE
-    ./scripts/measure-performance.ps1 -BaseUrl https://staging.example.com -Token abc123XYZ789
 #>
 
 param(
@@ -72,8 +48,7 @@ $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Net.Http
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-# --- Named constants (no magic numbers) --------------------------------
-
+# --- Named constants (no magic numbers) ---
 $LCP_BUDGET_MS = 2500
 $TTFB_BUDGET_MS = 800
 $SAMPLE_COUNT = 5
@@ -86,8 +61,7 @@ $SESSION_COOKIE_NAME_HINT = "*session_token*"
 $ASSET_ID_PATTERN = '/assets/([A-Za-z0-9_-]{8,})"'
 $SCAN_TOKEN_PATTERN = '/a/([A-Za-z0-9_-]{6,})'
 
-# --- Environment ---------------------------------------------------------
-
+# --- Environment ---
 function Import-DevEnv {
     $envFile = Join-Path (Split-Path $PSScriptRoot -Parent) ".env.local"
     if (-not (Test-Path $envFile)) {
@@ -109,9 +83,7 @@ function Get-RequiredEnvValue([string]$name) {
     return $value
 }
 
-# --- Retry wrapper, for the DNS flakiness this machine sees against ------
-# --- *.vercel.app: a failed sample is retried before being reported. -----
-
+# --- Retry wrapper: DNS to *.vercel.app flaps intermittently on this machine ---
 function Invoke-WithRetry([scriptblock]$action, [string]$label) {
     $attempt = 0
     while ($true) {
@@ -128,8 +100,7 @@ function Invoke-WithRetry([scriptblock]$action, [string]$label) {
     }
 }
 
-# --- Authenticated session ------------------------------------------------
-
+# --- Authenticated session ---
 function New-AuthenticatedClient([string]$baseUrl) {
     $email = Get-RequiredEnvValue "SEED_ADMIN_EMAIL"
     $password = Get-RequiredEnvValue "SEED_ADMIN_PASSWORD"
@@ -161,8 +132,7 @@ function New-AuthenticatedClient([string]$baseUrl) {
     }
 }
 
-# --- Public scan token discovery ------------------------------------------
-
+# --- Public scan token discovery ---
 function Find-ScanToken([System.Net.Http.HttpClient]$authedClient, [string]$baseUrl) {
     $assetsBody = Invoke-WithRetry {
         $resp = $authedClient.GetAsync("$baseUrl$ASSETS_PATH").GetAwaiter().GetResult()
@@ -186,8 +156,7 @@ function Find-ScanToken([System.Net.Http.HttpClient]$authedClient, [string]$base
     return $tokenMatch.Groups[1].Value
 }
 
-# --- Raw fetch medians (TTFB proxy) ---------------------------------------
-
+# --- Raw fetch medians (TTFB proxy) ---
 function Get-Median([double[]]$samples) {
     $sorted = $samples | Sort-Object
     return $sorted[[math]::Floor($sorted.Count / 2)]
@@ -216,8 +185,7 @@ function Measure-RouteFetch([System.Net.Http.HttpClient]$client, [string]$url, [
     }
 }
 
-# --- Lighthouse (LCP) -------------------------------------------------------
-
+# --- Lighthouse (LCP) ---
 function Invoke-LighthouseLcp([string]$url, [string]$cookieHeader, [string]$label, [string]$workDir, [string]$lighthouseVersion) {
     $outFile = Join-Path $workDir ("lh-" + [System.IO.Path]::GetRandomFileName() + ".json")
     $lighthouseArgs = @(
@@ -234,20 +202,17 @@ function Invoke-LighthouseLcp([string]$url, [string]$cookieHeader, [string]$labe
     if ($cookieHeader) {
         $headersFile = Join-Path $workDir ("headers-" + [System.IO.Path]::GetRandomFileName() + ".json")
         $headersJson = '{"Cookie":"' + $cookieHeader + '"}'
-        # No-BOM UTF-8: Set-Content -Encoding utf8 writes a BOM in Windows
-        # PowerShell 5.1, and lighthouse's JSON.parse rejects a BOM'd file.
+        # No-BOM UTF-8: -Encoding utf8 adds a BOM that breaks lighthouse's JSON.parse.
         [System.IO.File]::WriteAllText($headersFile, $headersJson, (New-Object System.Text.UTF8Encoding($false)))
         $lighthouseArgs += "--extra-headers=$headersFile"
     }
 
-    # chrome-launcher throws EPERM cleaning its own temp dir after every run
-    # on this machine (a known, non-fatal trap); the JSON result is already
-    # written by the time that happens, so a non-zero exit code alone is not
-    # a failed run - only a missing output file is. $ErrorActionPreference
-    # is dropped to Continue for the call itself: with it left at Stop, a
-    # native command writing to stderr (this EPERM message included) is
-    # promoted from a non-terminating NativeCommandError into a terminating
-    # one, even though the output stream is redirected to null below.
+    # chrome-launcher throws EPERM cleaning its own temp dir after every run on
+    # this machine - non-fatal, the JSON is already written by then, so a
+    # missing output file (not a non-zero exit code) is the real failure
+    # signal. $ErrorActionPreference drops to Continue for the call only:
+    # left at Stop, that stderr line gets promoted to a terminating error
+    # even with output redirected to null below.
     $previousErrorActionPreference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     & npx @lighthouseArgs *>$null
@@ -275,15 +240,13 @@ function Invoke-LighthouseLcp([string]$url, [string]$cookieHeader, [string]$labe
     }
 }
 
-# --- Verdict formatting -----------------------------------------------------
-
+# --- Verdict formatting ---
 function Get-Verdict([double]$value, [double]$budget) {
     if ($value -le $budget) { return "PASS" }
     return "FAIL"
 }
 
-# --- Main --------------------------------------------------------------------
-
+# --- Main ---
 Import-DevEnv
 
 $workDir = Join-Path $env:TEMP ("measure-performance-" + [System.IO.Path]::GetRandomFileName())
