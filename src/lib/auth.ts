@@ -1,11 +1,17 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { APIError, createAuthMiddleware, isAPIError } from "better-auth/api";
 import { nextCookies, toNextJsHandler } from "better-auth/next-js";
 import { admin } from "better-auth/plugins";
 import { createAccessControl } from "better-auth/plugins/access";
 
 import { db } from "@/lib/db";
 import { ADMIN_ROLE, STAFF_ROLE } from "@/lib/roles";
+import {
+  readSignInLockState,
+  recordSignInAttempt,
+} from "@/lib/sign-in-attempts";
+import { classifySignInOutcome, readSignInEmail } from "@/lib/sign-in-lockout";
 
 /**
  * Access-control statements for the admin plugin, under this project's own
@@ -127,12 +133,136 @@ const RATE_LIMIT_MAX_REQUESTS = 100;
  * `enabled` is left unset on purpose: it defaults to `isProduction`, which
  * is what keeps sign-in usable during local development. A test of this
  * behaviour has to pass `rateLimit: { enabled: true }` itself.
+ *
+ * `hooks` carries the account lockout (ticket #112) — see
+ * `signInLockoutBefore` and `signInLockoutAfter` below. Unlike `rateLimit`, it
+ * is on in every environment: the threshold is five consecutive failures, which
+ * development never reaches by accident, and a lockout that only exists in
+ * production is a lockout nobody exercises before it matters.
  */
 const RATE_LIMIT = {
   storage: "database",
   window: RATE_LIMIT_WINDOW_SECONDS,
   max: RATE_LIMIT_MAX_REQUESTS,
 } as const;
+
+/** The one endpoint the lockout hooks below act on. */
+const SIGN_IN_EMAIL_PATH = "/sign-in/email";
+
+/**
+ * The rejection a locked address gets, and the reason it is built with
+ * `APIError.from` rather than `new APIError`.
+ *
+ * Issue #112 requires a lock to be *indistinguishable* from a wrong password,
+ * so the response has to match the one `dist/api/routes/sign-in.mjs` produces —
+ * which throws
+ * `APIError.from("UNAUTHORIZED", BASE_ERROR_CODES.INVALID_EMAIL_OR_PASSWORD)`.
+ * Rebuilding that as `new APIError("UNAUTHORIZED", { code, message })` would
+ * match in status and in content and still differ on the wire: `from` builds
+ * its body as `{ message, code }` and `JSON.stringify` preserves insertion
+ * order, so a hand-built body with the keys the other way round serialises to
+ * different bytes. The same factory removes that class of mistake.
+ *
+ * `BASE_ERROR_CODES` is not reachable — it lives in `@better-auth/core`, a
+ * transitive dependency this project does not declare — so the two strings are
+ * restated here, as `accessControlStatements` above restates the admin
+ * plugin's defaults. `scripts/verify-sign-in-lockout.ts` asserts they still
+ * match `auth.$ERROR_CODES.INVALID_EMAIL_OR_PASSWORD` at runtime, so a
+ * library-side rename fails loudly rather than quietly reopening the oracle.
+ */
+const CREDENTIALS_REJECTED = {
+  code: "INVALID_EMAIL_OR_PASSWORD",
+  message: "Invalid email or password",
+} as const;
+
+/**
+ * Refuses a sign-in against an address that is currently locked out (issue
+ * #112, and section 6 / F-02 of `docs/security-review-2026-08-27.md`).
+ *
+ * **Why `hooks.before` is the interception point.** Better Auth 1.7.1 has no
+ * lockout primitive, and of the three places a lockout could attach this is the
+ * only one that can refuse an attempt *before* the password is checked.
+ * `databaseHooks.session.create.before` — where the admin plugin's `banned`
+ * gate sits — runs only after the credential verified, which is too late to
+ * bound guessing. A plugin would work but buys nothing here: `hooks.before` is
+ * a documented top-level option (`hooks?: { before?: AuthMiddleware }` in
+ * `@better-auth/core`'s `init-options`), and `dist/api/dispatch.ts` runs the
+ * user's hook ahead of every plugin's.
+ *
+ * The hook is registered for every endpoint — `getHooks` gives a user hook the
+ * matcher `() => true` — so the path test is the first statement and costs one
+ * string comparison on requests this has nothing to do with.
+ *
+ * **The refusal short-circuits before any password hashing, on purpose.** A
+ * blocked attempt is therefore measurably faster to answer than a genuine wrong
+ * password — a timing distinguisher the identical response body does not have.
+ * It is the right trade twice over. Verifying a password that is going to be
+ * ignored would turn the lockout into a CPU amplifier, one request buying one
+ * scrypt, so the cheap answer is the point of refusing early. And the timing
+ * reveals only that this address is locked, which says nothing about whether an
+ * account exists: the counter keys on the submitted string, so an address with
+ * no account locks exactly like one with an account.
+ */
+const signInLockoutBefore = createAuthMiddleware(async (ctx) => {
+  if (ctx.path !== SIGN_IN_EMAIL_PATH) {
+    return;
+  }
+  const email = readSignInEmail(ctx.body);
+  if (email === null) {
+    return;
+  }
+
+  const now = new Date();
+  const { isLocked } = await readSignInLockState(email, now);
+  if (!isLocked) {
+    return;
+  }
+
+  await recordSignInAttempt(email, "blocked", now);
+  throw APIError.from("UNAUTHORIZED", CREDENTIALS_REJECTED);
+});
+
+/**
+ * Records the outcome of a finished sign-in, which is both the counter the hook
+ * above reads and the failed-attempt log the A09 half of issue #112 asks for.
+ *
+ * `hooks.after` runs on a *failed* sign-in and not only a successful one, which
+ * is the property that makes one hook enough. `dist/api/dispatch.ts` catches an
+ * `APIError` thrown by an endpoint handler, parks it on
+ * `ctx.context.returned`, and runs the after-hooks before turning it into a
+ * response — so the same hook sees both outcomes, and the `APIError`'s
+ * `statusCode` is what tells them apart. Reading `returned` this way is the
+ * library's own pattern; the admin plugin's `/list-sessions` hook does it
+ * through `getEndpointResponse`, which is the same field with success-only
+ * filtering this hook must not have.
+ *
+ * `classifySignInOutcome` decides what a given status means, so which failures
+ * count towards a lock is stated and tested in one pure place rather than
+ * spread through this wiring.
+ */
+const signInLockoutAfter = createAuthMiddleware(async (ctx) => {
+  if (ctx.path !== SIGN_IN_EMAIL_PATH) {
+    return;
+  }
+  const email = readSignInEmail(ctx.body);
+  if (email === null) {
+    return;
+  }
+
+  const returned: unknown = ctx.context.returned;
+  if (returned === undefined || returned === null) {
+    return;
+  }
+
+  const outcome = classifySignInOutcome(
+    isAPIError(returned) ? returned.statusCode : null,
+  );
+  if (outcome === null) {
+    return;
+  }
+
+  await recordSignInAttempt(email, outcome, new Date());
+});
 
 export const auth = betterAuth({
   database: prismaAdapter(db, { provider: "postgresql" }),
@@ -145,6 +275,7 @@ export const auth = betterAuth({
     disableSignUp: true,
   },
   rateLimit: RATE_LIMIT,
+  hooks: { before: signInLockoutBefore, after: signInLockoutAfter },
   // `nextCookies` has to stay last in the list: it converts the cookies the
   // preceding plugins set into Next.js cookie writes.
   plugins: [
