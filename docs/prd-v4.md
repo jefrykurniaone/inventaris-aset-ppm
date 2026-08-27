@@ -1,6 +1,6 @@
 ﻿# PRD v4 - Admin visibility for sign-in lockouts
 
-> Tracker: PRD [#122](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/122). Spec and execution map references are added by the later pipeline stages.
+> Tracker: PRD [#122](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/122) · Spec [#124](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/124) · Execution map [#127](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/127).
 
 ## Problem
 
