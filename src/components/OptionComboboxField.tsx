@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { FieldError } from "@/components/FieldError";
+import { FieldLabel } from "@/components/FieldLabel";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -13,7 +14,6 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
@@ -58,6 +58,10 @@ interface OptionComboboxFieldProps {
   /** A required field offers no clear-selection row; an optional one does, and
    * clearing it submits the empty string the native `<select>` used to. */
   readonly isRequired?: boolean;
+  /** Whether the label shows the required marker (issue #103). Separate from
+   * `isRequired`, which is what `aria-required` and the clear-selection row
+   * are decided by — the caller's field spec decides this one. */
+  readonly isMarkedRequired?: boolean;
   readonly error?: string;
 }
 
@@ -272,9 +276,12 @@ export function OptionComboboxField(field: Readonly<OptionComboboxFieldProps>) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Label id={labelId} htmlFor={field.id}>
-        {field.label}
-      </Label>
+      <FieldLabel
+        id={labelId}
+        htmlFor={field.id}
+        label={field.label}
+        isMarkedRequired={field.isMarkedRequired}
+      />
       <input type="hidden" name={field.name} value={selectedId} />
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <ComboboxTrigger

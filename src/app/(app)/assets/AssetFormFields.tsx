@@ -1,8 +1,8 @@
 "use client";
 
 import { FieldError } from "@/components/FieldError";
+import { FieldLabel } from "@/components/FieldLabel";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -15,6 +15,11 @@ import type { AssetFieldName, AssetOption } from "./schemas";
  * Every one carries a real `<label htmlFor>` — not a placeholder standing in
  * for one — and links its inline error through `aria-describedby`, so the
  * error is announced with the field rather than only seen next to it.
+ *
+ * `isRequired` and `isMarkedRequired` are two different props on purpose.
+ * The first is what the control tells the browser and assistive technology;
+ * the second is only whether the label shows an asterisk. `status` sets the
+ * first and not the second (issue #103).
  */
 
 /** Exported because the searchable combobox in `AssetFieldset` stands in for
@@ -30,6 +35,7 @@ interface AssetTextFieldProps {
   readonly defaultValue: string;
   readonly error?: string;
   readonly isRequired?: boolean;
+  readonly isMarkedRequired?: boolean;
   readonly type?: "text" | "email" | "date" | "number";
   readonly inputMode?: "numeric" | "decimal";
 }
@@ -40,6 +46,7 @@ export function AssetTextField({
   defaultValue,
   error,
   isRequired = false,
+  isMarkedRequired,
   type = "text",
   inputMode,
 }: Readonly<AssetTextFieldProps>) {
@@ -48,7 +55,11 @@ export function AssetTextField({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <FieldLabel
+        htmlFor={id}
+        label={label}
+        isMarkedRequired={isMarkedRequired}
+      />
       <Input
         id={id}
         name={name}
@@ -70,6 +81,7 @@ interface AssetSelectFieldProps {
   readonly defaultValue: string;
   readonly error?: string;
   readonly isRequired?: boolean;
+  readonly isMarkedRequired?: boolean;
   readonly placeholder: string;
   readonly options: readonly AssetOption[];
   readonly lockedNote?: string;
@@ -101,6 +113,7 @@ export function AssetSelectField({
   defaultValue,
   error,
   isRequired = false,
+  isMarkedRequired,
   placeholder,
   options,
   lockedNote,
@@ -112,7 +125,11 @@ export function AssetSelectField({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <FieldLabel
+        htmlFor={id}
+        label={label}
+        isMarkedRequired={isMarkedRequired}
+      />
       {isLocked && <input type="hidden" name={name} value={defaultValue} />}
       <Select
         id={id}
@@ -152,6 +169,7 @@ interface AssetTextAreaFieldProps {
   readonly label: string;
   readonly defaultValue: string;
   readonly error?: string;
+  readonly isMarkedRequired?: boolean;
 }
 
 export function AssetTextAreaField({
@@ -159,13 +177,18 @@ export function AssetTextAreaField({
   label,
   defaultValue,
   error,
+  isMarkedRequired,
 }: Readonly<AssetTextAreaFieldProps>) {
   const id = assetFieldId(name);
   const errorId = `${id}-error`;
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <FieldLabel
+        htmlFor={id}
+        label={label}
+        isMarkedRequired={isMarkedRequired}
+      />
       <Textarea
         id={id}
         name={name}

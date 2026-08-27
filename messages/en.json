@@ -459,6 +459,9 @@
     "yearChartEmpty": "No acquisition year data to show yet.",
     "yearChartTitle": "Acquisitions per year"
   },
+  "Forms": {
+    "requiredFieldLegend": "* Required field"
+  },
   "LoansPage": {
     "assetAlreadyLoaned": "This asset is already out on loan. Record its return before lending it again.",
     "assetNotAvailable": "This asset is not available to lend in its current state.",
