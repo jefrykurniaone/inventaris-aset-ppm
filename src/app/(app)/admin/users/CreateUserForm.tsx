@@ -4,11 +4,14 @@ import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { FieldError } from "@/components/FieldError";
+import { FieldLabel } from "@/components/FieldLabel";
 import { FormError } from "@/components/FormError";
+import { FormRequiredLegend } from "@/components/FormRequiredLegend";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ADMIN_ROLE, STAFF_ROLE } from "@/lib/roles";
+import { isMarkedRequired } from "@/lib/required-marker";
+import type { RequiredMarkerFieldSpec } from "@/lib/required-marker";
 import { cn } from "@/lib/utils";
 
 import { createUserAction } from "./actions";
@@ -31,6 +34,7 @@ const TEXT_FIELDS = [
     labelKey: "nameLabel",
     type: "text",
     autoComplete: "name",
+    isRequired: true,
   },
   {
     id: "create-user-email",
@@ -38,6 +42,7 @@ const TEXT_FIELDS = [
     labelKey: "emailLabel",
     type: "email",
     autoComplete: "email",
+    isRequired: true,
   },
   {
     id: "create-user-password",
@@ -45,6 +50,7 @@ const TEXT_FIELDS = [
     labelKey: "passwordLabel",
     type: "password",
     autoComplete: "new-password",
+    isRequired: true,
   },
 ] as const;
 
@@ -54,6 +60,7 @@ interface FormFieldProps {
   readonly label: string;
   readonly type: string;
   readonly autoComplete: string;
+  readonly isMarkedRequired?: boolean;
   readonly error?: string;
 }
 
@@ -66,13 +73,18 @@ function FormField({
   label,
   type,
   autoComplete,
+  isMarkedRequired: isFieldMarkedRequired,
   error,
 }: Readonly<FormFieldProps>) {
   const errorId = `${id}-error`;
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <FieldLabel
+        htmlFor={id}
+        label={label}
+        isMarkedRequired={isFieldMarkedRequired}
+      />
       <Input
         id={id}
         name={name}
@@ -87,6 +99,17 @@ function FormField({
   );
 }
 
+/**
+ * The role select's own field spec: schema-required, but pre-filled with
+ * `STAFF_ROLE` below, so it can never reach the server empty (the same
+ * exemption `asset-field-specs.ts`'s `status` field carries) — carried here
+ * as data rather than a name check inside `RequiredMarker` or `FieldLabel`.
+ */
+const ROLE_FIELD_SPEC: RequiredMarkerFieldSpec = {
+  isRequired: true,
+  hasPrefilledDefault: true,
+};
+
 /** The role select, split out so `CreateUserForm` stays under the
  * project's 40-line limit. `STAFF_ROLE` is the default per PRD FR-1.3. */
 function RoleSelect() {
@@ -94,7 +117,11 @@ function RoleSelect() {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor="create-user-role">{t("roleLabel")}</Label>
+      <FieldLabel
+        htmlFor="create-user-role"
+        label={t("roleLabel")}
+        isMarkedRequired={isMarkedRequired(ROLE_FIELD_SPEC)}
+      />
       <select
         id="create-user-role"
         name="role"
@@ -128,6 +155,7 @@ export function CreateUserForm() {
       noValidate
     >
       <h2 className="text-lg font-medium">{t("createHeading")}</h2>
+      <FormRequiredLegend />
       {TEXT_FIELDS.map((field) => (
         <FormField
           key={field.name}
@@ -136,6 +164,7 @@ export function CreateUserForm() {
           label={t(field.labelKey)}
           type={field.type}
           autoComplete={field.autoComplete}
+          isMarkedRequired={isMarkedRequired(field)}
           error={state.fieldErrors[field.name]}
         />
       ))}
