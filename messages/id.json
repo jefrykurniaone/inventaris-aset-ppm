@@ -441,6 +441,11 @@
     "warrantyUntilInvalid": "Tanggal garansi tidak valid.",
     "warrantyUntilLabel": "Garansi sampai"
   },
+  "Combobox": {
+    "clearSelection": "Hapus pilihan",
+    "noResults": "Tidak ada pilihan yang cocok.",
+    "searchPlaceholder": "Ketik untuk mencari…"
+  },
   "DashboardPage": {
     "attentionLabel": "Perlu perhatian",
     "categoryChartEmpty": "Belum ada data kategori untuk ditampilkan.",

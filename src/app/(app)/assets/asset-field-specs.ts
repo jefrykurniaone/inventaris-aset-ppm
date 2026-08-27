@@ -83,6 +83,13 @@ export interface AssetSelectFieldSpec extends CommonFieldSpec {
   readonly kind: "select";
   readonly placeholderKey: AssetsPlainMessageKey;
   readonly optionsKey: AssetOptionsKey;
+  /**
+   * Rendered as a searchable combobox rather than a native `<select>` (issue
+   * #88). Set on the master-data pickers whose lists grow without a bound —
+   * categories and rooms — and left unset on the small fixed enumerations,
+   * where a search box would be more work than scanning five entries.
+   */
+  readonly isSearchable?: boolean;
 }
 
 export interface AssetTextAreaFieldSpec extends CommonFieldSpec {
@@ -102,6 +109,7 @@ export const ASSET_DETAIL_FIELD_SPECS: readonly AssetFieldSpec[] = [
     placeholderKey: "categoryPlaceholder",
     optionsKey: "categories",
     isRequired: true,
+    isSearchable: true,
   },
   {
     kind: "select",
@@ -110,6 +118,7 @@ export const ASSET_DETAIL_FIELD_SPECS: readonly AssetFieldSpec[] = [
     placeholderKey: "roomPlaceholder",
     optionsKey: "rooms",
     isRequired: true,
+    isSearchable: true,
   },
   {
     kind: "select",

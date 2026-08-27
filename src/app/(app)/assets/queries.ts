@@ -107,7 +107,7 @@ export async function listAssetFormOptions(
         id: true,
         code: true,
         name: true,
-        building: { select: { code: true } },
+        building: { select: { code: true, name: true } },
       },
     }),
     db.fundingSource.findMany({
@@ -122,9 +122,13 @@ export async function listAssetFormOptions(
       id: category.id,
       label: `${category.code} — ${category.name}`,
     })),
+    // `group` is the heading the searchable rooms picker lists the room under
+    // (issue #88); the `orderBy` above is what puts one building's rooms next
+    // to each other, so the grouping is a reading of the query's order.
     rooms: rooms.map((room) => ({
       id: room.id,
       label: `${room.building.code} ${room.code} — ${room.name}`,
+      group: `${room.building.code} — ${room.building.name}`,
     })),
     fundingSources: fundingSources.map((fundingSource) => ({
       id: fundingSource.id,

@@ -68,14 +68,20 @@ const PIXEL_FILE_NAME = "e2e-pixel.webp";
 const FIRST_REAL_OPTION_INDEX = 1;
 
 /**
- * Every required picker on the create form, by field name.
+ * Every required picker on the create form, by field name, split by the shape
+ * of the control.
  *
- * `status` is deliberately absent: `EMPTY_ASSET_FORM_DEFAULTS` presets it to
- * `active`, so it is already valid. Everything else here is required by
- * `assetSchema` and, left unset, comes back as a re-rendered form rather than
- * a navigation — which is what these specs used to hang on.
+ * `status` is deliberately absent from both: `EMPTY_ASSET_FORM_DEFAULTS`
+ * presets it to `active`, so it is already valid. Everything else here is
+ * required by `assetSchema` and, left unset, comes back as a re-rendered form
+ * rather than a navigation — which is what these specs used to hang on.
+ *
+ * `categoryId` and `roomId` became searchable comboboxes with issue #88, so
+ * they are opened and chosen from a listbox; `condition` is a fixed
+ * enumeration and stays a native `<select>`.
  */
-const REQUIRED_SELECT_FIELDS = ["categoryId", "roomId", "condition"] as const;
+const REQUIRED_SELECT_FIELDS = ["condition"] as const;
+const REQUIRED_COMBOBOX_FIELDS = ["categoryId", "roomId"] as const;
 
 const SIGN_IN_BUTTON = /(sign in|masuk)/i;
 const SAVE_ASSET_BUTTON = /(save asset|simpan aset)/i;
@@ -117,6 +123,17 @@ export async function signIn(page: Page): Promise<void> {
   await page.waitForURL((url) => !url.pathname.startsWith("/sign-in"));
 }
 
+/** Opens a searchable combobox and takes its first option. The panel is a
+ * Radix popover holding a cmdk listbox, so both are reached by role rather
+ * than by a class or a test id. */
+async function chooseFirstComboboxOption(page: Page, name: string) {
+  await assetField(page, name).click();
+
+  const option = page.getByRole("listbox").getByRole("option").first();
+  await expect(option).toBeVisible();
+  await option.click();
+}
+
 /** Fills every field `assetSchema` requires. `acquisitionYear` is the current
  * year, which is always inside the schema's `1970 … currentYear + 1` window,
  * so this does not go stale. */
@@ -129,6 +146,9 @@ async function fillRequiredAssetFields(page: Page, name: string) {
     await assetField(page, field).selectOption({
       index: FIRST_REAL_OPTION_INDEX,
     });
+  }
+  for (const field of REQUIRED_COMBOBOX_FIELDS) {
+    await chooseFirstComboboxOption(page, field);
   }
 }
 

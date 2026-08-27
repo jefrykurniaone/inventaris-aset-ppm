@@ -1,17 +1,22 @@
 "use client";
 
+import { OptionComboboxField } from "@/components/OptionComboboxField";
+
 import type {
   AssetFieldSpec,
   AssetOptionSets,
+  AssetSelectFieldSpec,
   AssetsTranslate,
 } from "./asset-field-specs";
 import {
+  assetFieldId,
   AssetSelectField,
   AssetTextAreaField,
   AssetTextField,
 } from "./AssetFormFields";
 import type {
   AssetFieldErrors,
+  AssetFieldName,
   AssetFieldNotes,
   AssetFormDefaults,
 } from "./schemas";
@@ -25,6 +30,64 @@ import type {
  * instead of leaving the reader to infer the grouping from visual order —
  * semantic elements before ARIA roles.
  */
+
+/** What every control below is given regardless of its kind. */
+interface SharedFieldProps {
+  readonly name: AssetFieldName;
+  readonly label: string;
+  readonly defaultValue: string;
+  readonly error?: string;
+}
+
+interface AssetSelectControlProps {
+  readonly spec: AssetSelectFieldSpec;
+  readonly shared: SharedFieldProps;
+  readonly t: AssetsTranslate;
+  readonly options: AssetOptionSets;
+  readonly lockedNote?: string;
+}
+
+/**
+ * A picker, in one of its two shapes: a searchable combobox for the
+ * master-data fields (issue #88) and the native `<select>` for the fixed
+ * enumerations. Split out of `AssetField` so that function stays a short
+ * dispatch and this one stays under the project's 40-line limit.
+ *
+ * A locked field is never searchable — `lockedNote` only ever arrives on
+ * `status`, which is a fixed enumeration.
+ */
+function AssetSelectControl({
+  spec,
+  shared,
+  t,
+  options,
+  lockedNote,
+}: Readonly<AssetSelectControlProps>) {
+  const placeholder = t(spec.placeholderKey);
+  const fieldOptions = options[spec.optionsKey];
+
+  if (spec.isSearchable) {
+    return (
+      <OptionComboboxField
+        {...shared}
+        id={assetFieldId(spec.name)}
+        isRequired={spec.isRequired}
+        placeholder={placeholder}
+        options={fieldOptions}
+      />
+    );
+  }
+
+  return (
+    <AssetSelectField
+      {...shared}
+      isRequired={spec.isRequired}
+      placeholder={placeholder}
+      options={fieldOptions}
+      lockedNote={lockedNote}
+    />
+  );
+}
 
 interface AssetFieldProps {
   readonly spec: AssetFieldSpec;
@@ -43,7 +106,7 @@ export function AssetField({
   lockedNotes,
   options,
 }: Readonly<AssetFieldProps>) {
-  const shared = {
+  const shared: SharedFieldProps = {
     name: spec.name,
     label: t(spec.labelKey),
     defaultValue: defaults[spec.name],
@@ -52,11 +115,11 @@ export function AssetField({
 
   if (spec.kind === "select") {
     return (
-      <AssetSelectField
-        {...shared}
-        isRequired={spec.isRequired}
-        placeholder={t(spec.placeholderKey)}
-        options={options[spec.optionsKey]}
+      <AssetSelectControl
+        spec={spec}
+        shared={shared}
+        t={t}
+        options={options}
         lockedNote={lockedNotes[spec.name]}
       />
     );

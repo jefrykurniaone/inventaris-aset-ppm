@@ -17,7 +17,10 @@ import type { AssetFieldName, AssetOption } from "./schemas";
  * error is announced with the field rather than only seen next to it.
  */
 
-function fieldId(name: AssetFieldName): string {
+/** Exported because the searchable combobox in `AssetFieldset` stands in for
+ * one of these controls and has to answer to the same id — the id its
+ * `<label htmlFor>` and the end-to-end specs both go through. */
+export function assetFieldId(name: AssetFieldName): string {
   return `asset-${name}`;
 }
 
@@ -40,7 +43,7 @@ export function AssetTextField({
   type = "text",
   inputMode,
 }: Readonly<AssetTextFieldProps>) {
-  const id = fieldId(name);
+  const id = assetFieldId(name);
   const errorId = `${id}-error`;
 
   return (
@@ -102,7 +105,7 @@ export function AssetSelectField({
   options,
   lockedNote,
 }: Readonly<AssetSelectFieldProps>) {
-  const id = fieldId(name);
+  const id = assetFieldId(name);
   const errorId = `${id}-error`;
   const noteId = `${id}-note`;
   const isLocked = lockedNote !== undefined;
@@ -157,7 +160,7 @@ export function AssetTextAreaField({
   defaultValue,
   error,
 }: Readonly<AssetTextAreaFieldProps>) {
-  const id = fieldId(name);
+  const id = assetFieldId(name);
   const errorId = `${id}-error`;
 
   return (

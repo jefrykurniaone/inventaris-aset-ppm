@@ -158,7 +158,7 @@ interface RoomOptionRow {
   readonly id: string;
   readonly code: string;
   readonly name: string;
-  readonly building: { readonly code: string };
+  readonly building: { readonly code: string; readonly name: string };
 }
 
 interface NamedRow {
@@ -196,9 +196,13 @@ function mapAssetListFilterOptions(
       id: building.id,
       label: `${building.code} — ${building.name}`,
     })),
+    // `group` is the heading the searchable rooms filter lists the room under
+    // (issue #88); the `orderBy` in the query is what puts one building's
+    // rooms next to each other.
     rooms: rooms.map((room) => ({
       id: room.id,
       label: `${room.building.code} ${room.code} — ${room.name}`,
+      group: `${room.building.code} — ${room.building.name}`,
     })),
     fundingSources: fundingSources.map((fundingSource) => ({
       id: fundingSource.id,
@@ -231,7 +235,7 @@ export async function listAssetFilterOptions(): Promise<AssetListFilterOptions> 
         id: true,
         code: true,
         name: true,
-        building: { select: { code: true } },
+        building: { select: { code: true, name: true } },
       },
     }),
     db.fundingSource.findMany({
