@@ -51,6 +51,8 @@ interface PhotoUploadControlProps {
   readonly onCancel: () => void;
 }
 
+const IDLE_PHASE: PhotoUploadPhase = "idle";
+
 const PHASE_LABEL_KEYS = {
   idle: "phaseIdle",
   preparing: "phasePreparing",
@@ -115,7 +117,12 @@ export function PhotoUploadControl({
         </div>
       </div>
       <p className="text-muted-foreground text-sm">{t("uploadHint")}</p>
-      {isBusy && (
+      {/* Keyed on the phase, not on `isBusy`. The two are not the same thing:
+          `isBusy` also covers work this control is not running — a delete or
+          a reorder on the edit page, the create round trip that precedes the
+          upload on the create form (issue #85) — and during those there is no
+          progress to report and nothing for "Cancel" to abort. */}
+      {phase !== IDLE_PHASE && (
         <UploadProgress
           label={t(PHASE_LABEL_KEYS[phase])}
           progress={progress}

@@ -288,6 +288,16 @@ export interface AssetFormState {
   readonly fieldErrors: AssetFieldErrors;
   readonly formError: string | null;
   readonly isSuccess: boolean;
+  /**
+   * The id of the row `createAssetAction` has just written, and `undefined`
+   * on every other outcome — a rejected submission, and every update.
+   *
+   * It exists because the create flow no longer ends at the server (issue
+   * #85). The first photo is attached by the browser after the row exists,
+   * since the object path is keyed by the asset id, so the action hands the
+   * id back and the client decides what happens next.
+   */
+  readonly createdAssetId?: string;
 }
 
 export const INITIAL_ASSET_FORM_STATE: AssetFormState = {

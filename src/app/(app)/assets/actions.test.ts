@@ -114,38 +114,55 @@ describe("createAssetAction", () => {
       assetCode: "PPM-LAB-2026-0001",
     });
 
-    await expect(
-      createAssetAction(
-        INITIAL_ASSET_FORM_STATE,
-        assetFormData({
-          assetCode: "PPM-LAB-1999-0001",
-          qrToken: "attackerchose",
-        }),
-      ),
-    ).rejects.toThrow("REDIRECT");
+    await createAssetAction(
+      INITIAL_ASSET_FORM_STATE,
+      assetFormData({
+        assetCode: "PPM-LAB-1999-0001",
+        qrToken: "attackerchose",
+      }),
+    );
 
     const [submitted] = mockedCreateAsset.mock.calls[0];
     expect(submitted).not.toHaveProperty("assetCode");
     expect(submitted).not.toHaveProperty("qrToken");
   });
 
-  it("creates the asset for the signed-in user and redirects to the list", async () => {
+  it("creates the asset for the signed-in user and hands the new id back instead of redirecting", async () => {
     mockedCreateAsset.mockResolvedValue({
       ok: true,
       assetId: ASSET_ID,
       assetCode: "PPM-LAB-2026-0001",
     });
 
-    await expect(
-      createAssetAction(INITIAL_ASSET_FORM_STATE, assetFormData()),
-    ).rejects.toThrow("REDIRECT");
+    const result = await createAssetAction(
+      INITIAL_ASSET_FORM_STATE,
+      assetFormData(),
+    );
 
     expect(mockedCreateAsset).toHaveBeenCalledWith(
       expect.objectContaining({ name: "Mikroskop Binokuler" }),
       ACTOR_ID,
     );
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/assets");
-    expect(mockedRedirect).toHaveBeenCalledWith("/assets");
+    // The client attaches the first photo against this id and navigates
+    // itself (issue #85), so a server-side redirect would cut the flow short.
+    expect(result).toEqual({
+      fieldErrors: {},
+      formError: null,
+      isSuccess: true,
+      createdAssetId: ASSET_ID,
+    });
+    expect(mockedRedirect).not.toHaveBeenCalled();
+  });
+
+  it("never carries an asset id on a rejected submission", async () => {
+    const result = await createAssetAction(
+      INITIAL_ASSET_FORM_STATE,
+      assetFormData({ condition: "pristine" }),
+    );
+
+    expect(result.isSuccess).toBe(false);
+    expect(result.createdAssetId).toBeUndefined();
   });
 
   it("reads an empty optional field as absent rather than as an empty string", async () => {
@@ -155,12 +172,10 @@ describe("createAssetAction", () => {
       assetCode: "PPM-LAB-2026-0001",
     });
 
-    await expect(
-      createAssetAction(
-        INITIAL_ASSET_FORM_STATE,
-        assetFormData({ brand: "", purchasePrice: "", warrantyUntil: "" }),
-      ),
-    ).rejects.toThrow("REDIRECT");
+    await createAssetAction(
+      INITIAL_ASSET_FORM_STATE,
+      assetFormData({ brand: "", purchasePrice: "", warrantyUntil: "" }),
+    );
 
     const [submitted] = mockedCreateAsset.mock.calls[0];
     expect(submitted.brand).toBeNull();

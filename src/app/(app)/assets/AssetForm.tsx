@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useActionState } from "react";
+import { useActionState, type ReactNode } from "react";
 
 import { FormError } from "@/components/FormError";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -86,6 +86,17 @@ interface AssetFormProps {
   readonly assetId?: string;
   readonly assetCode?: string;
   readonly defaults?: AssetFormDefaults;
+  /**
+   * A further section rendered inside the `<form>`, between the last fieldset
+   * and the submit button. The create page puts its optional first photo
+   * there (issue #85); the edit page passes nothing, because an asset that
+   * already exists manages its photos in `AssetPhotoSection` instead.
+   *
+   * A slot rather than a `hasPhotoField` flag: whatever goes here is inside
+   * the form element, so it can read `useFormStatus`, and this form stays
+   * unaware of photos.
+   */
+  readonly extraSection?: ReactNode;
 }
 
 /**
@@ -106,6 +117,7 @@ export function AssetForm({
   assetId,
   assetCode,
   defaults = EMPTY_ASSET_FORM_DEFAULTS,
+  extraSection,
 }: Readonly<AssetFormProps>) {
   const t = useTranslations("AssetsPage");
   const [state, formAction] = useActionState(action, INITIAL_ASSET_FORM_STATE);
@@ -156,6 +168,7 @@ export function AssetForm({
         lockedNotes={lockedNotes}
         options={optionSets}
       />
+      {extraSection}
       <FormError message={state.formError} />
       <SubmitButton idleLabel={submitLabel} pendingLabel={submitPendingLabel} />
     </form>
