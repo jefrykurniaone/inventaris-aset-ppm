@@ -226,7 +226,7 @@ Observations while reading, kept brief by design.
 
 **A09 Security Logging and Monitoring Failures** — `createActionErrorLogger` gives errors a location, input context, and message, and no stack trace or internal error text reaches a user. Deactivation and reactivation write `UserActivity` rows, so the account-status trail names the actor. There is, however, no logging or alerting of *failed sign-in attempts*, which is the monitoring half of F-02 — an ongoing password-guessing campaign would currently be invisible.
 
-**A10 Server-Side Request Forgery** — no user-controlled URL is fetched server-side. Object storage is reached through the `src/lib/storage.ts` seam with paths the server constructs; `next/image` is constrained by `remotePatterns` and the components render with `unoptimized` anyway.
+**A10 Server-Side Request Forgery** — no user-controlled URL is fetched server-side. Object storage is reached through the `src/lib/storage.ts` seam with paths the server constructs. `next/image`'s optimiser endpoint is constrained by `remotePatterns` (`https://*.supabase.co/storage/v1/object/public/**`), and that pattern is the whole of the control: `/_next/image` answers for any URL matching it whether or not a component renders `unoptimized`, so the scan page's full-size photo going through the optimiser (issue #110) widens nothing. The residual exposure is an image proxy limited to public Supabase object routes.
 
 ## 9. Automated baseline scan (OWASP ZAP)
 

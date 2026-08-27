@@ -42,11 +42,15 @@ const nextConfig: NextConfig = {
      * refuses its own images. The path is narrowed instead — only the public
      * object route of a Supabase project can match.
      *
-     * The components render these with `unoptimized`, because the pipeline
-     * already stores exactly-sized derivatives and routing each render
-     * through the optimiser is the egress cost PRD risk R2 exists to avoid.
-     * This entry is what keeps that a rendering choice rather than the only
-     * thing standing between the page and a blocked image.
+     * Every photo surface but one renders these with `unoptimized`, because a
+     * 400 px thumbnail drawn at 64 px gains nothing from a second encoding.
+     * The exception is the public scan page's full-size photo: it is that
+     * route's Largest Contentful Paint element, and 125,866 bytes fetched
+     * cross-origin for a 380 CSS px slot is what made the route miss its
+     * 2500 ms LCP budget (issue #110), so that one goes through the
+     * optimiser. This entry is what makes that a per-surface rendering choice
+     * rather than the only thing standing between the page and a blocked
+     * image.
      */
     remotePatterns: [
       {
