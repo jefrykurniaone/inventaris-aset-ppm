@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { revalidatePath } from "next/cache";
 import { getTranslations } from "next-intl/server";
@@ -82,7 +82,7 @@ async function refuseWhenNoRoom(
 }
 
 /**
- * Mints the two signed upload targets one photo needs â€” the full image and
+ * Mints the two signed upload targets one photo needs — the full image and
  * its thumbnail (FR-4.4).
  *
  * The object paths are built here, from the asset id the server looked up and

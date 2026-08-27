@@ -17,6 +17,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:e2e-master-data": "tsx scripts/seed-e2e-master-data.ts",
     "storage:purge:dev": "tsx scripts/purge-dev-storage-bucket.ts",
+    "check:encoding": "git ls-files -z | tsx scripts/check-encoding.ts",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "prepare": "husky"
