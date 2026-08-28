@@ -3,7 +3,7 @@ import {
   DashboardStatusBreakdownCard,
   type DashboardStatusRow,
 } from "./DashboardStatusBreakdownCard";
-import { ALL_ASSETS_HREF, attentionFilterHref } from "./dashboard-links";
+import { ALL_ASSETS_HREF, missingPhotoFilterHref } from "./dashboard-links";
 
 interface DashboardSummaryCardsProps {
   readonly totalAssetsLabel: string;
@@ -14,8 +14,8 @@ interface DashboardSummaryCardsProps {
   readonly totalValueAmount: string | null;
   readonly statusBreakdownLabel: string;
   readonly statusRows: readonly DashboardStatusRow[];
-  readonly attentionLabel: string;
-  readonly attentionValue: string;
+  readonly missingPhotoLabel: string;
+  readonly missingPhotoValue: string;
 }
 
 /**
@@ -24,6 +24,12 @@ interface DashboardSummaryCardsProps {
  * it, not a CSS visibility rule — the figure was never computed for that
  * session in the first place (`dashboard-queries.ts`), so there is nothing
  * here to hide.
+ *
+ * The fourth slot holds the missing-photo card. It used to hold the
+ * requires-attention card, which spec #138 moved down to the "needs action"
+ * row beside the overdue-loans card: the two figures answer different
+ * questions for different people, and only the attention one belongs with
+ * work that is already overdue.
  */
 export function DashboardSummaryCards({
   totalAssetsLabel,
@@ -32,8 +38,8 @@ export function DashboardSummaryCards({
   totalValueAmount,
   statusBreakdownLabel,
   statusRows,
-  attentionLabel,
-  attentionValue,
+  missingPhotoLabel,
+  missingPhotoValue,
 }: Readonly<DashboardSummaryCardsProps>) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -54,9 +60,9 @@ export function DashboardSummaryCards({
         rows={statusRows}
       />
       <DashboardStatCard
-        title={attentionLabel}
-        value={attentionValue}
-        href={attentionFilterHref()}
+        title={missingPhotoLabel}
+        value={missingPhotoValue}
+        href={missingPhotoFilterHref()}
       />
     </div>
   );

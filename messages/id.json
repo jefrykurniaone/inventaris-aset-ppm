@@ -469,11 +469,14 @@
     "searchPlaceholder": "Ketik untuk mencari…"
   },
   "DashboardPage": {
+    "attentionCardCount": "{count, plural, =0 {Tidak ada aset yang perlu perhatian saat ini.} other {# aset sedang diperbaiki, hilang, atau dalam kondisi buruk.}}",
+    "attentionCardLink": "Lihat aset yang perlu perhatian",
     "attentionLabel": "Perlu perhatian",
     "categoryChartEmpty": "Belum ada data kategori untuk ditampilkan.",
     "categoryChartTitle": "Aset per kategori",
     "emptyState": "Belum ada aset yang terdaftar.",
     "loadingLabel": "Memuat dasbor…",
+    "missingPhotoLabel": "Belum ada foto",
     "statusBreakdownLabel": "Aset per status",
     "title": "Dasbor",
     "totalAssetsLabel": "Total aset",

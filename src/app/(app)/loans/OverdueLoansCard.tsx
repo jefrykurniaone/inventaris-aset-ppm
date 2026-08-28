@@ -1,8 +1,9 @@
-import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { formatInteger } from "@/lib/format-number";
 import { LOANS_PATH } from "@/lib/paths";
+
+import { DashboardNeedsActionCard } from "../DashboardNeedsActionCard";
 
 /**
  * The dashboard's overdue-loans figure (PRD FR-6.4), as a card that renders a
@@ -23,6 +24,11 @@ import { LOANS_PATH } from "@/lib/paths";
  * `countOverdueLoans` and the list's `overdue` filter both come from
  * `buildOverdueLoanWhere`, so the count is exactly the number of rows the link
  * leads to.
+ *
+ * The markup itself lives in `DashboardNeedsActionCard`: spec #138 put the
+ * requires-attention card beside this one in the same shape, and one shared
+ * component is what keeps the pair from drifting apart where the difference
+ * would be visible.
  */
 
 const OVERDUE_FILTER_HREF = `${LOANS_PATH}?state=overdue`;
@@ -40,28 +46,13 @@ export async function OverdueLoansCard({
   ]);
 
   return (
-    <section
-      aria-labelledby="overdue-loans-heading"
-      className="border-border flex flex-col gap-2 rounded-lg border p-5"
-    >
-      <h2
-        id="overdue-loans-heading"
-        className="text-sm font-medium tracking-wide uppercase"
-      >
-        {t("overdueCardTitle")}
-      </h2>
-      <p className="text-3xl font-semibold tabular-nums">
-        {formatInteger(count, locale)}
-      </p>
-      <p className="text-muted-foreground text-sm">
-        {t("overdueCardCount", { count })}
-      </p>
-      <Link
-        href={OVERDUE_FILTER_HREF}
-        className="text-primary text-sm hover:underline"
-      >
-        {t("overdueCardLink")}
-      </Link>
-    </section>
+    <DashboardNeedsActionCard
+      headingId="overdue-loans-heading"
+      title={t("overdueCardTitle")}
+      value={formatInteger(count, locale)}
+      description={t("overdueCardCount", { count })}
+      linkLabel={t("overdueCardLink")}
+      href={OVERDUE_FILTER_HREF}
+    />
   );
 }
