@@ -1,6 +1,13 @@
 import type { AssetCondition, AssetStatus } from "@/app/(app)/assets/schemas";
-import { buildAttentionWhere } from "@/lib/asset-attention";
+import {
+  buildAttentionWhere,
+  type AttentionWhereClause,
+} from "@/lib/asset-attention";
 import type { db } from "@/lib/db";
+import {
+  buildMissingPhotoWhere,
+  type MissingPhotoWhereClause,
+} from "@/lib/asset-missing-photo";
 import {
   buildTablePageWindow,
   countTablePages,
@@ -80,6 +87,10 @@ export interface AssetListFilters {
    * as its own boolean rather than exposed as a status or condition value,
    * because it is a compound rule (`asset-attention.ts`), not a column. */
   readonly attention?: boolean;
+  /** The dashboard's "missing photo" card links here (spec #138). Its own
+   * boolean for the same reason `attention` is: the rule is declared once in
+   * `asset-missing-photo.ts`, not a column on `Asset`. */
+  readonly noPhoto?: boolean;
 }
 
 export interface AssetListQueryInput extends AssetListFilters {
@@ -109,6 +120,19 @@ function toSearchClause(
   return { [field]: { contains: search, mode: "insensitive" } };
 }
 
+/** The compound-rule clauses that AND together under one `AND` key —
+ * `attention` and `noPhoto` are independent of each other and of the plain
+ * scalar filters below, so each is pushed in only when its own flag is set,
+ * never merged into the same object as a colliding key would be. */
+function buildCompoundFilterClauses(
+  filters: AssetListFilters,
+): ReadonlyArray<AttentionWhereClause | MissingPhotoWhereClause> {
+  return [
+    ...(filters.attention ? [buildAttentionWhere()] : []),
+    ...(filters.noPhoto ? [buildMissingPhotoWhere()] : []),
+  ];
+}
+
 /**
  * Builds the `where` clause for the asset list. Every filter is optional and
  * they combine with AND; free-text search combines its own six fields with
@@ -117,6 +141,7 @@ function toSearchClause(
  */
 export function buildAssetListWhere(filters: AssetListFilters): AssetListWhere {
   const trimmedSearch = filters.search?.trim();
+  const compoundClauses = buildCompoundFilterClauses(filters);
 
   const where = {
     deletedAt: null,
@@ -138,11 +163,11 @@ export function buildAssetListWhere(filters: AssetListFilters): AssetListWhere {
     }),
     // Nested under `AND` rather than merged as a second top-level `OR` key —
     // a plain object can only hold one `OR` key, and the search clause above
-    // already claims it. Wrapping keeps the two independent regardless of
-    // whether both are active at once, and leaves the search-only shape
-    // (asserted by this file's existing tests) untouched when `attention` is
-    // absent.
-    ...(filters.attention && { AND: [buildAttentionWhere()] }),
+    // already claims it. Wrapping keeps the compound rules independent of the
+    // search clause regardless of whether either is active, and leaves the
+    // search-only shape (asserted by this file's existing tests) untouched
+    // when neither `attention` nor `noPhoto` is requested.
+    ...(compoundClauses.length > 0 && { AND: compoundClauses }),
   };
 
   // Prisma's generated `AssetWhereInput` is a large conditional type keyed

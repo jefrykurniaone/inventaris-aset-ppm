@@ -25,6 +25,7 @@ export interface AssetListUrlState {
   readonly acquisitionYear?: number;
   readonly fundingSourceId?: string;
   readonly attention?: boolean;
+  readonly noPhoto?: boolean;
   readonly sort: AssetListSortKey;
   readonly dir: AssetListSortDirection;
   readonly page: number;
@@ -77,6 +78,9 @@ export function buildAssetListSearchParams(
   }
   if (state.attention) {
     params.set("attention", "1");
+  }
+  if (state.noPhoto) {
+    params.set("noPhoto", "1");
   }
   return appendTableViewParams(params, state, VIEW_DEFAULTS);
 }

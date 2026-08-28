@@ -59,6 +59,7 @@ function toExportQueryInput(
     acquisitionYear: params.acquisitionYear,
     fundingSourceId: params.fundingSourceId,
     attention: params.attention,
+    noPhoto: params.noPhoto,
     sortKey: params.sort,
     sortDirection: params.dir,
   };

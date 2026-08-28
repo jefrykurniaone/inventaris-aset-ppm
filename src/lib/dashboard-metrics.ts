@@ -2,6 +2,7 @@ import type { AssetStatus } from "@/app/(app)/assets/schemas";
 import type { db } from "@/lib/db";
 
 import { buildAttentionWhere } from "./asset-attention";
+import { buildMissingPhotoWhere } from "./asset-missing-photo";
 
 /**
  * Pure query-shape builders and result-shaping functions for the dashboard
@@ -31,6 +32,15 @@ export function buildAttentionCountWhere(): DashboardAssetWhere {
   return {
     ...buildLiveAssetWhere(),
     ...buildAttentionWhere(),
+  } as DashboardAssetWhere;
+}
+
+/** The "missing photo" count's `where` (spec #138): live assets only, ANDed
+ * with the shared missing-photo rule from `asset-missing-photo.ts`. */
+export function buildMissingPhotoCountWhere(): DashboardAssetWhere {
+  return {
+    ...buildLiveAssetWhere(),
+    ...buildMissingPhotoWhere(),
   } as DashboardAssetWhere;
 }
 
