@@ -1,20 +1,16 @@
 import type { AssetCondition, AssetStatus } from "@/app/(app)/assets/schemas";
 
 /**
- * The "requiring attention" rule (PRD FR-9.1): `status = in_repair` OR
- * `condition = poor` OR no photo attached. Declared once here so the
- * dashboard's count (`src/app/(app)/dashboard-queries.ts`) and the asset
- * list's `attention` filter (`src/lib/asset-list-query.ts`) can never drift
- * apart — a card that says "12" and a filtered list that shows 11 rows would
- * both be reading a rule that only existed once, twice, slightly differently.
- *
- * `photos: { none: {} }` is Prisma's relation filter for "zero related
- * rows" — it compiles to a `NOT EXISTS` against `asset_photo`, so "no photo
- * attached" is still evaluated in SQL rather than by loading photos into
- * JavaScript.
+ * The "requiring attention" rule (issue #139): `status IN (in_repair, lost)`
+ * OR `condition = poor`, over live (non-deleted) assets. Declared once here
+ * so the dashboard's count (`src/app/(app)/dashboard-queries.ts`) and the
+ * asset list's `attention` filter (`src/lib/asset-list-query.ts`) can never
+ * drift apart — a card that says "12" and a filtered list that shows 11 rows
+ * would both be reading a rule that only existed once, twice, slightly
+ * differently.
  */
 
-export const ATTENTION_STATUS: AssetStatus = "in_repair";
+export const ATTENTION_STATUSES: readonly AssetStatus[] = ["in_repair", "lost"];
 export const ATTENTION_CONDITION: AssetCondition = "poor";
 
 /**
@@ -26,18 +22,16 @@ export const ATTENTION_CONDITION: AssetCondition = "poor";
  */
 export interface AttentionWhereClause {
   readonly OR: Array<
-    | { readonly status: AssetStatus }
+    | { readonly status: { readonly in: readonly AssetStatus[] } }
     | { readonly condition: AssetCondition }
-    | { readonly photos: { readonly none: Record<string, never> } }
   >;
 }
 
 export function buildAttentionWhere(): AttentionWhereClause {
   return {
     OR: [
-      { status: ATTENTION_STATUS },
+      { status: { in: ATTENTION_STATUSES } },
       { condition: ATTENTION_CONDITION },
-      { photos: { none: {} } },
     ],
   };
 }
@@ -46,19 +40,18 @@ export function buildAttentionWhere(): AttentionWhereClause {
  * The same rule, expressed as a pure predicate over one asset's fields
  * rather than as a Prisma clause. Used only by this module's own tests, to
  * prove the SQL-facing `buildAttentionWhere` above encodes the same rule
- * FR-9.1 states in prose — a second, independent statement of the rule that
- * the query shape is checked against, not a code path either query runs.
+ * issue #139 states in prose — a second, independent statement of the rule
+ * that the query shape is checked against, not a code path either query
+ * runs.
  */
 export interface AttentionCandidate {
   readonly status: AssetStatus;
   readonly condition: AssetCondition;
-  readonly hasPhoto: boolean;
 }
 
 export function requiresAttention(candidate: AttentionCandidate): boolean {
   return (
-    candidate.status === ATTENTION_STATUS ||
-    candidate.condition === ATTENTION_CONDITION ||
-    !candidate.hasPhoto
+    ATTENTION_STATUSES.includes(candidate.status) ||
+    candidate.condition === ATTENTION_CONDITION
   );
 }
