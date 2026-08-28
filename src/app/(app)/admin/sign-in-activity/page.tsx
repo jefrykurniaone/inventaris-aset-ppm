@@ -12,7 +12,8 @@ import {
 } from "@/lib/sign-in-activity-list-query";
 import { SIGN_IN_ATTEMPT_RETENTION_DAYS } from "@/lib/sign-in-lockout";
 
-import { listSignInActivityPage } from "./queries";
+import { ActiveSignInLocks } from "./ActiveSignInLocks";
+import { listActiveSignInLocks, listSignInActivityPage } from "./queries";
 import { SignInActivityFilters } from "./SignInActivityFilters";
 import { SignInActivityTable } from "./SignInActivityTable";
 
@@ -38,8 +39,9 @@ function isFilteredView(params: SignInActivityListParams): boolean {
  * `AdminUsersPage` documents, because a page can in principle be reached
  * without passing through its layout.
  *
- * The active-locks section (issue #126) mounts into this page later; this
- * ticket delivers the trail alone.
+ * The active-locks section above the trail (issue #126) reads the same table
+ * at the same instant: one `now` is taken here and handed to both, so the
+ * locks the section lists cannot disagree with the attempts the trail shows.
  */
 export default async function AdminSignInActivityPage({
   searchParams,
@@ -51,7 +53,11 @@ export default async function AdminSignInActivityPage({
   ]);
   const params = parseSignInActivityListParams(await searchParams);
 
-  const { rows, totalCount } = await listSignInActivityPage(params);
+  const now = new Date();
+  const [{ rows, totalCount }, activeLocks] = await Promise.all([
+    listSignInActivityPage(params),
+    listActiveSignInLocks(now),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -61,6 +67,7 @@ export default async function AdminSignInActivityPage({
           {t("retentionNote", { days: SIGN_IN_ATTEMPT_RETENTION_DAYS })}
         </p>
       </div>
+      <ActiveSignInLocks locks={activeLocks} locale={locale} t={t} />
       <SignInActivityFilters params={params} t={t} />
       <SignInActivityTable
         attempts={rows}
