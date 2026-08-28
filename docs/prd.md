@@ -221,9 +221,24 @@ mistaken for oversights:
 
 ### 6.9 Dashboard and reporting
 
-- **FR-9.1** — Summary cards: total assets; total acquisition value (`admin` only); count by
-  status; count requiring attention, defined as `status = in_repair` OR `condition = poor` OR
-  no photo attached.
+- **FR-9.1** — The dashboard presents its figures in two groups.
+
+  A grid of summary cards holds: total assets; total acquisition value (`admin` only); count by
+  status; and count of assets with no photo attached ("Missing photo" in English, "Belum ada foto"
+  in Indonesian). Each is a compact card — a label and the figure — and the whole card links to
+  the asset list with the matching filter applied; the missing-photo card links to the list
+  filtered to assets without a photo. The grid is shown as a unit only while the register holds at
+  least one asset, so an empty register shows a single empty-state message instead of a row of
+  zeros.
+
+  Below it, a "needs action" row pairs the overdue-loans count (FR-7.4) with a count of assets
+  requiring attention, defined as `status = in_repair` OR `status = lost` OR `condition = poor`.
+  Both are cards of the same shape — heading, the count, a sentence describing what the count
+  means, and a link to the matching pre-filtered list — laid out in two columns that stack on a
+  narrow viewport. This row is rendered whatever the register holds, because a zero here reports
+  that nothing needs action rather than that nothing has been recorded.
+
+  Every card except the total acquisition value is visible to `admin` and `staff` alike.
 - **FR-9.2** — Two charts: asset count per category, and acquisition count per year.
 - **FR-9.3** — The filterable asset table (FR-2.6) can be exported to XLSX. The export reflects
   the filters currently applied.

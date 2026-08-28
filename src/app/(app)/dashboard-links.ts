@@ -34,3 +34,9 @@ export function acquisitionYearFilterHref(year: number): string {
 export function attentionFilterHref(): string {
   return assetsHref("attention=1");
 }
+
+/** The "missing photo" summary card (spec #138): live assets with no photo
+ * attached, the same rule `src/lib/asset-missing-photo.ts` gives the count. */
+export function missingPhotoFilterHref(): string {
+  return assetsHref("noPhoto=1");
+}

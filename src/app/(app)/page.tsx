@@ -10,6 +10,7 @@ import {
   DashboardBarChart,
   type DashboardBarChartItem,
 } from "./DashboardBarChart";
+import { DashboardAttentionCard } from "./DashboardAttentionCard";
 import { DashboardSummaryCards } from "./DashboardSummaryCards";
 import { OverdueLoansCard } from "./loans/OverdueLoansCard";
 import type { DashboardStatusRow } from "./DashboardStatusBreakdownCard";
@@ -65,6 +66,27 @@ function toYearItems(
   }));
 }
 
+interface NeedsActionRowProps {
+  readonly overdueLoanCount: number;
+  readonly attentionCount: number;
+}
+
+/** The "needs action" row (spec #138): overdue loans beside requires
+ * attention, two cards of one shape, stacked on a narrow viewport. It renders
+ * whatever the register holds — unlike the summary grid, a zero here is a
+ * true and useful figure rather than a meaningless one. */
+function DashboardNeedsActionRow({
+  overdueLoanCount,
+  attentionCount,
+}: Readonly<NeedsActionRowProps>) {
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <OverdueLoansCard count={overdueLoanCount} />
+      <DashboardAttentionCard count={attentionCount} />
+    </div>
+  );
+}
+
 interface ChartsSectionProps {
   readonly metrics: DashboardMetrics;
   readonly locale: Locale;
@@ -111,9 +133,10 @@ function DashboardChartsSection({
  * `OverdueLoansCard` (issue #15, PRD FR-6.4) links to the loans list
  * pre-filtered to `overdue`, and renders even for an empty register, because
  * "0 overdue" is a true and useful figure where the asset cards' empty state
- * stands in for meaningless zeros. Its count comes from `metrics` rather than
- * from a query of its own so that it dispatches with the asset aggregates
- * instead of after them (issue #83).
+ * stands in for meaningless zeros. `DashboardAttentionCard` now sits beside
+ * it under the same reasoning (spec #138). Both counts come from `metrics`
+ * rather than from a query of their own so that they dispatch with the asset
+ * aggregates instead of after them (issue #83).
  */
 export default async function HomePage() {
   const user = await requireUser();
@@ -143,11 +166,14 @@ export default async function HomePage() {
           }
           statusBreakdownLabel={t("statusBreakdownLabel")}
           statusRows={toStatusRows(metrics, tAssets, locale)}
-          attentionLabel={t("attentionLabel")}
-          attentionValue={formatInteger(metrics.attentionCount, locale)}
+          missingPhotoLabel={t("missingPhotoLabel")}
+          missingPhotoValue={formatInteger(metrics.missingPhotoCount, locale)}
         />
       )}
-      <OverdueLoansCard count={metrics.overdueLoanCount} />
+      <DashboardNeedsActionRow
+        overdueLoanCount={metrics.overdueLoanCount}
+        attentionCount={metrics.attentionCount}
+      />
       <DashboardChartsSection metrics={metrics} locale={locale} t={t} />
     </div>
   );

@@ -469,11 +469,14 @@
     "searchPlaceholder": "Type to search…"
   },
   "DashboardPage": {
+    "attentionCardCount": "{count, plural, =0 {Nothing needs attention right now.} one {# asset is in repair, lost, or in poor condition.} other {# assets are in repair, lost, or in poor condition.}}",
+    "attentionCardLink": "See assets needing attention",
     "attentionLabel": "Requires attention",
     "categoryChartEmpty": "No category data to show yet.",
     "categoryChartTitle": "Assets per category",
     "emptyState": "No assets registered yet.",
     "loadingLabel": "Loading dashboard…",
+    "missingPhotoLabel": "Missing photo",
     "statusBreakdownLabel": "Assets by status",
     "title": "Dashboard",
     "totalAssetsLabel": "Total assets",
