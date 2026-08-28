@@ -20,11 +20,7 @@ describe("buildAttentionCountWhere", () => {
   it("combines the live-asset filter with the shared attention rule", () => {
     expect(buildAttentionCountWhere()).toEqual({
       deletedAt: null,
-      OR: [
-        { status: "in_repair" },
-        { condition: "poor" },
-        { photos: { none: {} } },
-      ],
+      OR: [{ status: { in: ["in_repair", "lost"] } }, { condition: "poor" }],
     });
   });
 });

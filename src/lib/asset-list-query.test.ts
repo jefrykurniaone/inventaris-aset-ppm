@@ -102,15 +102,11 @@ describe("buildAssetListWhere", () => {
     expect(buildAssetListWhere({}).AND).toBeUndefined();
   });
 
-  it("ANDs the shared attention rule in, including the no-photo relation filter", () => {
+  it("ANDs the shared attention rule in, status-in(in_repair, lost) or condition=poor", () => {
     const where = buildAssetListWhere({ attention: true });
     expect(where.AND).toEqual([
       {
-        OR: [
-          { status: "in_repair" },
-          { condition: "poor" },
-          { photos: { none: {} } },
-        ],
+        OR: [{ status: { in: ["in_repair", "lost"] } }, { condition: "poor" }],
       },
     ]);
   });
@@ -127,11 +123,7 @@ describe("buildAssetListWhere", () => {
     ]);
     expect(where.AND).toEqual([
       {
-        OR: [
-          { status: "in_repair" },
-          { condition: "poor" },
-          { photos: { none: {} } },
-        ],
+        OR: [{ status: { in: ["in_repair", "lost"] } }, { condition: "poor" }],
       },
     ]);
   });
@@ -162,11 +154,7 @@ describe("buildAssetListWhere", () => {
     const where = buildAssetListWhere({ attention: true, noPhoto: true });
     expect(where.AND).toEqual([
       {
-        OR: [
-          { status: "in_repair" },
-          { condition: "poor" },
-          { photos: { none: {} } },
-        ],
+        OR: [{ status: { in: ["in_repair", "lost"] } }, { condition: "poor" }],
       },
       { photos: { none: {} } },
     ]);
