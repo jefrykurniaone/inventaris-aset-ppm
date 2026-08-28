@@ -16,6 +16,7 @@ describe("assetListSearchParamsSchema", () => {
       condition: undefined,
       acquisitionYear: undefined,
       attention: false,
+      noPhoto: false,
       sort: "createdAt",
       dir: "desc",
       page: 1,
@@ -34,6 +35,7 @@ describe("assetListSearchParamsSchema", () => {
       acquisitionYear: "not-a-year",
       categoryId: ["a", "b"],
       attention: ["1", "1"],
+      noPhoto: ["1", "1"],
     });
 
     expect(parsed.status).toBeUndefined();
@@ -45,6 +47,7 @@ describe("assetListSearchParamsSchema", () => {
     expect(parsed.acquisitionYear).toBeUndefined();
     expect(parsed.categoryId).toBeUndefined();
     expect(parsed.attention).toBe(false);
+    expect(parsed.noPhoto).toBe(false);
   });
 
   it("clamps a negative or zero page back to the first page", () => {
@@ -63,6 +66,7 @@ describe("assetListSearchParamsSchema", () => {
       condition: "poor",
       acquisitionYear: "2026",
       attention: "1",
+      noPhoto: "1",
       sort: "name",
       dir: "desc",
       page: "2",
@@ -79,6 +83,7 @@ describe("assetListSearchParamsSchema", () => {
       condition: "poor",
       acquisitionYear: 2026,
       attention: true,
+      noPhoto: true,
       sort: "name",
       dir: "desc",
       page: 2,
@@ -101,5 +106,18 @@ describe("assetListSearchParamsSchema", () => {
       assetListSearchParamsSchema.parse({ attention: "true" }).attention,
     ).toBe(false);
     expect(assetListSearchParamsSchema.parse({}).attention).toBe(false);
+  });
+
+  it("reads noPhoto=1 as true and anything else as false, never throwing", () => {
+    expect(assetListSearchParamsSchema.parse({ noPhoto: "1" }).noPhoto).toBe(
+      true,
+    );
+    expect(assetListSearchParamsSchema.parse({ noPhoto: "0" }).noPhoto).toBe(
+      false,
+    );
+    expect(assetListSearchParamsSchema.parse({ noPhoto: "true" }).noPhoto).toBe(
+      false,
+    );
+    expect(assetListSearchParamsSchema.parse({}).noPhoto).toBe(false);
   });
 });

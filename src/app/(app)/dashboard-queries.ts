@@ -1,6 +1,7 @@
 import {
   buildAttentionCountWhere,
   buildLiveAssetWhere,
+  buildMissingPhotoCountWhere,
   computeTotalAcquisitionValue,
   shapeCategoryCounts,
   shapeStatusCounts,
@@ -32,6 +33,14 @@ async function loadTotalAssetsCount(): Promise<number> {
 
 async function loadAttentionCount(): Promise<number> {
   return db.asset.count({ where: buildAttentionCountWhere() });
+}
+
+/** The "missing photo" figure (spec #138) — a compact summary-grid stat card
+ * a later ticket adds. Counted in this same batch, not a query of its own,
+ * for the reason every other figure here is: one round trip, not one per
+ * card. */
+async function loadMissingPhotoCount(): Promise<number> {
+  return db.asset.count({ where: buildMissingPhotoCountWhere() });
 }
 
 async function loadStatusCounts(): Promise<readonly StatusCountRow[]> {
@@ -108,6 +117,7 @@ export interface DashboardMetrics {
   readonly totalAcquisitionValue: number | null;
   readonly statusCounts: readonly StatusCountRow[];
   readonly attentionCount: number;
+  readonly missingPhotoCount: number;
   readonly categoryCounts: readonly CategoryCountRow[];
   readonly yearCounts: readonly YearCountRow[];
   readonly overdueLoanCount: number;
@@ -139,6 +149,7 @@ export async function loadDashboardMetrics({
   const [
     totalAssets,
     attentionCount,
+    missingPhotoCount,
     statusCounts,
     categoryCounts,
     yearCounts,
@@ -147,6 +158,7 @@ export async function loadDashboardMetrics({
   ] = await Promise.all([
     loadTotalAssetsCount(),
     loadAttentionCount(),
+    loadMissingPhotoCount(),
     loadStatusCounts(),
     loadCategoryCounts(),
     loadYearCounts(),
@@ -159,6 +171,7 @@ export async function loadDashboardMetrics({
     totalAcquisitionValue,
     statusCounts,
     attentionCount,
+    missingPhotoCount,
     categoryCounts,
     yearCounts,
     overdueLoanCount,

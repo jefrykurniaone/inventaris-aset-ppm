@@ -58,6 +58,17 @@ describe("buildAssetListSearchParams", () => {
     expect(params.get("page")).toBe("3");
     expect(params.get("pageSize")).toBe("50");
   });
+
+  it("includes noPhoto only when it is set", () => {
+    expect(buildAssetListSearchParams(DEFAULT_STATE).has("noPhoto")).toBe(
+      false,
+    );
+    expect(
+      buildAssetListSearchParams({ ...DEFAULT_STATE, noPhoto: true }).get(
+        "noPhoto",
+      ),
+    ).toBe("1");
+  });
 });
 
 describe("withAssetListSort", () => {

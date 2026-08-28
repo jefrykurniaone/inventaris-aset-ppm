@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildAttentionCountWhere,
   buildLiveAssetWhere,
+  buildMissingPhotoCountWhere,
   computeTotalAcquisitionValue,
   shapeCategoryCounts,
   shapeStatusCounts,
@@ -24,6 +25,15 @@ describe("buildAttentionCountWhere", () => {
         { condition: "poor" },
         { photos: { none: {} } },
       ],
+    });
+  });
+});
+
+describe("buildMissingPhotoCountWhere", () => {
+  it("combines the live-asset filter with the shared missing-photo rule", () => {
+    expect(buildMissingPhotoCountWhere()).toEqual({
+      deletedAt: null,
+      photos: { none: {} },
     });
   });
 });

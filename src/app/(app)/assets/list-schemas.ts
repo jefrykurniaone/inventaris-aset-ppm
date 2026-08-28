@@ -103,6 +103,16 @@ const attentionFilter = z
   .optional()
   .transform((raw): boolean => readParam(raw) === ATTENTION_QUERY_VALUE);
 
+/** The dashboard's "missing photo" card links to `?noPhoto=1` (spec #138).
+ * Same forgiving contract as `attention`: any other value — including a
+ * repeated param or plain junk — reads as "not requested", never throwing. */
+const NO_PHOTO_QUERY_VALUE = "1";
+
+const noPhotoFilter = z
+  .unknown()
+  .optional()
+  .transform((raw): boolean => readParam(raw) === NO_PHOTO_QUERY_VALUE);
+
 const sortKeyParam = z
   .unknown()
   .optional()
@@ -137,6 +147,7 @@ export const assetListSearchParamsSchema = z.object({
   condition: conditionFilter,
   acquisitionYear: acquisitionYearFilter,
   attention: attentionFilter,
+  noPhoto: noPhotoFilter,
   sort: sortKeyParam,
   dir: sortDirectionParam,
   page: pageParam,

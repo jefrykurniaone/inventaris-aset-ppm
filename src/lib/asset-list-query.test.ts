@@ -135,6 +135,50 @@ describe("buildAssetListWhere", () => {
       },
     ]);
   });
+
+  it("omits the missing-photo clause when noPhoto is not requested", () => {
+    expect(buildAssetListWhere({}).AND).toBeUndefined();
+  });
+
+  it("ANDs the shared missing-photo rule in when noPhoto is requested", () => {
+    const where = buildAssetListWhere({ noPhoto: true });
+    expect(where.AND).toEqual([{ photos: { none: {} } }]);
+  });
+
+  it("keeps the missing-photo clause and a free-text search independent of each other", () => {
+    const where = buildAssetListWhere({ noPhoto: true, search: "proj" });
+    expect(where.OR).toEqual([
+      { name: { contains: "proj", mode: "insensitive" } },
+      { assetCode: { contains: "proj", mode: "insensitive" } },
+      { universityAssetCode: { contains: "proj", mode: "insensitive" } },
+      { brand: { contains: "proj", mode: "insensitive" } },
+      { model: { contains: "proj", mode: "insensitive" } },
+      { serialNumber: { contains: "proj", mode: "insensitive" } },
+    ]);
+    expect(where.AND).toEqual([{ photos: { none: {} } }]);
+  });
+
+  it("ANDs the attention rule and the missing-photo rule together when both are requested", () => {
+    const where = buildAssetListWhere({ attention: true, noPhoto: true });
+    expect(where.AND).toEqual([
+      {
+        OR: [
+          { status: "in_repair" },
+          { condition: "poor" },
+          { photos: { none: {} } },
+        ],
+      },
+      { photos: { none: {} } },
+    ]);
+  });
+
+  it("combines noPhoto with a plain scalar filter", () => {
+    expect(buildAssetListWhere({ noPhoto: true, status: "active" })).toEqual({
+      deletedAt: null,
+      status: "active",
+      AND: [{ photos: { none: {} } }],
+    });
+  });
 });
 
 describe("buildAssetListOrderBy", () => {
