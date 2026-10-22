@@ -201,6 +201,8 @@ Before adding a package, check bundle size, maintenance status, licence, and kno
 unmaintained for two or more years without written justification. Remove unused dependencies
 before merge.
 
+Vulnerability checks (audit job, dependency review, Dependabot, accepted advisories): `docs/adr/0008-dependency-vulnerability-checks.md`.
+
 ## Agent skills
 
 ### Issue tracker
