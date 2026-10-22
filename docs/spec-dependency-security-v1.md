@@ -1,6 +1,6 @@
 # Spec v1 - Dependency security: remediate open advisories and add vulnerability checks to CI
 
-> Tracker: Spec [#147](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/147) · Execution map: pending · Run label `run:dependency-security` · Split-out issue [#148](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/148).
+> Tracker: Spec [#147](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/147) · Execution map [#153](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/153) · Run label `run:dependency-security` · Split-out issue [#148](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/148).
 > Point-in-time copy of the spec item as of 2026-10-23, written against `main` at `ac5cb02`. The spec item is the one written copy; this mirror is regenerated from it when the run closes.
 
 ## Problem statement
