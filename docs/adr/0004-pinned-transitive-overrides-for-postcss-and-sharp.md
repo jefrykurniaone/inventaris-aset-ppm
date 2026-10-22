@@ -139,6 +139,9 @@ Worth knowing for whoever revisits this: with all three overrides in place the t
 clean **even without** `--omit=dev`. The flag is about which future advisory is allowed to break the
 build, not about hiding a finding that exists today.
 
+*2026-10-23:* the audit no longer runs in `verify`. It moved to its own workflow, with the same scope
+and threshold, and is recorded in [ADR 0008](0008-dependency-vulnerability-checks.md).
+
 ## Amendment — 2026-10-23: override re-check, and the accepted `braces` chain (issue #150)
 
 ### Context
