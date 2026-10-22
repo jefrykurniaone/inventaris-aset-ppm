@@ -1,0 +1,52 @@
+# Dependabot version updates. See docs/adr/0008-dependency-vulnerability-checks.md.
+# Security updates are switched on in the repository settings, not here.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    # One pull request for every minor and patch update, so `next` and
+    # `eslint-config-next` move together.
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Major updates are decided by a person, not by a bot (ADR 0008).
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+      # ADR-gated packages: the project rules forbid upgrading them without an
+      # ADR, so an automated pull request for them could never merge as-is
+      # (ADR 0008).
+      - dependency-name: prisma
+      - dependency-name: "@prisma/client"
+      - dependency-name: "@prisma/adapter-pg"
+      - dependency-name: better-auth
+      - dependency-name: auth
+    # prefix + include: scope gives "chore(deps): ..." for both runtime and
+    # development dependencies.
+    commit-message:
+      prefix: chore
+      include: scope
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    # No major-version ignore: actions are referenced by major tag (`@v7`), and
+    # only a major update moves such a reference (ADR 0008).
+    groups:
+      github-actions:
+        applies-to: version-updates
+        patterns:
+          - "*"
+    commit-message:
+      prefix: chore
+      include: scope
