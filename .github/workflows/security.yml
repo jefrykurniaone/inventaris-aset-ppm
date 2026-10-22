@@ -1,0 +1,80 @@
+name: Security
+
+# Vulnerability checks live in their own workflow, not in `ci.yml`'s `verify`
+# job, so that a newly published advisory fails only these checks. Inside
+# `verify` the audit used to skip the coverage upload and, with it, SonarQube
+# and the end-to-end smoke test. The policy is recorded in ADR 0008.
+#
+# There is no `schedule`: between pull requests, Dependabot alerts are what
+# surface a new advisory (ADR 0008).
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+# Neither job writes anything. `comment-summary-in-pr` stays off below, which
+# is what lets this remain the only permission.
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Audit production dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      # Scoped to production dependencies on purpose. The `overrides` block in
+      # `package.json` exists to keep this at zero (ADR 0004), and `--omit=dev`
+      # decides which future advisory is allowed to break the build: anything
+      # reaching a user should, while a CLI-only path should not fail a pull
+      # request that did not cause it. Dev tooling is watched by Dependabot
+      # instead (ADR 0008).
+      #
+      # There is no install step. `npm audit` reads `package-lock.json`
+      # directly, so no dependency's `preinstall`/`postinstall` runs in this job
+      # at all (githubactions:S6505), which is stronger than `verify`'s
+      # `npm ci --ignore-scripts`. Verified from a directory holding only
+      # `package.json` and `package-lock.json`: exit 0 on `main`, and the same
+      # directory reports the eight `braces` advisories once `--omit=dev` is
+      # dropped, so the audit does read the lockfile. See the pull request for
+      # #151. If a lockfile-only audit ever stops working on the runner, fall
+      # back to `npm ci --ignore-scripts` and write the reason here.
+      - name: Audit production dependencies
+        run: npm audit --audit-level=high --omit=dev
+
+  dependency-review:
+    name: Review dependency changes
+    runs-on: ubuntu-latest
+    # The action diffs the dependencies between the pull request's base and
+    # head. A push to `main` has no base to compare against, and the audit job
+    # already covers the resulting tree.
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v7
+
+      # GitHub's own action, so a major tag rather than a commit SHA, like the
+      # other `actions/*` references in this repository. It judges only the
+      # dependencies a pull request adds or changes, which is why the accepted
+      # `braces` chain (ADR 0004) does not trip it.
+      #
+      # `high` across both scopes: the action's default scope is `runtime`
+      # alone, which would let a vulnerable dev tool in unreviewed. No licence
+      # option is set, so no licence policy applies, and
+      # `comment-summary-in-pr` is `never`, so the job needs no
+      # `pull-requests: write`. The result is in the job summary instead.
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: high
+          fail-on-scopes: runtime, development
+          comment-summary-in-pr: never
