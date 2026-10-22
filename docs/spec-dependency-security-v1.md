@@ -1,7 +1,7 @@
 # Spec v1 - Dependency security: remediate open advisories and add vulnerability checks to CI
 
 > Tracker: Spec [#147](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/147) · Execution map [#153](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/153) · Run label `run:dependency-security` · Split-out issue [#148](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/148).
-> Point-in-time copy of the spec item as of 2026-10-23, written against `main` at `ac5cb02`. The spec item is the one written copy; this mirror is regenerated from it when the run closes.
+> Point-in-time copy of the spec item, regenerated when the run closed on 2026-10-23, against `main` at `2384702`, with the delivery notes. The spec item is the one written copy.
 
 ## Problem statement
 
@@ -9,7 +9,7 @@ As of 2026-10-23, `npm audit` against the lockfile on `main` reports **27 adviso
 
 Two packages reach the deployed server:
 
-- `next@15.5.23` is affected by GHSA-2xp9-vwfh-vxw4, an unauthenticated remote code execution in the Image Optimization API when AVIF files are optimised. The public scan page sends its full-size photo through that optimiser, and the image allow-list accepts the public bucket of any Supabase project. The same release is affected by GHSA-p293-qw3h-jr36 (remote code execution on Windows-hosted servers). Production runs on Vercel and is not exposed to that one, but every developer running the app on Windows is. Two further advisories cover cache poisoning in self-hosted deployments.
+- `next@15.5.23` is affected by GHSA-2xp9-vwfh-vxw4, an unauthenticated remote code execution in the Image Optimization API when AVIF files are optimised. The public scan page sends its full-size photo through that optimiser, and the image allow-list accepts the public bucket of any Supabase project. The same release is affected by GHSA-p293-qw3h-jr36 (remote code execution on Windows-hosted servers). Production runs on Vercel and is not exposed to that one, but every developer running the app on Windows is. *(At close, 2026-10-23: production has been decommissioned. See the delivery notes.)* Two further advisories cover cache poisoning in self-hosted deployments.
 - `sharp@0.35.3` is affected by the libheif and librsvg advisories GHSA-rgj7-g3m4-5g8c and GHSA-wq5f-xc86-pv6w.
 
 Everything else is tooling:
@@ -82,14 +82,14 @@ Non-goals:
 - **Prisma.** `prisma`, `@prisma/client` and `@prisma/adapter-pg` move from `7.9.1` to `7.10.1` together, keeping exact pins. The project rules allow upgrading a pinned package only with an ADR, so this is recorded in a new ADR 0007.
   - `prisma@7.10.1` pins `mysql2@3.24.4`, which closes GHSA-3f6p-5ww8-9rcr and GHSA-rgwj-5xj2-c3m3.
   - This upgrade was chosen on 2026-10-23 over a `mysql2` override that would have kept Prisma at 7.9.1.
-  - The generated client is regenerated. Creating a migration against the local database must produce nothing: the upgrade carries no schema change and no production migration step.
+  - The generated client is regenerated. Creating a migration against the local database must produce nothing: the upgrade carries no schema change and no production migration step. *(Delivered as an empty migration. `migrate dev --create-only` always creates a migration directory, so "produce nothing" was checked as an empty probe migration, deleted without being applied. See the delivery notes.)*
   - `better-auth` stays at `1.7.1`; its optional peer range for `prisma` covers 7.10.1.
 - **Other transitive advisories.** Every remaining advisory that has a non-breaking fix is closed by refreshing the lockfile, which is what `npm audit fix` without `--force` does. `--force` is never used here: what it proposes is either a downgrade (`shadcn@1.0.0`, `eslint-config-next@14.2.35`) or a major upgrade.
 - **Overrides.** These follow ADR 0004's removal condition, applied mechanically: remove the entry, refresh the lockfile, re-audit. As of 2026-10-23 the expectations are:
   - **`deepmerge-ts`**: dead weight, because `@prisma/config@7.10.1` itself pins `deepmerge-ts@8.0.2`. Remove it.
   - **`postcss`**: stays, because `next@15.5.28` still hard-pins `8.4.31`.
   - **`sharp`**: stays, with its floor raised to the first patched release (`^0.35.5`). `next@15.5.28` declares `sharp` as `^0.34.3 || ^0.35.5`, a range that still admits vulnerable releases, so ADR 0004's condition (Next itself depends only on a patched `sharp`) is not met.
-- **Accepted advisory.** The `braces` chain (GHSA-vfj7-8cjw-p6xm, no patched release as of 2026-10-23) is accepted. It is reached only through dev tooling: ESLint's Next.js plugin and the shadcn CLI. It is recorded in an amendment to ADR 0004 with a removal condition: when a patched `braces` exists, Dependabot's security update closes it. The alerts stay open on purpose (decided 2026-10-23), because a dismissed alert does not receive a security update pull request.
+- **Accepted advisory.** The `braces` chain (GHSA-vfj7-8cjw-p6xm, no patched release as of 2026-10-23) is accepted. It is reached only through dev tooling: ESLint's Next.js plugin and the shadcn CLI. It is recorded in an amendment to ADR 0004 with a removal condition: when a patched `braces` exists, Dependabot's security update closes it. The alerts stay open on purpose (decided 2026-10-23), because a dismissed alert does not receive a security update pull request. *(At delivery, GitHub's preset rule for public repositories auto-dismissed the alert. The orchestrator reopened it. See the delivery notes.)*
 
 ### Security workflow
 
@@ -122,7 +122,7 @@ Non-goals:
 
 ### Repository settings
 
-These are applied by the orchestrator through the GitHub API, in this order, after every pull request in this run has merged and `main` is green:
+These are applied by the orchestrator through the GitHub API, in this order, after every pull request in this run has merged and `main` is green. *(Step 2's Dependabot alerts were turned on earlier, during wave 2, because the dependency review needs the dependency graph. See the delivery notes.)*
 
 1. Secret scanning on, and push protection on.
 2. Dependabot alerts and Dependabot security updates on, if they are not already.
@@ -148,11 +148,11 @@ No required review is added, because the repository has one developer. The exact
 No business logic changes, so there are no new unit tests. A good test here observes external behaviour at the highest seam available. These three seams were confirmed with the user on 2026-10-23.
 
 1. **CI on each pull request.**
-   - What runs: `verify`, the end-to-end smoke test (real sign-in, photo upload to Supabase Storage, public scan page), SonarQube Cloud, the new security workflow, and the Vercel preview build.
+   - What runs: `verify`, the end-to-end smoke test (real sign-in, photo upload to Supabase Storage, public scan page), SonarQube Cloud, the new security workflow, and the Vercel preview build. *(At delivery, the Supabase project was switched off, so the end-to-end job skips with its warning and no Vercel build reports. See the delivery notes.)*
    - What it catches: typecheck, build and runtime regressions from the framework and Prisma upgrades; a non-zero production-scope audit; an invalid workflow; a dependency review that does not run.
    - What it misses: whether the image optimiser actually serves an optimised image, the Dependabot configuration (GitHub parses it only from the default branch), and repository settings.
 2. **Orchestrator walk with Playwright MCP against the local dev server**, after the framework and Prisma upgrade.
-   - What it does: open the public scan page of an asset that has a photo and observe the request for the full-size photo through the image optimiser.
+   - What it does: open the public scan page of an asset that has a photo and observe the request for the full-size photo through the image optimiser. *(Delivered against a local probe image instead, because the storage host no longer exists. See the delivery notes.)*
    - What it must observe: status 200 with an `image/*` content type.
    - What it catches: an optimiser broken by the new framework release combined with the `sharp` override change. ADR 0004 names this as the first place to suspect.
    - What it misses: Vercel's own image-optimisation infrastructure.
@@ -172,8 +172,8 @@ Prior art in the repository:
 2. `npm audit` over the full tree on `main` reports only advisories whose root is GHSA-vfj7-8cjw-p6xm (`braces`).
 3. `package.json` pins `next` and `eslint-config-next` at exactly `15.5.28`, and `prisma`, `@prisma/client` and `@prisma/adapter-pg` at exactly `7.10.1`.
 4. The overrides block no longer carries `deepmerge-ts`, and carries `sharp` at `^0.35.5` and `postcss` unchanged, or differs only where ADR 0004's mechanical check proved otherwise and the amendment says so.
-5. Creating a migration against the local database after the upgrade produces nothing.
-6. The public scan page's optimised photo request returns 200 with an `image/*` content type on the local dev server.
+5. Creating a migration against the local database after the upgrade produces nothing. *(Met as an empty migration.)*
+6. The public scan page's optimised photo request returns 200 with an `image/*` content type on the local dev server. *(Met against a local probe image. See the delivery notes.)*
 7. The security workflow has run green on the pull request that introduced it and on the following push to `main`. The `verify` job no longer contains an audit step. The dependency-review job reported on that pull request.
 8. A Dependabot update run on the new configuration has completed without a configuration error.
 9. GitHub reports secret scanning, push protection, Dependabot alerts and Dependabot security updates as enabled.
@@ -194,5 +194,74 @@ Prior art in the repository:
 ## Further notes
 
 - Ordering matters. The remediation must merge before the security workflow can go green, because `verify` keeps its audit until the security workflow moves it out. Repository settings come last, because a required check must have run at least once, and `main` must be green before the branch is protected.
-- Vercel builds run `prisma generate && next build` and never run migrations. The Prisma upgrade carries none, so no production database step precedes its merge.
+- Vercel builds run `prisma generate && next build` and never run migrations. The Prisma upgrade carries none, so no production database step precedes its merge. *(At close, production and its Supabase database are decommissioned, #155.)*
 - The figures in the problem statement are a snapshot of 2026-10-23. Advisories published after that date may change the counts before the run executes. The success criteria, not the snapshot, define done.
+
+## Delivery notes
+
+Run `dependency-security`, execution map #153, closed 2026-10-23.
+
+### What landed
+
+| Ticket | Pull request | Merge commit | What |
+|---|---|---|---|
+| — | #149 | `50f813d` | The spec mirror `docs/spec-dependency-security-v1.md`, merged by the owner before wave 1. |
+| #150 | #154 | `406783a` | `next` and `eslint-config-next` at `15.5.28`; `prisma`, `@prisma/client` and `@prisma/adapter-pg` at `7.10.1`. Lockfile refreshed with `npm audit fix`, never `--force`. Overrides re-checked. ADR 0007, and the ADR 0004 amendment. |
+| #151 | #157 | `a3fb68f` | `.github/workflows/security.yml`, with the jobs `Audit production dependencies` (lockfile-only, no install) and `Review dependency changes` (`actions/dependency-review-action@v5`). The audit was removed from `verify`. ADR 0008, the ADR 0004 pointer and the `CLAUDE.md` line. |
+| #152 | #156 | `2384702` | `.github/dependabot.yml`: `npm` and `github-actions`, both monthly and grouped, with majors and the ADR-gated packages ignored for npm. |
+
+The main-tree gate was green on `2384702`:
+
+- `npm audit --omit=dev` reports `found 0 vulnerabilities`.
+- `npm audit` reports 8 high, all rooted in GHSA-vfj7-8cjw-p6xm (`braces`).
+
+### Against the implementation decisions
+
+- **Overrides.** They came out as expected:
+  - `deepmerge-ts` removed.
+  - `postcss` kept at `^8.5.26`.
+  - `sharp` kept and raised to `^0.35.5`.
+
+  For `sharp`, the mechanical check alone said "remove". It measured the lockfile, which already held `0.35.5`, rather than Next's declared range, which still admits the vulnerable `0.34.x`. The ADR 0004 amendment records the reasoning, together with a rule for future checks.
+- **Lockfile refresh.** `npm audit fix` could not move `vitest` and `@vitest/coverage-v8` past `4.1.11`, because they pin each other exactly as peers. Both were moved to `4.1.12` in the lockfile only, which closes two moderate `@vitest/mocker` advisories. Their declared ranges are unchanged.
+- **The Prisma 7.10 changelog** has one item to watch, recorded in ADR 0007: a `prisma7.config.*` file would now take precedence over `prisma.config.ts` without a warning.
+- **Migration check.** `prisma migrate dev --create-only` always creates a migration directory. Without `--name` it waits at an interactive prompt while holding Migrate's advisory lock. "Produces nothing" was therefore checked as an empty migration (`-- This is an empty migration.`), which was deleted without being applied. The check also ran `migrate diff --from-config-datasource --to-schema prisma --exit-code`, which found no difference, and `migrate status`, which reported the database up to date. #150's criterion was corrected the same way.
+- **Dependabot commit messages.** The configuration uses `prefix: "chore(deps)"` and no `include`. `include: scope` would produce `chore(deps-dev)` for development dependencies. Dependabot's first pull requests, #158 and #159, are titled `chore(deps): …`.
+- **Required checks** are listed under their published names: `Typecheck, lint, test, build` (the `verify` job), `Audit production dependencies` and `Review dependency changes`.
+
+### What the run reversed or changed
+
+- **Environment.** On 2026-10-23 the owner confirmed that the Supabase project had been switched off and that production was decommissioned. That project held both photo buckets and the deployment database.
+  - Replacing photo storage with local PostgreSQL is #155, outside this run.
+  - The CI secrets `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` were deleted at the owner's direction, so the end-to-end job skips with its "not run" warning.
+  - No Vercel build reports on pull requests.
+  - The owner's after-close step "check the Vercel production deployment is Ready" was dropped.
+- **Testing seam 2 (the walk).** With no storage host, the scan page's stored photo returns 500 from `/_next/image`. The walk checked the optimiser against a temporary local probe image instead:
+  - `/_next/image?url=/walk-probe-150.jpg&w=640&q=75` returned 200 `image/jpeg`, 5,940 bytes against 38,506 raw, and was served as WebP on navigation.
+  - The `<img>` loaded with `naturalWidth` 750.
+  - The scan page `/a/idqMiG1u_Gnm` still rendered 200.
+
+  This proves `next@15.5.28` together with `sharp@0.35.5`. It does not prove a fetch from a storage host.
+- **Repository settings order.** Dependabot alerts (step 2) were turned on during wave 2 rather than after the last merge, because `Review dependency changes` failed with `Dependency review is not supported on this repository`: the dependency graph was off as well. Every other setting followed the stated order.
+- **The `braces` alert.** GitHub's preset rule "Dismiss low impact issues for development-scoped dependencies" is enabled by default on public repositories. It auto-dismissed alert #1 (GHSA-vfj7-8cjw-p6xm, development scope) one second after creation. The orchestrator reopened it, and it stayed open.
+  - The preset itself is still enabled. Switching it off is a UI setting and the owner's choice.
+  - GitHub's documentation does not say whether an auto-dismissed alert receives a security update pull request.
+
+### Success criteria at close
+
+| # | Status |
+|---|---|
+| 1 | Met: `found 0 vulnerabilities`. |
+| 2 | Met: 8 high, all `braces`. |
+| 3 | Met. |
+| 4 | Met as expected, with the `sharp` reasoning recorded. |
+| 5 | Met as an empty migration. |
+| 6 | Met against a local probe image (above). |
+| 7 | Met: green on PR #157 (`Review dependency changes` on its second attempt, after the dependency graph was enabled) and on the push of `a3fb68f`. `verify` has no audit step. |
+| 8 | Met: four `dynamic` Dependabot update runs on `2384702`, all `success`. |
+| 9 | Met: secret scanning, push protection, alerts and security updates all enabled. |
+| 10 | Met: exactly the three checks above, `strict: true`, `enforce_admins` off. |
+| 11 | Met. |
+| 12 | Met: #148. |
+
+
