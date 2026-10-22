@@ -1,6 +1,7 @@
 # 0005 — Supabase Storage in all environments
 
-- **Status**: Accepted
+- **Status**: Superseded by [0009](0009-photos-stored-in-postgresql.md) on 2026-10-23, when the
+  Supabase project was switched off
 - **Date**: 2026-08-21
 - **Deciders**: Jefry Kurniawan
 - **Supersedes**: the *Photo storage* section of

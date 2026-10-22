@@ -32,6 +32,12 @@ read-only record of what was attempted, not the refusal mechanism, and unlike a 
 deliberately visible to an administrator.
 _Avoid_: Login history, audit log (generic)
 
+**Withdraw (asset)**:
+Taking an asset out of the register while keeping its record. A scan of its label still reaches a
+page that names the asset and says it was withdrawn, but it no longer appears in lists or reports,
+and its photos are no longer shown anywhere, to anyone.
+_Avoid_: Delete, retire, archive
+
 **Deactivate (master data)**:
 Marking a category, building, room, or funding source as no longer selectable for new records,
 without deleting it. Same word as user deactivation on purpose; context disambiguates.
