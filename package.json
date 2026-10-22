@@ -23,13 +23,12 @@
     "prepare": "husky"
   },
   "overrides": {
-    "deepmerge-ts": "^8.0.1",
     "postcss": "^8.5.26",
-    "sharp": "^0.35.3"
+    "sharp": "^0.35.5"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "7.9.1",
-    "@prisma/client": "7.9.1",
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
     "@supabase/supabase-js": "^2.112.3",
     "better-auth": "1.7.1",
     "browser-image-compression": "^2.0.2",
@@ -37,7 +36,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "nanoid": "^6.0.1",
-    "next": "15.5.23",
+    "next": "15.5.28",
     "next-intl": "^4.13.7",
     "radix-ui": "^1.6.7",
     "react": "19.1.0",
@@ -56,13 +55,13 @@
     "@vitest/coverage-v8": "^4.1.11",
     "auth": "1.7.1",
     "eslint": "^9.39.1",
-    "eslint-config-next": "15.5.23",
+    "eslint-config-next": "15.5.28",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
     "prettier": "^3.9.6",
-    "prisma": "7.9.1",
+    "prisma": "7.10.1",
     "shadcn": "^3.8.5",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.12",
