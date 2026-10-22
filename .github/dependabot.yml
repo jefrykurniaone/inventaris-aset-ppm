@@ -30,11 +30,12 @@ updates:
       - dependency-name: "@prisma/adapter-pg"
       - dependency-name: better-auth
       - dependency-name: auth
-    # prefix + include: scope gives "chore(deps): ..." for both runtime and
-    # development dependencies.
+    # Commits read "chore(deps): ..." for production and development
+    # dependencies alike. The scope is part of the prefix, not `include: scope`,
+    # which would give "chore(deps-dev)" for development dependencies. Dependabot
+    # adds the colon itself when the prefix ends with a closing parenthesis.
     commit-message:
-      prefix: chore
-      include: scope
+      prefix: "chore(deps)"
 
   - package-ecosystem: github-actions
     directory: /
@@ -47,6 +48,6 @@ updates:
         applies-to: version-updates
         patterns:
           - "*"
+    # Same prefix as npm: "chore(deps): ...".
     commit-message:
-      prefix: chore
-      include: scope
+      prefix: "chore(deps)"
