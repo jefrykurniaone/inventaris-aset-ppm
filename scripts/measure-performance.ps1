@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Scripted perf measurement against production (issue #89). Single-user,
+    Scripted perf measurement against a running instance (issue #89). Single-user,
     sequential, no load generation. Full method notes live in
     docs/performance-evidence.md; this header covers only what that doc
     does not already record.
@@ -28,7 +28,8 @@
     behaviour without that code path.
 
 .PARAMETER BaseUrl
-    Root URL of the deployment to measure. Defaults to production.
+    Root URL of the running application to measure. Defaults to the local
+    server, http://localhost:3000; there is no deployment to point it at.
 
 .PARAMETER Token
     A public scan token to measure directly, skipping discovery.
@@ -42,7 +43,7 @@
 #>
 
 param(
-    [string]$BaseUrl = "https://inventaris-aset-ppm.vercel.app",
+    [string]$BaseUrl = "http://localhost:3000",
     [string]$Token,
     [string]$LighthouseVersion = "13.4.1"
 )
@@ -89,7 +90,7 @@ function Get-RequiredEnvValue([string]$name) {
     return $value
 }
 
-# --- Retry wrapper: DNS to *.vercel.app flaps intermittently on this machine ---
+# --- Retry wrapper: kept from when DNS to the hosted deployment flapped intermittently on this machine ---
 function Invoke-WithRetry([scriptblock]$action, [string]$label) {
     $attempt = 0
     while ($true) {

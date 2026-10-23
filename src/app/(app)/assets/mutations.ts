@@ -73,11 +73,11 @@ type IssueCodeResult =
  *
  * `pg_advisory_xact_lock` is what makes two simultaneous creates safe, and it
  * is transaction-scoped rather than session-scoped on purpose: Postgres
- * releases it at commit or rollback, so it is correct behind Supabase's
- * transaction pooler, where a session-scoped lock could outlive the pooled
- * connection's association with this request and never be released. It costs
- * no schema change — the alternative, a counter table, is a new model and a
- * new migration, and issue #21 reserves the application schema for #3.
+ * releases it at commit or rollback, so it is correct behind any connection
+ * pooler in transaction mode, where a session-scoped lock could outlive the
+ * pooled connection's association with this request and never be released. It
+ * costs no schema change — the alternative, a counter table, is a new model
+ * and a new migration, and issue #21 reserves the application schema for #3.
  *
  * The namespace is read off `assetCode` itself, not off the `categoryId` and
  * `acquisitionYear` columns. Those two stay editable after creation while the

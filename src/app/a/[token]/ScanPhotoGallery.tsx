@@ -24,17 +24,17 @@ import { SELECTED_PHOTO_PARAM } from "./schemas";
  * 1200x1600 for a slot 380 CSS px wide under Lighthouse's mobile profile, and
  * it came from the storage host — a second origin, so a DNS, TCP and TLS
  * handshake stood in front of the first byte. The route measured 2694-2917 ms
- * LCP against a 2500 ms budget.
+ * LCP against a 2500 ms budget. (That host was a Supabase bucket; photos now
+ * live in PostgreSQL and are served from this application's own origin, ADR
+ * 0009, so the second origin is gone and the byte cost below is what remains.)
  *
  * So this is the one photo surface here that goes through the optimiser.
- * `/_next/image` is same-origin, which reuses the connection the document
- * already opened, and the 750 px candidate the mobile profile picks measured
- * 24,586 bytes against the original's 125,866 — 80% less. PRD risk R2 is not
- * crossed by that: R2 is about Supabase egress, and the optimiser lowers it.
- * Stored objects carry `Cache-Control: public, max-age=31536000, immutable`,
- * Vercel's image cache takes the larger of that and `minimumCacheTTL`, and the
- * object paths are content-addressed and never rewritten — so each
- * (photo, width) pair is fetched out of the bucket once and never again.
+ * Next's image optimiser fetches the full-size photo from the local
+ * `/api/photos/<id>/full` route (`images.localPatterns` in `next.config.ts`
+ * allows nothing else), and `/_next/image` is same-origin, which reuses the
+ * connection the document already opened. The 750 px candidate the mobile
+ * profile picks measured 24,586 bytes against the original's 125,866 — 80%
+ * less, which matters on mobile data.
  *
  * The thumbnails stay `unoptimized`. A 400 px WebP drawn at 64 px is already
  * small, it is lazy, and it is not the LCP element — optimising it would buy

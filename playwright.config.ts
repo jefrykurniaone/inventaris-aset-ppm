@@ -9,9 +9,10 @@ import { defineConfig, devices } from "@playwright/test";
  * indistinguishable from "no tests" to this runner.
  *
  * **`PLAYWRIGHT_BASE_URL` also decides whether a server is started.** The
- * deployment cutover (issue #17) runs this same smoke path against a deployed
- * Vercel preview, where starting `npm run dev` would be worse than pointless:
- * Playwright would wait on a local port no test ever visits, and
+ * deployment cutover (issue #17) ran this same smoke path against a deployed
+ * Vercel preview, which no longer exists; the variable still points the suite
+ * at any server somebody else runs. Starting `npm run dev` there would be worse
+ * than pointless: Playwright would wait on a local port no test ever visits, and
  * `reuseExistingServer` would quietly accept whatever unrelated development
  * server happened to be listening on it. When the variable is set, the target
  * is somebody else's server and this config starts none. Unset — CI, and every

@@ -50,8 +50,10 @@ const ACTIVITY_EVENT_TYPE_SET: ReadonlySet<string> = new Set(
 
 /** Event types whose payload carries nothing the timeline displays beyond
  * the event itself — `created`/`deleted`'s `assetCode` and
- * `photo_added`/`photo_removed`'s object path are not shown, since the page
- * they describe already names the asset and never a stored file name. */
+ * `photo_added`/`photo_removed`'s `photoId` are not shown, since the page
+ * they describe already names the asset and never a stored file name. Older
+ * payloads also carry an `objectPath`, from before photos moved into
+ * PostgreSQL (ADR 0009); it is ignored the same way. */
 export type SimpleActivityEventType = Exclude<
   ActivityEventType,
   "status_changed" | "updated"

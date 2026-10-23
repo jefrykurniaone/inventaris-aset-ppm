@@ -12,9 +12,12 @@
  *    carries a per-request nonce and `next.config.ts` is evaluated once at
  *    build time.
  *
- * `Strict-Transport-Security` is **not** here. Vercel already serves
- * `max-age=63072000; includeSubDomains; preload` on this deployment, and a
- * second one would only be a duplicate to keep in step.
+ * `Strict-Transport-Security` is **not** here. There is no deployment (ADR
+ * 0009): the application runs locally with `next dev` or `next start`, which
+ * serve plain HTTP, and nothing in front of it terminates TLS. Browsers ignore
+ * the header on an HTTP response, and on `localhost` it would only risk pinning
+ * the host to HTTPS. A deployment that terminates TLS decides it, and sets it
+ * where it terminates.
  */
 
 /**
