@@ -16,7 +16,6 @@
     "auth:generate": "npx --no auth generate --adapter prisma --yes --output prisma/models/auth.prisma",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:e2e-master-data": "tsx scripts/seed-e2e-master-data.ts",
-    "storage:purge:dev": "tsx scripts/purge-dev-storage-bucket.ts",
     "check:encoding": "git ls-files -z | tsx scripts/check-encoding.ts",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
@@ -29,7 +28,6 @@
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
-    "@supabase/supabase-js": "^2.118.0",
     "better-auth": "1.7.1",
     "browser-image-compression": "^2.0.2",
     "class-variance-authority": "^0.7.1",
