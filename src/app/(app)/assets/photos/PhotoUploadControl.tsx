@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { useId, type ChangeEvent } from "react";
 
 import { Button } from "@/components/ui/button";
-import { PHOTO_CONTENT_TYPES } from "@/lib/photo-upload";
+import { MAX_PHOTOS_PER_ASSET, PHOTO_CONTENT_TYPES } from "@/lib/photo-upload";
 
 import type { PhotoUploadPhase } from "./run-photo-upload";
 
@@ -82,7 +82,11 @@ export function PhotoUploadControl({
   }
 
   if (isFull) {
-    return <p className="text-muted-foreground text-sm">{t("limitReached")}</p>;
+    return (
+      <p className="text-muted-foreground text-sm">
+        {t("limitReached", { max: MAX_PHOTOS_PER_ASSET })}
+      </p>
+    );
   }
 
   return (
