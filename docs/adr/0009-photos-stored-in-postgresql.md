@@ -117,6 +117,16 @@ backfilled. The seed recreates the demonstration photos.
 - **Caching has no CDN.** The immutable cache header covers browsers only.
 - **Withdrawing an asset does not reach browser caches.** A browser that cached a photo before its
   asset was withdrawn keeps that copy.
+- **Withdrawing an asset, or deleting a photo, does not reach the image optimiser's copy of the scan
+  hero** (recorded 2026-10-23, #171). The optimiser keeps its optimised copy in `.next/cache/images`
+  on the server, and still answers `/_next/image?url=/api/photos/<id>/full&...` with 200 to anyone
+  who requests it, with no time bound. In `next@15.5.28` an expired entry is served stale at once
+  and revalidated in the background; the revalidation fails because the upstream now answers 404,
+  and a failed revalidation writes the previous entry back with a `revalidate` of 3 to 30 seconds,
+  so it stays. A shorter `max-age` on the `full` variant would therefore not bound it. The remedy is
+  to clear `.next/cache/images` while the server is stopped. This is accepted because the photo was
+  public on the scan page while the asset was live, and the URL embeds a random photo id that only
+  that page exposed.
 - **Hosting is undecided.** There is no deployment target, and choosing one later needs its own ADR.
   A serverless host would bring the 4.5 MB request limit back into play, which the upload cap
   already respects. It would also bring database size quotas, which this decision does not address.
