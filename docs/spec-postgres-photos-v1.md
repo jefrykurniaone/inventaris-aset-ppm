@@ -1,6 +1,6 @@
 # Spec v1 - Postgres photos: store photos in PostgreSQL and retire the deployment target
 
-> Tracker: Spec [#161](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/161) · Execution map: pending · Run label `run:postgres-photos` · Problem issue [#155](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/155) · Folded-in issue [#148](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/148) · Decision record [ADR 0009](adr/0009-photos-stored-in-postgresql.md).
+> Tracker: Spec [#161](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/161) · Execution map [#167](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/167) · Tickets [#163](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/163), [#164](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/164), [#165](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/165), [#166](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/166) · Run label `run:postgres-photos` · Problem issue [#155](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/155) · Folded-in issue [#148](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/148) · Decision record [ADR 0009](adr/0009-photos-stored-in-postgresql.md).
 > Point-in-time copy of the spec item as of 2026-10-23, against `main` at `f630bad`. The spec item is the one written copy.
 
 ## Problem statement
