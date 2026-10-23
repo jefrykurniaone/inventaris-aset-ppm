@@ -20,12 +20,6 @@ env:
   BETTER_AUTH_SECRET: ci-placeholder-secret-not-used-at-build-time
   BETTER_AUTH_URL: http://localhost:3000
   NEXT_PUBLIC_APP_URL: http://localhost:3000
-  # Storage is Supabase in every environment (ADR 0005), but CI runs no e2e and
-  # holds no Supabase secrets, so these only need to be present and well-formed
-  # for type-checking and the build. Nothing in CI reaches the network.
-  SUPABASE_URL: https://ci-placeholder.supabase.co
-  SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key-not-used-at-build-time
-  SUPABASE_STORAGE_BUCKET: asset-photos-dev
 
 jobs:
   verify:
@@ -117,15 +111,22 @@ jobs:
     name: End-to-end smoke test
     runs-on: ubuntu-latest
     needs: verify
-    # Same pattern as `sonar`'s `HAS_SONAR_TOKEN` below: an expression in
-    # `env` may read `secrets`, a step-level `if` may not, so the workflow
-    # stays green before every secret this job needs has been provisioned.
-    # The smoke path (`e2e/photo-upload.spec.ts`,
-    # `e2e/label-printing.spec.ts`) performs a real sign-in and a real
-    # Supabase Storage upload (ADR 0005: there is no local storage driver),
-    # neither of which this repository's CI has held secrets for until now.
+    # Runs on every pull request and needs no secret and no external service:
+    # photos are stored in PostgreSQL (ADR 0009), so the smoke path
+    # (`e2e/photo-upload.spec.ts`, `e2e/label-printing.spec.ts`) — a real
+    # sign-in, a real upload, a real read back — runs against the `postgres`
+    # service container below.
     env:
-      HAS_E2E_SECRETS: ${{ secrets.E2E_EMAIL != '' && secrets.E2E_PASSWORD != '' && secrets.SUPABASE_URL != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+      # The seeded administrator and the account Playwright signs in as are
+      # the same one, so the pair is declared here once and read by both the
+      # seed step (`SEED_ADMIN_*`) and the Playwright step. Literals are safe
+      # because the database they unlock is a throwaway service container that
+      # is destroyed when the job ends, is not reachable from outside the
+      # runner, and holds nothing but this run's seed data — the same
+      # reasoning as `BETTER_AUTH_SECRET` below. They are not the credentials
+      # of any deployment.
+      E2E_EMAIL: e2e-admin@example.invalid
+      E2E_PASSWORD: e2e-throwaway-password-not-used-in-any-deployment
       # A local, ephemeral database for this job only — not a secret. Both
       # point at the `postgres` service container below, same as `verify`'s
       # placeholders point nowhere; the difference here is that migrations
@@ -138,9 +139,6 @@ jobs:
       BETTER_AUTH_SECRET: ci-e2e-session-signing-secret-not-used-in-any-deployment
       BETTER_AUTH_URL: http://localhost:3000
       NEXT_PUBLIC_APP_URL: http://localhost:3000
-      # Not sensitive — the same literal `verify` uses above, and ADR 0005's
-      # actual development bucket name.
-      SUPABASE_STORAGE_BUCKET: asset-photos-dev
     services:
       postgres:
         image: postgres:17
@@ -157,29 +155,23 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@v7
-        if: env.HAS_E2E_SECRETS == 'true'
 
       - uses: actions/setup-node@v7
-        if: env.HAS_E2E_SECRETS == 'true'
         with:
           node-version: 24
           cache: npm
 
       # Same `--ignore-scripts` reasoning as `verify`'s install step.
       - name: Install dependencies
-        if: env.HAS_E2E_SECRETS == 'true'
         run: npm ci --ignore-scripts
 
       - name: Install Playwright browsers
-        if: env.HAS_E2E_SECRETS == 'true'
         run: npx --no playwright install --with-deps chromium
 
       - name: Generate Prisma client
-        if: env.HAS_E2E_SECRETS == 'true'
         run: npx --no prisma generate
 
       - name: Run migrations against the CI database
-        if: env.HAS_E2E_SECRETS == 'true'
         run: npx --no prisma migrate deploy
 
       # Seeds the exact account `E2E_EMAIL`/`E2E_PASSWORD` sign in as
@@ -189,22 +181,16 @@ jobs:
       # safeguard that exists is "never seed a deployment by accident", and
       # this database is neither.
       #
-      # `SEED_SKIP_PHOTOS=true` (issue #16 hand-back 1): this job's photo
-      # phase must not run here, but `prisma/seed-data/photo-writer.ts`'s
-      # `hasStorageConfig` presence check cannot tell that on its own — the
-      # workflow-level `env:` block at the top of this file sets
-      # `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` to well-formed placeholder
-      # values for every job, this one included, so presence-sniffing alone
-      # reads "configured" here and the seed tried to upload to
-      # `ci-placeholder.supabase.co` and failed with `fetch failed`. This
-      # flag is the explicit, non-inferred instruction to skip; it is what
-      # decides, not whether real secrets happen to be present on this step.
+      # `SEED_SKIP_PHOTOS=true` (issue #16 hand-back 1): the smoke path
+      # uploads its own photo, so the demonstration dataset's photos are left
+      # out. It is the explicit instruction to skip
+      # (`prisma/seed-data/photo-writer.ts`), not something inferred from the
+      # environment.
       - name: Seed the first administrator
-        if: env.HAS_E2E_SECRETS == 'true'
         run: npm run db:seed
         env:
-          SEED_ADMIN_EMAIL: ${{ secrets.E2E_EMAIL }}
-          SEED_ADMIN_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+          SEED_ADMIN_EMAIL: ${{ env.E2E_EMAIL }}
+          SEED_ADMIN_PASSWORD: ${{ env.E2E_PASSWORD }}
           SEED_SKIP_PHOTOS: "true"
 
       # `npm run db:seed` above seeds only the administrator; the asset
@@ -214,30 +200,21 @@ jobs:
       # that does not exist (issue #70). The full demonstration dataset is
       # issue #16's — this step seeds only what the smoke path needs.
       - name: Seed master data for the smoke path
-        if: env.HAS_E2E_SECRETS == 'true'
         run: npm run db:seed:e2e-master-data
 
+      # `E2E_EMAIL`/`E2E_PASSWORD` come from the job's `env` above. Without
+      # them both specs skip themselves, which `--pass-with-no-tests` would
+      # report as a pass — so they must stay declared there.
       - name: Run the Playwright smoke path
-        if: env.HAS_E2E_SECRETS == 'true'
         run: npm run test:e2e
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
-          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
 
       - name: Upload the Playwright report
-        if: ${{ !cancelled() && env.HAS_E2E_SECRETS == 'true' }}
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
-
-      - name: Report that the smoke test was skipped
-        if: env.HAS_E2E_SECRETS != 'true'
-        run: |
-          echo "::warning title=End-to-end smoke test not run::E2E_EMAIL, E2E_PASSWORD, SUPABASE_URL, or SUPABASE_SERVICE_ROLE_KEY is not set, so the Playwright smoke path did not run. See CLAUDE.md and docs/prd.md §7.2."
 
   sonar:
     name: SonarQube Cloud
