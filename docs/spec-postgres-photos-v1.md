@@ -106,7 +106,7 @@ The object-path columns on the photo row are dropped. The photo row keeps its me
 
 ### Existing photo rows
 
-- **The migration deletes every existing photo row.** Their objects can no longer be fetched. As of 2026-10-23 the local development database holds 20 such rows across 15 assets, and the deployment database is gone.
+- **The migration deletes every existing photo row.** Their objects can no longer be fetched. As of 2026-10-23 the local development database holds 20 such rows across 15 assets, and the deployment database is gone. *(Delivered as `TRUNCATE TABLE "asset_photo"` rather than a `DELETE`, because SonarQube Cloud fails an unbounded `DELETE` as a blocker bug. The 20 rows across 15 assets were removed when the migration was applied locally. See the delivery notes.)*
 - **Those assets then count as "missing photo",** which is true.
 - **The seed restores the demo photos.**
 - **Activity is left alone.** Activity rows that recorded those photos are append-only and are not touched. New photo activity records the photo id only.
@@ -124,8 +124,8 @@ It has no delete operation: deleting the photo row cascades to its content. The 
 
 A route handler accepts one multipart request per photo, carrying the full image, the thumbnail and the dimensions the browser reports. The browser sends it with XHR, so progress and cancellation keep working. The handler does five things, in order:
 
-1. It requires a signed-in user.
-2. It refuses a request whose `Origin` is not the application's own, because a route handler gets none of the built-in CSRF protection a server action has.
+1. It requires a signed-in user. *(Delivered with the same session rule the photo actions use, answering 401 instead of redirecting, because an XHR would follow the redirect and re-send the photo.)*
+2. It refuses a request whose `Origin` is not the application's own, because a route handler gets none of the built-in CSRF protection a server action has. *(Delivered stricter than the server-action check: a missing, `null` or unparseable `Origin` is refused too.)*
 3. It refuses a body over a named cap of about 3.2 MB with 413, before reading the whole body. The cap is two derivatives at the 1.5 MB ceiling plus multipart overhead, and it stays under the 4.5 MB request limit of serverless hosts, so moving to such a host later remains possible.
 4. It determines each derivative's type from its leading bytes (JPEG, PNG or WebP), refuses anything else and any declared type that disagrees, and measures each size itself.
 5. Inside one transaction, it locks the live asset, enforces the five-photo limit, creates the photo row, writes its content and records the activity.
@@ -147,14 +147,14 @@ A public route handler answers `GET` for one variant of one photo:
   - `Cache-Control: public, max-age=31536000, immutable`, because a photo id's bytes never change and a replaced photo gets a new id;
   - `X-Content-Type-Options: nosniff`;
   - `Content-Security-Policy: default-src 'none'; sandbox`, because the application's origin now serves content that users supplied.
-- **Copies cached earlier may persist.** A browser that cached a photo before its asset was withdrawn may keep showing it from its cache. This is accepted.
+- **Copies cached earlier may persist.** A browser that cached a photo before its asset was withdrawn may keep showing it from its cache. This is accepted. *(The run found a second cache this rule does not cover. The image optimiser keeps its server-side copy of the scan hero for the upstream `max-age`, so after a withdrawal `/_next/image?url=/api/photos/…` still answered 200 while both photo addresses answered 404. Filed as #171 for the owner's decision. See the delivery notes.)*
 - **The route sits under a path the request middleware does not process.**
 
 ### Rendering
 
 - **Every surface that shows a photo uses the application's own photo address.**
 - **The scan page's full-size hero is still optimised by `next/image`,** now reading from the local route. Every other surface stays unoptimised, as today.
-- **The image configuration lists no remote pattern.** Whether the hero needs a local pattern declared is to be looked up in the Next.js 15 documentation, not assumed.
+- **The image configuration lists no remote pattern.** Whether the hero needs a local pattern declared is to be looked up in the Next.js 15 documentation, not assumed. *(The hero needs none, because every local path is allowed while `images.localPatterns` is unset. One was declared anyway to narrow the optimiser: `/api/photos/**` with no query string. Any other local path now answers 400 through `/_next/image`.)*
 - **The Content Security Policy drops the Supabase host** from `img-src` and `connect-src`.
 - **The source comment that says the origin serves no user-supplied content is corrected.**
 
@@ -173,7 +173,7 @@ These are unchanged:
 - The signed-upload-URL code path, in both the browser and the server.
 - The development-bucket purge script and its npm script.
 - The storage verification script.
-- Every `SUPABASE_*` variable: in code, in the example environment file, in CI and in the documents.
+- Every `SUPABASE_*` variable: in code, in the example environment file, in CI and in the documents. *(Delivered for every variable that is read. Two literal names remain: a test fixture in `src/lib/seed-admin.test.ts`, tracked in #170, and a comment in an applied migration, which Prisma checksums.)*
 - `vercel.json`, whose cron existed only to keep Supabase awake.
 - The Vercel protection-bypass headers in the Playwright configuration.
 - The deployment runbook and the storage provisioning guide.
@@ -186,7 +186,7 @@ The health route stays.
 - **The smoke spec checks the new photo path end to end:**
   - a photo's address is the application's own route and answers with an image;
   - the scan page's hero loads through the optimiser;
-  - a deleted photo's address answers 404 at once.
+  - a deleted photo's address answers 404 at once. *(Removing the 90-second poll exposed a defect in the shared delete helper. While the confirm dialog was open, Radix's `aria-hidden` hid the card, so "card gone" passed before the delete was sent. The helper now waits for the server action's response and for the dialog to close.)*
 
 ### Documents
 
@@ -228,20 +228,20 @@ Prior art in the repository:
 
 ## Success criteria
 
-- **Photos work offline.** With only the local database and no network, a staff member can add, view, set primary, reorder and delete photos, and the scan page shows them.
+- **Photos work offline.** With only the local database and no network, a staff member can add, view, set primary, reorder and delete photos, and the scan page shows them. *(Adding, viewing, deleting and the scan page were walked on the dev server against the local database. Set primary and reorder are unchanged server actions, covered by unit tests and not walked.)*
 - **The pipeline is green.**
   - The completion gate passes: typecheck, lint, unit tests and build.
   - The production-scope audit passes.
   - The end-to-end job runs and passes on the pull request, with no skip warning.
 - **Supabase is gone from live code and configuration.**
   - No file in the repository imports a Supabase client.
-  - No `SUPABASE_` name remains outside historical records: ADRs, delivered spec mirrors and evidence documents.
+  - No `SUPABASE_` name remains outside historical records: ADRs, delivered spec mirrors and evidence documents. *(Not fully met. The `SUPABASE_POOLER_URL` test fixture and stale code comments remain, outside every ticket's `writes:`. #170 tracks them. No `SUPABASE_*` environment variable is read anywhere.)*
 - **The image configuration contains no remote pattern.**
 - **The serving rule holds.**
-  - A photo of a withdrawn asset answers 404.
+  - A photo of a withdrawn asset answers 404. *(Met for both photo addresses. The optimiser's cached copy of the hero is #171.)*
   - A photo of a live asset answers 200 with an immutable cache header and a restrictive Content Security Policy.
 - **A disguised file is refused.** A file renamed to `.webp` that is not WebP is refused with the localised unsupported-format message.
-- **The seed restores the demo photos:** `db:seed` on a reset database recreates them.
+- **The seed restores the demo photos:** `db:seed` on a reset database recreates them. *(Met with 20 `asset_photo` rows and 20 `asset_photo_content` rows. Prisma 7.10.1's `migrate reset` does not seed by itself, so `db:seed` runs explicitly.)*
 - **The records are updated.**
   - ADR 0009 exists and ADR 0005 is marked superseded.
   - ADR 0003's status reflects its lapsed deployment half.
@@ -261,3 +261,87 @@ Prior art in the repository:
 - **#148 is folded in.** It is closed as superseded when the ticket that empties the remote allow-list merges.
 - **Some history mentions the switch-off and is left as it is.** As of 2026-10-23, ADR 0008 and the dependency-security spec mirror record the switch-off and the deleted CI secrets. They are history and are not edited.
 - **Photo addresses stay unguessable in practice.** A photo id is a UUIDv7 with 74 random bits, which is the same exposure model the public bucket had.
+
+## Delivery notes
+
+Run `postgres-photos`, execution map #167, closed 2026-10-23.
+
+### What landed
+
+| Ticket | Pull request | Merge commit | What |
+|---|---|---|---|
+| — | #162 | `a65a61d` | The spec mirror, ADR 0009 (supersedes ADR 0005), the ADR 0003 status line and the glossary entry "Withdraw (asset)". |
+| — | #168 | `1e521d7` | The mirror's header link to map #167 and its tickets. |
+| #163 | #169 | `56d106d` | The `asset_photo_content` side table and migration `20261023004951_asset_photo_content`. The two-operation seam in `src/lib/storage.ts`. `POST /api/assets/[id]/photos` and `GET /api/photos/[photoId]/[variant]`. The one-request XHR upload. Read sites built from the photo id. The seed writing through the seam. `@supabase/supabase-js`, the purge and verification scripts and `storage:purge:dev` removed. |
+| #164 | #173 | `d01a345` | No `images.remotePatterns`. `images.localPatterns` set to `/api/photos/**` with no query string. The Supabase host dropped from `img-src` and `connect-src`, with the comment corrected. Closes #148 as superseded. |
+| #165 | #174 | `b114fa8` | The end-to-end job without its secret gate. Throwaway literal credentials, declared once. Specs that follow the new photo path. No Vercel bypass headers. |
+| #166 | #175 | `9968c41` | `CLAUDE.md`, `README.md`, `.env.example`, the SonarCloud notes and the PRD, under a revision note dated 2026-10-23. `docs/deployment.md`, `docs/supabase-storage-provisioning.md` and `vercel.json` deleted. |
+
+**Gates.** Both batches ran the whole main-tree gate on the local merge, and `main` received an identical tree through `gh pr merge --merge`. The gate covers:
+
+- `@prisma/client` presence
+- `check:encoding`
+- `generate`
+- `typecheck`
+- `lint`
+- `test -- --coverage`
+- `build`
+- `format`
+- `npm audit --omit=dev`
+
+The two runs:
+
+- **Wave 1** on `9976fec`: 1267 tests, audit 0.
+- **Wave 2** on `b39ae68`: 1268 tests, audit 0.
+
+On every pull request, CI was green and SonarCloud showed 0 issues.
+
+### Against the implementation decisions
+
+- **Migration.** It was authored without a database, with `prisma migrate diff --from-schema … --to-schema prisma --script` plus a hand-written first statement. It was applied to the development database with `migrate deploy`. The partial unique index `asset_photo_primary_uidx` survived.
+- **Upload route.** Steps run in this order, and each answers with a localised message and never internal error text:
+  1. session check, or 401
+  2. `Origin` check, or 403
+  3. body cap of 3.2 MB, checked on `Content-Length` and again while reading, or 413
+  4. Zod validation, or 400
+  5. type detection from the leading bytes, or 415 / 413 / 400
+  6. one transaction, or 409 at the limit
+
+  Ids are validated as UUIDs before any database access. The browser now also checks a picked file's leading bytes with the same detector. Without that, a disguised file failed in compression with the generic message instead of `unsupportedFormat`.
+- **Serving route.** It sends all five headers and is `force-dynamic`. A refusal answers `no-store`, so only bytes are ever cached.
+- **Runtime walks.** Both ran on the local dev server, driven by Playwright MCP, and every criterion passed.
+  - **#163:**
+    - progress, then a card whose `src` is under `/api/photos/`
+    - exact headers
+    - every surface showed the photo
+    - a disguised `x.webp` was refused in the UI and with a 415 from the server
+    - 404 immediately after a delete and after a withdrawal
+    - the seed gave 20 = 20
+  - **#164:**
+    - a remote URL through `/_next/image` answered 400
+    - the hero answered 200
+    - the CSP has no `supabase`
+    - 0 console errors
+- **CI end-to-end.** The `End-to-end smoke test` job runs Playwright on every pull request, 2 passed, with no "not run" warning.
+
+### What the run reversed or changed
+
+- **`DELETE` became `TRUNCATE`.** This was hand-back 1 on #163, from SonarQube Cloud's `plsql:DeleteOrUpdateWithoutWhereCheck` blocker. The development database was reset and seeded again, with the owner's consent, so that the applied checksum matches the final file.
+- **Two ticket criteria were corrected.** Their premise reached files outside the ticket's `writes:`:
+  - #163's "no `SUPABASE_` name remains" became "no `SUPABASE_` environment variable is read".
+  - #166's grep criteria were scoped to its own surface and `docs/`.
+- **Nothing was published by direct push.** The `Protect main` ruleset requires a pull request. With strict status checks, #174 and #175 were brought up to date with `main` and passed CI again before each merged.
+
+### Follow-ups filed (outside this run)
+
+- **#170:** stale Supabase, bucket and Vercel wording in code comments, the `scripts/measure-performance.ps1` default URL, and the seed-admin test fixture's wording.
+- **#171:** the image optimiser's server-side cache keeps serving a withdrawn asset's or deleted photo's hero. The owner decides.
+- **#172:** two xlsx compression tests time out under machine load. This is the previously unattributed flake, now captured.
+
+### Steps handed to the owner
+
+These are owned by jefrykurniaone, after the map closes:
+
+1. Add `End-to-end smoke test` as a required status check on `main`.
+2. Delete the Vercel project and the local `.vercel/` link.
+3. Remove `SUPABASE_*` and `VERCEL_OIDC_TOKEN` from the local `.env.local`.
