@@ -2,7 +2,11 @@ import {
   buildCompressionOptions,
   PHOTO_OUTPUT_CONTENT_TYPE,
 } from "@/lib/photo-compression";
-import { isHeicFile, isPhotoContentType } from "@/lib/photo-upload";
+import {
+  detectPhotoContentType,
+  isHeicFile,
+  isPhotoContentType,
+} from "@/lib/photo-upload";
 
 /**
  * Turning one picked file into the two objects that get uploaded
@@ -46,6 +50,10 @@ export interface PreparePhotoHooks {
 
 const PERCENT = 100;
 
+/** Enough leading bytes to tell the three allowed formats apart: a WebP is
+ * only recognisable once its form type at offset 8 has been read. */
+const SIGNATURE_BYTES = 12;
+
 /**
  * The compression library is loaded on the first pick, not with the page.
  *
@@ -63,9 +71,9 @@ async function loadCompressor() {
  * Refuses a file no browser can decode, before a compression pass turns the
  * refusal into an opaque canvas error.
  *
- * An empty `File.type` is not refused outright: Windows and some Android
- * browsers report nothing for a perfectly ordinary JPEG, and the compression
- * step will fail loudly enough if the file really is not an image.
+ * An empty `File.type` is not refused here: Windows and some Android browsers
+ * report nothing for a perfectly ordinary JPEG. `hasPhotoSignature` below
+ * reads the file itself instead.
  */
 function assertPreparable(file: File): void {
   if (isHeicFile(file.name, file.type)) {
@@ -74,6 +82,22 @@ function assertPreparable(file: File): void {
   if (file.type !== "" && !isPhotoContentType(file.type)) {
     throw new PhotoPreparationError("UNSUPPORTED_FORMAT");
   }
+}
+
+/**
+ * Whether the picked file's leading bytes are a JPEG, PNG or WebP — the same
+ * `detectPhotoContentType` the upload route runs on what it receives.
+ *
+ * A file whose name or reported type claims to be an image while its bytes
+ * are something else (a text file renamed `x.webp`) would otherwise reach the
+ * compressor and fail there as an undecodable image, which the user would see
+ * as a generic upload failure. Checked here, it is named for what it is: an
+ * unsupported format. The server repeats the check on the derivatives, so this
+ * is a courtesy, not the control.
+ */
+export async function hasPhotoSignature(file: Blob): Promise<boolean> {
+  const head = await file.slice(0, SIGNATURE_BYTES).arrayBuffer();
+  return detectPhotoContentType(new Uint8Array(head)) !== null;
 }
 
 /** The stored dimensions (FR-4.3), measured on the compressed image rather
@@ -102,6 +126,9 @@ export async function preparePhoto(
   hooks: PreparePhotoHooks = {},
 ): Promise<PreparedPhoto> {
   assertPreparable(file);
+  if (!(await hasPhotoSignature(file))) {
+    throw new PhotoPreparationError("UNSUPPORTED_FORMAT");
+  }
   const imageCompression = await loadCompressor();
 
   const full = await imageCompression(
