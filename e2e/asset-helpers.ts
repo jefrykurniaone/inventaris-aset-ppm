@@ -37,27 +37,29 @@ export const MISSING_CREDENTIALS_REASON =
  * How long a create submission may take before the list appears.
  *
  * Since issue #85 that one submission carries the row write, a real
- * compression pass in a Web Worker, and two real uploads to Singapore — so
- * this is the budget the create step spends, not the edit page's.
+ * compression pass in a Web Worker, and the multipart upload to the
+ * application's own photo route (ADR 0009) — so this is the budget the create
+ * step spends, not the edit page's.
  */
 const UPLOAD_TIMEOUT_MS = 45_000;
 
 /**
  * Longer than Playwright's 30 s default, because either test performs a real
  * sign-in, a real asset create with a real upload, and several real reads
- * back. It has to exceed every wait inside a test added together, or a slow
- * link fails the whole test rather than the step that was actually slow.
+ * back — on a development server that compiles each route on first visit. It
+ * has to exceed every wait inside a test added together, or a slow runner
+ * fails the whole test rather than the step that was actually slow.
  */
 export const TEST_TIMEOUT_MS = 180_000;
 
 /** A 1x1 WebP. Small on purpose: what is being proven is that the pipeline
- * reaches storage, not that the compressor works, and the compressor runs on
- * this file exactly as it would on a phone photo. */
+ * reaches the database, not that the compressor works, and the compressor runs
+ * on this file exactly as it would on a phone photo. */
 const ONE_PIXEL_WEBP_BASE64 =
   "UklGRhwAAABXRUJQVlA4TA8AAAAvAAAAAAfQ//73v/+BiOh/AAA=";
 
-/** Only ever seen by the picker. The object path in the bucket is built
- * server-side from the asset id, so nothing downstream reads this name. */
+/** Only ever seen by the picker. The stored photo is addressed by its own id,
+ * so nothing downstream reads this name. */
 const PIXEL_FILE_NAME = "e2e-pixel.webp";
 
 /**
@@ -215,8 +217,7 @@ export async function createAssetWithPhoto(
   // one re-renders the form with inline errors and never navigates, and a
   // create whose photo failed replaces the form with the "asset saved, photo
   // not uploaded" notice and stays put — so this one wait is the assertion
-  // that every required field was filled *and* that the photo reached
-  // storage.
+  // that every required field was filled *and* that the photo was stored.
   await page.waitForURL("**/assets", { timeout: UPLOAD_TIMEOUT_MS });
 }
 
@@ -278,8 +279,22 @@ export async function findTheOnlyPhotoCard(page: Page): Promise<Locator> {
   return photoCard;
 }
 
+/** The public scan URL, read off the asset detail page's own link rather than
+ * built from the database — proving the page the user would actually click
+ * resolves to a working scan, not merely that `buildScanUrl` is correct in
+ * isolation. Expects the page to be `/assets/<id>`. */
+export async function readScanUrl(page: Page): Promise<string> {
+  const link = page.locator('a[href*="/a/"]');
+  await expect(link).toHaveCount(1);
+  const href = await link.getAttribute("href");
+  if (!href) {
+    throw new Error("e2e/asset-helpers: scan link has no href");
+  }
+  return href;
+}
+
 /** Deletes a photo through the interface, confirmation dialog and all, so the
- * run leaves nothing behind in the bucket. */
+ * run leaves no photo row behind. */
 export async function deletePhotoCard(
   page: Page,
   photoCard: Locator,
