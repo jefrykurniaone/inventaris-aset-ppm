@@ -28,7 +28,8 @@
     behaviour without that code path.
 
 .PARAMETER BaseUrl
-    Root URL of the deployment to measure. Defaults to production.
+    Root URL of the running application to measure. Defaults to the local
+    server, http://localhost:3000; there is no deployment to point it at.
 
 .PARAMETER Token
     A public scan token to measure directly, skipping discovery.
@@ -42,7 +43,7 @@
 #>
 
 param(
-    [string]$BaseUrl = "https://inventaris-aset-ppm.vercel.app",
+    [string]$BaseUrl = "http://localhost:3000",
     [string]$Token,
     [string]$LighthouseVersion = "13.4.1"
 )

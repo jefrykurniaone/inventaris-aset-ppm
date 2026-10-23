@@ -14,9 +14,10 @@ import { CreateAssetForm } from "./CreateAssetForm";
  * so there is nothing here for a bypassed client to submit.
  *
  * The first photo is optional and is attached in the same submission (issue
- * #85). It is `CreateAssetForm` that does that, because the object path is
- * keyed by the asset id: the row is written first, then the browser uploads
- * against the id the action returned, then the page navigates.
+ * #85). It is `CreateAssetForm` that does that, because the upload route is
+ * addressed by the asset id (`POST /api/assets/[id]/photos`): the row is
+ * written first, then the browser uploads against the id the action returned,
+ * then the page navigates.
  */
 export default async function NewAssetPage() {
   await requireUser();

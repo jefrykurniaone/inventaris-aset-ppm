@@ -8,8 +8,9 @@ import { PhotoGalleryClient } from "./PhotoGalleryClient";
  * images, primary photo first — `findAssetPhotoContext` already orders them
  * that way (PRD FR-4.1) — with a keyboard-operable lightbox. Reuses the
  * photo pipeline's own read (issue #9) rather than a second query, so the
- * URL-building rule in `../photos/queries.ts` (object path in the database,
- * URL built at render time through `src/lib/storage.ts`) is exercised once.
+ * URL-building rule in `../photos/queries.ts` (the bytes live in PostgreSQL,
+ * the address is built from the photo id by `src/lib/photo-address.ts`) is
+ * exercised once.
  *
  * Every localised string a Client Component needs is resolved here, on the
  * server, and passed down as plain data — a function (a translator

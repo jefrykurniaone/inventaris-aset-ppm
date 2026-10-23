@@ -101,7 +101,7 @@ export async function hasPhotoSignature(file: Blob): Promise<boolean> {
 }
 
 /** The stored dimensions (FR-4.3), measured on the compressed image rather
- * than on the source, so the row describes the object in the bucket. */
+ * than on the source, so the row describes the bytes stored in PostgreSQL. */
 async function measure(
   image: Blob,
 ): Promise<{ width: number; height: number }> {

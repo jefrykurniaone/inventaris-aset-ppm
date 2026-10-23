@@ -2,20 +2,19 @@ import { db } from "@/lib/db";
 import { createActionErrorLogger } from "@/lib/log-error";
 
 /**
- * `GET /api/health` — the liveness probe that keeps the Supabase project awake
- * (PRD risk R4, issue #17).
+ * `GET /api/health` — the liveness probe: it answers `200` only when the
+ * database answers (PRD risk R4, issue #17).
  *
- * **The thing that pauses is the Supabase project, not the Vercel deployment.**
- * A free Supabase project receiving no API requests for one week is paused
- * automatically, so an endpoint that answered `200` out of Vercel without
- * touching the database would satisfy the scheduler and let the database sleep
- * anyway. This one issues a real query through the `src/lib/db.ts` seam, which
- * is the whole point of its existence: the round trip *is* the traffic.
+ * It began as a keep-alive for a free Supabase project, which was paused after
+ * a week without API requests, and that is why it issues a real query through
+ * the `src/lib/db.ts` seam instead of answering `200` on its own. The Supabase
+ * project and the Vercel deployment are gone (ADR 0009), but the route stays
+ * and the real query stays with it: a probe that never touched the database
+ * would report a healthy application whose database was down.
  *
- * `SELECT 1` rather than a `count()`: it opens the connection, crosses
- * Supavisor, reaches Postgres and returns a constant, so it proves the path
- * without reading a row or naming a table. There is nothing here for a schema
- * change to break.
+ * `SELECT 1` rather than a `count()`: it opens the connection, reaches
+ * Postgres and returns a constant, so it proves the path without reading a row
+ * or naming a table. There is nothing here for a schema change to break.
  *
  * Unauthenticated on purpose. A scheduler holds no session, this repository has
  * no `middleware.ts` to exempt the route from, and the response carries no
@@ -29,9 +28,9 @@ const OK_BODY = { status: "ok" } as const;
 const SERVICE_UNAVAILABLE = 503;
 
 /**
- * A cached response would defeat the endpoint. Vercel's CDN answering from the
- * edge means no request reaches Supabase, and the project pauses while the
- * schedule reports success every day.
+ * A cached response would defeat the endpoint. A cache answering in front of
+ * the application means no request reaches the database, and the probe reports
+ * success while the database is down.
  */
 const NO_STORE = "no-store";
 

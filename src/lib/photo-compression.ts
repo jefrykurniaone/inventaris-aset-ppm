@@ -9,7 +9,7 @@
  *
  * This is a usability measure and not a control. Nothing here is trusted by
  * the server: `src/lib/photo-upload.ts` re-checks the content type and the
- * size of what actually reached the bucket, and would refuse an upload from a
+ * size of what actually reached the server, and would refuse an upload from a
  * client that skipped this step entirely.
  *
  * The file is pure so that the numbers below — which are the difference

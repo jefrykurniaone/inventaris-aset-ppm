@@ -300,8 +300,8 @@ export interface AssetFormState {
    *
    * It exists because the create flow no longer ends at the server (issue
    * #85). The first photo is attached by the browser after the row exists,
-   * since the object path is keyed by the asset id, so the action hands the
-   * id back and the client decides what happens next.
+   * since the upload route is addressed by the asset id, so the action hands
+   * the id back and the client decides what happens next.
    */
   readonly createdAssetId?: string;
 }
