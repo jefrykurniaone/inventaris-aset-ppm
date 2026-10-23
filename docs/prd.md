@@ -1,5 +1,21 @@
 # Product Requirements Document — Sistem Inventaris Aset Direktorat PPM
 
+> **Revision note, 2026-10-23.** Photos are now stored in and served from PostgreSQL, and the
+> Supabase project and the Vercel deployment that this document was written around no longer
+> exist; there is no deployment target. The decision is
+> [ADR 0009](adr/0009-photos-stored-in-postgresql.md) and the spec is issue #161
+> ([`spec-postgres-photos-v1.md`](spec-postgres-photos-v1.md)). Amended in place:
+>
+> - **FR-4.4, FR-4.5, FR-4.6, FR-4.9 and FR-4.10** are rewritten to the new design.
+> - **The hosting and storage rows of the §9 table**, and the `asset_photo` row of §8.1, describe what
+>   is true now.
+> - **Risks R2, R4 and R5** are marked closed, each with a dated reason. Their text is kept, and
+>   still cites `docs/deployment.md` and `vercel.json`, which were deleted in the same change and
+>   remain in git history.
+> - **§11, §12 and §13 are the original delivery plan.** The Supabase parts of it, wave 0's Supabase
+>   project, the wave 5 cutover and acceptance criterion 10, are marked retired in place: nothing is
+>   deployed, so nothing is cut over.
+
 | Field | Value |
 |---|---|
 | Product | Sistem Inventaris Aset (QR-based asset inventory) |
@@ -66,8 +82,8 @@ Explicitly out of scope for this product, and out of scope for the prototype:
 
 ### 5.1 In scope for the prototype
 
-The prototype is a deployed, working application backed by a real database and real photo
-storage. It is not a clickable mock. Its purpose is to be shown to Direktorat PPM as an accurate
+The prototype is a working application backed by a real database that also holds the photos. It
+is not a clickable mock. Its purpose is to be shown to Direktorat PPM as an accurate
 representation of the intended production system.
 
 - Email/password authentication with two roles (`admin`, `staff`)
@@ -151,29 +167,47 @@ mistaken for oversights:
 - **FR-4.3** — Images are resized and re-encoded in the browser before upload. Target: longest
   edge 1600 px, approximately 400 KB, WebP. A second 400 px derivative is produced and stored as
   the thumbnail.
-- **FR-4.4** — Files are uploaded from the browser directly to object storage using a
-  server-issued signed upload URL. Image bytes never pass through a serverless function.
-- **FR-4.5** — Storage is reached through a single interface at `src/lib/storage.ts`, backed by
-  Supabase Storage in **every** environment. There is no second implementation and no environment
-  switch; the interface exists so that the module stays the only place object storage is touched,
-  and so that tests can inject an in-memory fake. Development writes to the `asset-photos-dev`
-  bucket and deployment to `asset-photos`, both in the same Supabase project, selected by
-  `SUPABASE_STORAGE_BUCKET`. See ADR 0005.
-- **FR-4.6** — The signed-URL endpoint enforces an allowlist of content types
-  (`image/jpeg`, `image/png`, `image/webp`) and a maximum size of 1.5 MB, independently of any
-  client-side compression.
+- **FR-4.4** — Each photo is uploaded from the browser to one route handler,
+  `POST /api/assets/[id]/photos`, as a single multipart request carrying the full image, the
+  thumbnail and the dimensions the browser reports. The browser sends it over XHR, so upload
+  progress and cancellation work. Image bytes pass through the application; there is no object
+  store and no signed upload URL. See ADR 0009.
+- **FR-4.5** — Photo bytes are stored in PostgreSQL, in a side table with one row per photo that
+  holds the full image and the thumbnail, each with its content type. Both are required, and the row
+  cascades from the photo row. Storage is reached through a single interface at
+  `src/lib/storage.ts`, which is the only module that touches photo bytes. It has two operations:
+  write a photo's content inside a transaction the caller supplies, and read one variant of one
+  photo, which returns nothing when the photo does not exist or its asset is withdrawn. It has no
+  delete operation, because deleting the photo row cascades. There is one implementation and no
+  environment switch; the interface exists so that tests can inject an in-memory fake.
+- **FR-4.6** — The upload handler enforces its limits independently of any client-side
+  compression. In order, it:
+  1. requires a session;
+  2. refuses a request whose `Origin` is not the application's own;
+  3. refuses a body over a named cap of about 3.2 MB with 413, before reading it whole;
+  4. determines each derivative's type from its leading bytes, accepts only `image/jpeg`,
+     `image/png` and `image/webp`, refuses a declared type that disagrees, and refuses a
+     derivative over 1.5 MB;
+  5. locks the live asset, enforces the five-photo limit, and writes the photo row, its content
+     and the activity row in one transaction.
 - **FR-4.7** — Lists and dashboards render thumbnails. Full-size images are served only on the
   asset detail page and the scan page.
 - **FR-4.8** — Unsupported formats, HEIC in particular, produce a clear localised error message,
   not a silent failure.
-- **FR-4.9** — Objects are stored at `assets/<assetId>/<nanoid>.<ext>`. The database stores the
-  object path only, never a full URL; the URL is built at render time from the configured bucket.
-  The object is deleted in the same server action that deletes its row.
-- **FR-4.10** — The bucket is public for read and denies insert to both the anonymous and the
-  authenticated Supabase role. A signed upload URL is minted server-side with the service-role key,
-  and only after the Better Auth session and role have been checked. Because authentication is
-  Better Auth, no Supabase JWT exists and Storage row-level security cannot see the application's
-  users — the server action is the authorisation boundary, not a storage policy.
+- **FR-4.9** — The photo row keeps only metadata: dimensions, size, primary flag, order and
+  uploader. It stores no path and no URL; every surface builds the photo's address,
+  `/api/photos/<photoId>/<variant>` with `full` or `thumb`, from the photo id alone. A photo row and
+  its content are written in one transaction and removed by one cascade, so a photo without its
+  bytes, or bytes without their photo, cannot exist.
+- **FR-4.10** — Photos are served by a public route handler on the application's own origin,
+  `GET /api/photos/<photoId>/<variant>`. It answers 404, for everyone and without consulting a
+  session, when the photo does not exist or its asset is withdrawn; no page shows a withdrawn
+  asset's photos to anyone. Otherwise it returns the stored bytes with the stored content type,
+  `Cache-Control: public, max-age=31536000, immutable`, `X-Content-Type-Options: nosniff` and
+  `Content-Security-Policy: default-src 'none'; sandbox`, because the application's origin now
+  serves content that users supplied. A browser that cached a photo before its asset was withdrawn
+  keeps that copy. Writing is authorised by the upload handler's session check (FR-4.6), not by a
+  storage policy.
 
 ### 6.5 QR codes and labels
 
@@ -334,7 +368,8 @@ Binding for all code in this repository, prototype included:
 | `building`, `room` | Location hierarchy; an asset sits in a room |
 | `funding_source` | Origin of the funds used to acquire the asset |
 | `asset` | The register itself |
-| `asset_photo` | Photo per asset: object path, thumbnail object path, dimensions, size, primary flag, order |
+| `asset_photo` | Photo per asset: dimensions, size, primary flag, order, uploader |
+| `asset_photo_content` | The photo's bytes: full image and thumbnail, each with its content type. One row per photo, cascading from `asset_photo` |
 | `loan` | Loan / return records |
 | `asset_activity` | Append-only audit trail |
 
@@ -374,21 +409,19 @@ Binding for all code in this repository, prototype included:
 | Framework | Next.js 15, App Router, TypeScript | The public scan page wants server rendering; one repository and one deployment suits the delivery model |
 | ORM | Prisma 7 with the `prisma-client` generator, output to `src/generated/prisma`, `importFileExtension = ""` | Current generator; `prisma-client-js` is legacy and the coding standard forbids starting on a deprecated API |
 | Configuration | `prisma.config.ts` via `defineConfig` | Prisma 7 moves the datasource URL out of `schema.prisma` |
-| Database — development | Local PostgreSQL 17, database `inventaris_aset_ppm` | Already installed on the development machine. No cloud account, no connection cap, no cold start; seeding and iteration are faster than against any free-tier hosted database |
-| Database — deployment | Supabase Postgres | Provides the database and the object store under one account. See ADR 0003 |
-| Driver adapter | `@prisma/adapter-pg` for both environments | Local and Supabase are both plain Postgres over TCP, so one adapter covers both and no environment-branching driver configuration is needed |
-| Connection strings | `DATABASE_URL` at runtime, `DIRECT_URL` for migrations. On Supabase: transaction pooler on port 6543 with `?pgbouncer=true&connection_limit=1` for the former, session mode on port 5432 for the latter | Prepared statements are unsupported in Supavisor transaction mode; migrations must not run through the transaction pooler |
-| Auth | Better Auth — `emailAndPassword`, `admin()` plugin, `nextCookies()` | Self-hosted, so client data stays with the client; owns its tables in our own schema; the `admin()` plugin covers the two-role model without a hand-rolled RBAC layer. Supabase is used as Postgres and storage only, not as the auth provider |
-| Photo storage | Supabase Storage in every environment, reached through one interface at `src/lib/storage.ts` via `createSignedUploadUrl` / `uploadToSignedUrl` | Browser uploads directly to storage, so the serverless request body limit never applies to an image. One implementation everywhere, so the path exercised in development is the deployed one. See ADR 0005 |
-| Storage buckets | `asset-photos-dev` in development, `asset-photos` in deployment, both in the same Supabase project, selected by `SUPABASE_STORAGE_BUCKET` | Two databases mint the same `assetCode` and row IDs, so a shared bucket would collide; separate buckets also let the development one be emptied without touching demonstration photos |
-| Storage authorisation | Public read; writes denied to the anonymous and authenticated roles and performed with the service-role key after a Better Auth session check | Better Auth issues no Supabase JWT, so Storage RLS cannot see application users. The server action is the authorisation boundary |
+| Database | Local PostgreSQL 17, database `inventaris_aset_ppm` | Already installed on the development machine. No cloud account, no connection cap, no cold start. There is no hosted database; see ADR 0009 |
+| Driver adapter | `@prisma/adapter-pg` | Plain Postgres over TCP, so one adapter covers it and no environment-branching driver configuration is needed |
+| Connection strings | `DATABASE_URL` at runtime, `DIRECT_URL` for migrations | `src/lib/db.ts` reads the former and `prisma.config.ts` the latter. Both hold the same local string |
+| Auth | Better Auth — `emailAndPassword`, `admin()` plugin, `nextCookies()` | Self-hosted, so client data stays with the client; owns its tables in our own schema; the `admin()` plugin covers the two-role model without a hand-rolled RBAC layer |
+| Photo storage | PostgreSQL, in a side table with one row per photo (full image and thumbnail, each with its content type), reached through one interface at `src/lib/storage.ts` | One store holds metadata and bytes, so a photo row and its content commit and cascade together and a database dump is a complete backup. The side table keeps image bytes out of every list, detail and scan query. See ADR 0009 |
+| Photo upload and serving | One route handler uploads (`POST /api/assets/[id]/photos`); one public route handler serves (`GET /api/photos/[photoId]/[variant]`) | The application's origin now serves user-supplied content, so the serving route sets the stored content type, `nosniff` and a sandboxing Content Security Policy, and the upload handler decides each type from the bytes. Authorisation is the upload handler's session check |
 | Image processing | `browser-image-compression`, self-hosted worker script | Browser-side resize; the library's default worker URL points at a public CDN and is overridden |
 | UI | Tailwind CSS v4 with shadcn/ui, light and dark themes | Components live in our repository, so the coding and accessibility standards apply to code we control |
 | i18n | `next-intl`, default locale `id` | |
 | QR rendering | Server-side SVG, error correction level M | |
-| Migrations | `prisma migrate dev` locally, migrations committed, `prisma migrate deploy` on build | Migration history is what makes the schema auditable |
+| Migrations | `prisma migrate dev` locally, migrations committed, `prisma migrate deploy` against the CI database service | Migration history is what makes the schema auditable |
 | Seeding | `prisma.config.ts` → `migrations.seed` → `tsx prisma/seed.ts`, idempotent | Re-running must not duplicate the demo data |
-| Hosting | Vercel, preview deployment per pull request | Supabase does not host the Next.js application |
+| Hosting | None. There is no deployment target | The Supabase project and the Vercel deployment were retired on 2026-10-23. Choosing a host later needs its own ADR; see ADR 0009 |
 | CI | GitHub Actions: typecheck, lint, unit tests, build, on every pull request | |
 | Package manager | npm | pnpm is not installed on the build machine |
 
@@ -422,6 +455,13 @@ Mitigations:
 
 ### R2 — Photo storage and egress on the free tier
 
+> **Closed 2026-10-23.** The Supabase project and its free-tier allowances no longer exist. Photos
+> are stored in the local PostgreSQL database (ADR 0009), so there is no storage quota or egress
+> allowance left to exhaust; at the five-photo limit the worst case is about 2.5 MB per asset. The
+> request-body wall does not apply without a serverless host, and the upload cap of about 3.2 MB
+> stays under the 4.5 MB limit, so a later move to such a host is not foreclosed. The text below is
+> the original analysis, kept as written.
+
 The Supabase free tier provides 500 MB of database per project, 1 GB of file storage, and 5 GB of
 monthly egress, with the storage and egress allowances counted across the whole organisation rather
 than per project. Since ADR 0005 development also uploads to Supabase, so both buckets draw on that
@@ -448,6 +488,11 @@ Expected footprint at prototype scale: approximately 7 MB of stored images, with
 outside reach of a demonstration workload.
 
 ### R4 — Free Supabase projects pause after a week of inactivity
+
+> **Closed 2026-10-23.** The Supabase project was switched off and the deployment retired, so
+> nothing remains that can pause. The daily cron in `vercel.json` was deleted; `GET /api/health`
+> stays as a liveness probe that runs `SELECT 1` against the local database. The text below is the
+> original analysis, kept as written.
 
 A free-tier Supabase project receiving no API requests for one week is paused automatically. Data
 is retained, but the project must be resumed manually. With no demonstration date fixed, the
@@ -483,6 +528,11 @@ Mitigations:
    question for the client conversation, not an engineering problem.
 
 ### R5 — The Supabase **database** path is unverified until the cutover
+
+> **Closed 2026-10-23.** The Supabase database was switched off and the deployment retired (ADR
+> 0009). The only database now is the local PostgreSQL the application ran against from the start,
+> so no hosted path is left to verify. The text below is the original analysis and its observations,
+> kept as written.
 
 Development runs against local Postgres, so the wave 0 spike can only prove the local path. Prisma
 against the Supabase transaction pooler has known sharp edges — prepared statements are unsupported,
@@ -542,21 +592,21 @@ ticket reports zero open blockers.
 
 | Wave | Contents | Concurrency |
 |---|---|---|
-| **W0** | Project scaffold and tooling; authentication spike against local Postgres; Supabase project, both buckets, and service-role key | Serial — all three tickets gate everything |
+| **W0** | Project scaffold and tooling; authentication spike against local Postgres; Supabase project, both buckets, and service-role key *(retired 2026-10-23, ADR 0009)* | Serial — all three tickets gate everything |
 | **W1** | Prisma schema and migrations; authentication UI and route guards; i18n setup; master data screens | Parallel |
 | **W2** | Asset CRUD and code generation; asset list with filters; photo pipeline; asset detail page and timeline | Parallel |
 | **W3** | QR token, rendering, and public scan page; label sheet printing | Parallel |
 | **W4** | Dashboard and charts; XLSX export; loan module; seed data | Parallel |
-| **W5** | Supabase deployment cutover: both connection modes, migrations through session mode, production bucket, deployed phone scan | Serial — single ticket |
+| **W5** | Supabase deployment cutover: both connection modes, migrations through session mode, production bucket, deployed phone scan *(retired 2026-10-23, ADR 0009)* | Serial — single ticket |
 
-Everything through wave 4 runs against local PostgreSQL for data and Supabase Storage for photos.
-Wave 5 is where the **database** first runs on hosted infrastructure; see risk R5. Photos are on
-hosted infrastructure from wave 2, which is why the wave 0 ticket that creates the Supabase project
-blocks the photo pipeline.
+Everything through wave 4 ran against local PostgreSQL for data and Supabase Storage for photos.
+Wave 5 was where the **database** first ran on hosted infrastructure; see risk R5. Photos were on
+hosted infrastructure from wave 2, which is why the wave 0 ticket that created the Supabase project
+blocked the photo pipeline. Since 2026-10-23 photos are in PostgreSQL and nothing is hosted.
 
 Each ticket is one pull request against `main`. A wave closes only when every pull request in it is
-CI-green, has passed a review pass, and — from wave 5 onward, once a deployment exists — the
-deployed preview has been inspected.
+CI-green, has passed a review pass, and — in the waves where a deployment existed — the deployed
+preview has been inspected.
 
 ### 11.1 Execution model
 
@@ -577,10 +627,9 @@ its spec.
 
 ## 12. Acceptance criteria for the client demonstration
 
-The prototype is ready to show when all of the following hold **on the deployed Supabase-backed
-environment**, not merely locally. Criteria 1 to 9 are verifiable during waves 0 to 4 against local
-Postgres — with photos already going to real Supabase Storage; criterion 10 is what wave 5 exists to
-establish.
+The prototype is ready to show when criteria 1 to 9 hold against a local environment, with
+PostgreSQL holding the photos as well as the data. The original plan also required them on a
+deployed environment, which was criterion 10; that criterion is retired (see below).
 
 1. An admin and a staff account can each sign in, and each sees only what their role permits.
 2. An asset can be created on a phone, photographed with the device camera, and saved.
@@ -594,8 +643,9 @@ establish.
    to XLSX with the applied filters respected.
 8. The interface switches between Indonesian and English with no untranslated string.
 9. CI is green: typecheck, lint, unit tests, build, and the end-to-end smoke test.
-10. All of the above hold against the deployed application backed by Supabase Postgres and Supabase
-    Storage, reached over HTTPS from a phone on mobile data, with the project confirmed awake.
+10. *Retired 2026-10-23.* This required all of the above against the deployed application backed by
+    Supabase Postgres and Supabase Storage, reached over HTTPS from a phone on mobile data. There is
+    no deployment target, so it no longer applies.
 
 ## 13. Open items
 
@@ -605,6 +655,6 @@ establish.
 | Label stock actually available to the directorate | Jefry | Layout defaults to 63.5 × 38.1 mm, 3 × 7 on A4; switching stock is a one-constant change |
 | Real (non-confidential) asset list for seeding | Jefry | Seed uses realistic synthetic data until provided |
 | Which escalation level R1 lands on | Orchestrator | Recorded as an ADR at the end of wave 0 |
-| Supabase account and project | Jefry | Now created in wave 0, per ADR 0005 — it blocks the photo pipeline in wave 2. Resolved once the wave 0 ticket closes |
-| Whether to run Supabase locally via its CLI instead of plain local Postgres | Jefry | Would put the database and the photo objects in one resettable place. Still needs Docker, which is not installed, and neither is WSL. ADR 0005 removed the storage half of the motivation; only the database gap remains. Revisit only if Docker arrives for another reason |
-| Printed QR codes encode `NEXT_PUBLIC_APP_URL` | Orchestrator | No label may be printed for real use until the production URL is final, or the labels become dead |
+| Supabase account and project | Jefry | Closed 2026-10-23. It was created in wave 0, per ADR 0005, and has since been switched off; ADR 0009 retired it |
+| Whether to run Supabase locally via its CLI instead of plain local Postgres | Jefry | Closed 2026-10-23. Moot: photos are stored in PostgreSQL (ADR 0009), so the database and the photo bytes already sit in one resettable place |
+| Printed QR codes encode `NEXT_PUBLIC_APP_URL` | Orchestrator | No label may be printed for real use until the final URL is settled, or the labels become dead |

@@ -20,8 +20,8 @@ exactly `SONAR_TOKEN`. Nowhere else. Generate the value at SonarQube Cloud under
 Security, or from the project's own Analysis Method page.
 
 `.env.local` is the natural guess and it is wrong. Everything in that file — `DATABASE_URL`,
-`BETTER_AUTH_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `SEED_ADMIN_PASSWORD` — is read by the application
-or by a script somebody runs locally. `SONAR_TOKEN` is read by a GitHub Actions runner, which never
+`BETTER_AUTH_SECRET`, `SEED_ADMIN_PASSWORD` — is read by the application or by a script somebody
+runs locally. `SONAR_TOKEN` is read by a GitHub Actions runner, which never
 sees your machine, and `.env.local` is git-ignored so it could not reach one even if you wanted it to.
 Different consumer, different store.
 
@@ -29,10 +29,10 @@ Never committed, never in `.env.example`, never prefixed `NEXT_PUBLIC_`, and nev
 issue, a pull request body, or a chat transcript. If it leaks, revoke it in SonarQube Cloud and
 generate a new one — it grants analysis access to the organization's projects.
 
-Note the asymmetry against the deployment variables, because it is the part that catches people out:
-`DATABASE_URL` and the Supabase keys will need to exist in **two** places once the app is deployed —
-`.env.local` for development and Vercel's environment variables for the running deployment — while
-`SONAR_TOKEN` only ever exists in GitHub Actions. See #17 for the cutover.
+Note the asymmetry against the application's variables, because it is the part that catches people
+out: `DATABASE_URL` and the others live in `.env.local` for development and are set in the workflow
+for CI, while `SONAR_TOKEN` only ever exists in GitHub Actions. There is no deployment target, so
+nothing else holds a copy.
 
 ## Automatic Analysis must stay off
 
