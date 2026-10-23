@@ -31,7 +31,9 @@ import { getPhotoStorage } from "@/lib/storage";
  * - `Cache-Control: public, max-age=31536000, immutable`, because a photo
  *   id's bytes never change — a replaced photo is a new row with a new id. A
  *   browser that cached a photo before its asset was withdrawn keeps that
- *   copy; ADR 0009 accepts that.
+ *   copy, and so does the image optimiser's server-side copy of the scan
+ *   hero in `.next/cache/images`, which has no time bound; ADR 0009 accepts
+ *   both.
  */
 
 const NOT_FOUND = 404;
