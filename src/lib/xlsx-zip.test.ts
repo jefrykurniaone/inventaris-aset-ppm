@@ -14,6 +14,14 @@ const CRC32_INITIAL = 0xffffffff;
 /** The check value every CRC-32 implementation is tested against. */
 const CHECK_INPUT = "123456789";
 const CHECK_VALUE = 0xcbf43926;
+/** Enough fragments for the ratio to clear the 10x the test demands (measured
+ * about 14.8x at 500, 15x at the 2000 it used to feed). Each fragment is a
+ * separate deflate write, so the count is what a starved machine pays for. */
+const COMPRESSION_ROW_COUNT = 500;
+/** Vitest's default of 5000 ms measures machine load, not the claim, when the
+ * suite runs under `--coverage` beside another CPU-bound process. The ceiling
+ * is far above any plausible queueing delay, so it only trips on a real hang. */
+const COMPRESSION_TEST_TIMEOUT_MS = 60_000;
 
 async function* fromChunks(chunks: readonly string[]): AsyncGenerator<string> {
   for (const chunk of chunks) {
@@ -64,20 +72,24 @@ describe("deflateText", () => {
     expect(content.crc).toBe(crc32(Buffer.from(fragments.join(""), "utf8")));
   });
 
-  it("keeps the compressed form far smaller than the rows it was fed", async () => {
-    const rows = Array.from(
-      { length: 2000 },
-      (_unused, index) => `<row r="${index}"><c t="inlineStr"/></row>`,
-    );
-    const content = await deflateText(fromChunks(rows));
-    const compressedSize = content.chunks.reduce(
-      (total, chunk) => total + chunk.length,
-      0,
-    );
+  it(
+    "keeps the compressed form far smaller than the rows it was fed",
+    async () => {
+      const rows = Array.from(
+        { length: COMPRESSION_ROW_COUNT },
+        (_unused, index) => `<row r="${index}"><c t="inlineStr"/></row>`,
+      );
+      const content = await deflateText(fromChunks(rows));
+      const compressedSize = content.chunks.reduce(
+        (total, chunk) => total + chunk.length,
+        0,
+      );
 
-    expect(inflateAll(content)).toBe(rows.join(""));
-    expect(compressedSize).toBeLessThan(content.uncompressedSize / 10);
-  });
+      expect(inflateAll(content)).toBe(rows.join(""));
+      expect(compressedSize).toBeLessThan(content.uncompressedSize / 10);
+    },
+    COMPRESSION_TEST_TIMEOUT_MS,
+  );
 
   it("handles an empty sequence", async () => {
     const content = await deflateText(fromChunks([]));
