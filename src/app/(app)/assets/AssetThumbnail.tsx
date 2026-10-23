@@ -20,8 +20,9 @@ interface AssetThumbnailProps {
  * page mixing photographed and unphotographed rows never shifts the
  * surrounding layout. `unoptimized` — same reasoning as `PhotoCard.tsx`: the
  * pipeline already stores an exactly-sized derivative, so routing it through
- * Next's optimiser would re-encode an already-optimal image and add the
- * egress cost PRD risk R2 exists to avoid.
+ * Next's optimiser would re-encode an already-optimal image and add a
+ * transformation per render for nothing. (PRD risk R2, closed, was the egress
+ * allowance this once also protected.)
  */
 export function AssetThumbnail({
   thumbnailUrl,

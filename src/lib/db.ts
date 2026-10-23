@@ -7,11 +7,11 @@ import { PrismaClient } from "@/generated/prisma/client";
  * Everything else imports `db` from here, so moving to a different client — or
  * a different persistence layer entirely — touches this file alone (ADR 0002).
  *
- * Prisma 7 requires a driver adapter, and `@prisma/adapter-pg` serves both
- * environments: local PostgreSQL 17 in development, Supabase Postgres in
- * deployment (ADR 0003). The adapter reads `DATABASE_URL`, which on Supabase is
- * the transaction pooler. Migrations use `DIRECT_URL` and never come through
- * here — see `prisma.config.ts`.
+ * Prisma 7 requires a driver adapter, and `@prisma/adapter-pg` is the one used:
+ * the database is local PostgreSQL 17, and there is no hosted database (ADR
+ * 0009 lapsed the deployment half of ADR 0003). The adapter reads
+ * `DATABASE_URL`. Migrations use `DIRECT_URL` and never come through here —
+ * see `prisma.config.ts`. Locally the two hold the same string.
  */
 function createPrismaClient(): PrismaClient {
   const connectionString = process.env.DATABASE_URL;

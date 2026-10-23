@@ -195,7 +195,7 @@ async function fillRequiredAssetFields(page: Page, name: string) {
  * that same form (issue #85).
  *
  * Picking only remembers the file: nothing is compressed or uploaded until
- * the row exists and has an id to key its object paths on.
+ * the row exists and has an id to upload the photo against.
  */
 export async function createAssetWithPhoto(
   page: Page,

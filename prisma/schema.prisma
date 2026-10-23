@@ -22,8 +22,10 @@
 // lives in `prisma.config.ts` and is `DIRECT_URL`, because a migration must
 // never run through a transaction pooler; the runtime client's is
 // `DATABASE_URL`, read by the `@prisma/adapter-pg` driver adapter in
-// `src/lib/db.ts`. Locally the two are the same string, on Supabase they are
-// not. See `docs/adr/0003-local-postgres-development-supabase-deployment.md`.
+// `src/lib/db.ts`. Both are the same string today, because the only database is
+// local PostgreSQL (ADR 0009); the split is kept. See
+// `docs/adr/0003-local-postgres-development-supabase-deployment.md`, whose
+// deployment half lapsed with ADR 0009.
 
 generator client {
   provider            = "prisma-client"

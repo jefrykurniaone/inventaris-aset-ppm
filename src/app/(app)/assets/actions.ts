@@ -156,15 +156,16 @@ function toFailureState(t: Translate, reason: MutationFailureReason) {
  * there is nothing here for a bypassed client to forge.
  *
  * **It returns the new id rather than redirecting** (issue #85). The create
- * form now takes an optional first photo, and a photo object path is keyed by
- * the asset id, so the row has to exist before the browser can upload
- * anything. Redirecting here would end the request before the client had the
- * id to upload against; instead `CreateAssetForm` reads `createdAssetId`,
- * runs the upload pipeline, and navigates itself.
+ * form now takes an optional first photo, and a photo upload names the asset
+ * it belongs to (`POST /api/assets/[id]/photos`), so the row has to exist
+ * before the browser can upload anything. Redirecting here would end the
+ * request before the client had the id to upload against; instead
+ * `CreateAssetForm` reads `createdAssetId`, runs the upload pipeline, and
+ * navigates itself.
  *
- * No photo is submitted to this action. The image bytes go straight from the
- * browser to object storage over a signed URL (ADR 0005), and never through a
- * server function.
+ * No photo is submitted to this action. The browser sends each photo to that
+ * route handler (ADR 0009), which stores it in PostgreSQL through
+ * `src/lib/storage.ts`, and never through a server action.
  */
 export async function createAssetAction(
   _previousState: AssetFormState,

@@ -21,8 +21,8 @@ import type { AssetPhotoView } from "./queries";
  *
  * The thumbnail is `unoptimized`: it is already a 400 px WebP produced by the
  * browser before upload, so Next's optimiser would re-encode an
- * already-optimal image and route every render through a serverless function
- * — the exact egress cost PRD risk R2 asks the pipeline to avoid.
+ * already-optimal image and route every render through the optimiser. (PRD
+ * risk R2, closed, was the egress allowance this once also protected.)
  */
 
 interface PhotoCardProps {

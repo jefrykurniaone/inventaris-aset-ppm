@@ -16,8 +16,8 @@ import { defineConfig, env } from "prisma/config";
  * introspection. It is therefore `DIRECT_URL`, not `DATABASE_URL`: migrations
  * must never run through a transaction pooler (ADR 0003). The runtime client
  * gets its connection from the `@prisma/adapter-pg` adapter in `src/lib/db.ts`,
- * which reads `DATABASE_URL`. Locally the two strings are identical; on
- * Supabase they are not.
+ * which reads `DATABASE_URL`. The two strings are identical, because the only
+ * database is local PostgreSQL (ADR 0009); the split is kept.
  *
  * Prisma 7 does not load `.env` files by itself, and Next.js is not in the
  * process when the CLI runs, so the development environment file is loaded

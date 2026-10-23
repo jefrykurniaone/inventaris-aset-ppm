@@ -24,7 +24,7 @@ describe("isLocalDatabaseUrl", () => {
     expect(isLocalDatabaseUrl(url)).toBe(true);
   });
 
-  it("rejects the Supabase transaction pooler from .env.example", () => {
+  it("rejects a remote pooled database URL", () => {
     expect(isLocalDatabaseUrl(SUPABASE_POOLER_URL)).toBe(false);
   });
 
