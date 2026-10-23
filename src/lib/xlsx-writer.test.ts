@@ -22,11 +22,17 @@ const NAME_LENGTH_OFFSET = 26;
 const EXTRA_LENGTH_OFFSET = 28;
 const LOCAL_HEADER_SIZE = 30;
 
-/** This is a 5000-row compression benchmark, not a speed check. Standalone it
- * finishes in well under a second (measured 817 ms), but Vitest's default
- * 5000 ms per-test timeout leaves no margin under parallel test load, so it
- * gets a generous timeout of its own instead of racing the whole suite. */
-const LARGE_EXPORT_TEST_TIMEOUT_MS = 20_000;
+/** Enough rows for the compression ratio to clear the 5x the test demands
+ * (measured about 7.5x at 500 rows, 9.4x at the 5000 it used to feed). Each
+ * row is one deflate write, so the row count is what a starved machine pays
+ * for: at 5000 rows the test timed out at 20 s under full CPU load. */
+const LARGE_EXPORT_ROW_COUNT = 500;
+
+/** This is a compression-ratio check, not a speed check. Standalone it takes
+ * well under a second, but under `--coverage` on a machine another process is
+ * saturating, the deflate hops queue behind that load. The ceiling is set far
+ * above any plausible queueing delay so it only trips on a real hang. */
+const LARGE_EXPORT_TEST_TIMEOUT_MS = 60_000;
 
 /** Walks the local file headers in order, which is enough to read an archive
  * this writer produced: every entry stores its own compressed size. */
@@ -172,8 +178,9 @@ describe("createXlsxStream memory behaviour", () => {
   it(
     "keeps a large export far smaller compressed than the XML it wrote",
     async () => {
-      const rows = Array.from({ length: 5000 }, (_unused, index) =>
-        bodyRow(`PPM-${index}`, index * 1000),
+      const rows = Array.from(
+        { length: LARGE_EXPORT_ROW_COUNT },
+        (_unused, index) => bodyRow(`PPM-${index}`, index * 1000),
       );
       const stream = createXlsxStream({
         sheetName: "Aset",
@@ -183,7 +190,7 @@ describe("createXlsxStream memory behaviour", () => {
       const bytes = await collectStream(stream);
       const sheet = readArchive(bytes).get(WORKSHEET_PART_PATH) ?? "";
 
-      expect(sheet).toContain('<row r="5001">');
+      expect(sheet).toContain(`<row r="${LARGE_EXPORT_ROW_COUNT + 1}">`);
       expect(bytes.length).toBeLessThan(sheet.length / 5);
     },
     LARGE_EXPORT_TEST_TIMEOUT_MS,
