@@ -7,6 +7,7 @@ import {
   HAS_E2E_CREDENTIALS,
   MISSING_CREDENTIALS_REASON,
   openAssetEditPage,
+  readScanUrl,
   signIn,
   TEST_TIMEOUT_MS,
   uniqueAssetName,
@@ -22,10 +23,10 @@ import {
  * #85), so reaching the list is what proves the compress-and-upload pipeline
  * ran; the edit page is only where the photo is deleted again.
  *
- * Authored here but **never executed** by issue #12's executor — CLAUDE.md's
- * "never start a dev server, never run Playwright" rule for this ticket. The
- * orchestrator runs `npm run test:e2e` after merge, against a local
- * development server and a local database, same as `photo-upload.spec.ts`.
+ * CI's `e2e` job (`.github/workflows/ci.yml`) runs this on every pull request
+ * against its PostgreSQL service container, with no secret and no external
+ * service (ADR 0009); `npm run test:e2e` against a local development server
+ * and a local database does the same by hand.
  *
  * The steps it shares with that spec — sign in, create with a photo, reach
  * the edit page, delete the photo — live in `./asset-helpers` and are the
@@ -40,8 +41,8 @@ import {
  * subject is printing and scanning, and would not free the row's
  * `assetCode` sequence number either. Rows accumulate, one per run —
  * `prisma migrate reset` is the reset. The uploaded photo *is* deleted
- * through the interface, same as the other spec, so this run leaves nothing
- * behind in object storage.
+ * through the interface, same as the other spec, so this run leaves no photo
+ * row behind.
  */
 
 const PRINT_LABEL_LINK = /(print label|cetak label)/i;
@@ -58,20 +59,6 @@ async function readAssetCode(page: Page): Promise<string> {
     throw new Error("label-printing.spec: asset code not found on detail page");
   }
   return code.trim();
-}
-
-/** The public scan URL, read off the detail page's own link rather than
- * built from the database — proving the page the user would actually click
- * resolves to a working scan, not merely that `buildScanUrl` is correct in
- * isolation. */
-async function readScanUrl(page: Page): Promise<string> {
-  const link = page.locator('a[href*="/a/"]');
-  await expect(link).toHaveCount(1);
-  const href = await link.getAttribute("href");
-  if (!href) {
-    throw new Error("label-printing.spec: scan link has no href");
-  }
-  return href;
 }
 
 test.describe("bulk label printing and the public scan path", () => {
