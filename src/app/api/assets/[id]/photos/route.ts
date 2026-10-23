@@ -134,26 +134,29 @@ function describeUpload(upload: AcceptedUpload): Record<string, unknown> {
   };
 }
 
+/** Step 6. Only the transaction is inside the `try`: once it has committed,
+ * the photo exists, and nothing after it may report a failure instead. */
 async function storeUpload(
   t: PhotoTranslate,
   upload: AcceptedUpload,
   actorId: string,
 ): Promise<Response> {
+  let result: Awaited<ReturnType<typeof insertPhoto>>;
   try {
-    const result = await insertPhoto({ ...upload, actorId });
-    if (!result.ok) {
-      return refusalResponse(t, INSERT_REFUSALS[result.reason]);
-    }
-    revalidatePath(ASSETS_PATH);
-    revalidatePath(`${ASSETS_PATH}/${upload.assetId}/edit`);
-    return jsonResponse(
-      { ok: true, value: { photoId: result.value.photoId } },
-      CREATED,
-    );
+    result = await insertPhoto({ ...upload, actorId });
   } catch (error) {
     logUploadError("POST", describeUpload(upload), error);
     return refusalResponse(t, STORAGE_FAILED);
   }
+  if (!result.ok) {
+    return refusalResponse(t, INSERT_REFUSALS[result.reason]);
+  }
+  revalidatePath(ASSETS_PATH);
+  revalidatePath(`${ASSETS_PATH}/${upload.assetId}/edit`);
+  return jsonResponse(
+    { ok: true, value: { photoId: result.value.photoId } },
+    CREATED,
+  );
 }
 
 export async function POST(
