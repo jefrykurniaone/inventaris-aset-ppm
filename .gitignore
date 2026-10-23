@@ -33,9 +33,6 @@ test-results/
 # the time, and nothing here may depend on it.
 .playwright-mcp/
 
-# Vercel
-.vercel
-
 # Editor and OS
 .vscode/*
 !.vscode/extensions.json
