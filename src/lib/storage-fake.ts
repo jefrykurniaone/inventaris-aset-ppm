@@ -1,96 +1,102 @@
+import type { PhotoVariant } from "@/lib/photo-address";
 import type {
-  ObjectStorage,
-  SignedUploadTarget,
-  StoredObject,
+  PhotoContent,
+  PhotoStorage,
+  StoredPhotoVariant,
+  TransactionClient,
 } from "@/lib/storage";
 
 /**
- * An in-memory `ObjectStorage`.
+ * An in-memory `PhotoStorage`.
  *
  * This is the reason the seam in `src/lib/storage.ts` is an interface at all
- * (ADR 0005): not to switch implementations by environment, but so that the
- * server actions and the mutations around photos can be tested without a
- * network call and without a Supabase project. There is no second production
- * implementation and there is never going to be one.
+ * (ADR 0009): not to switch implementations by environment, but so that the
+ * upload and serving routes can be tested with real `Request` objects and no
+ * database. There is no second production implementation.
  *
  * It lives beside the interface rather than in a test file because more than
  * one test module needs it, and a fake that drifts from the interface it
  * fakes is worse than no fake at all — keeping it here means `tsc` checks the
- * two against each other.
+ * two against each other. It imports only types from the real seam, so
+ * loading it never loads the database client.
+ *
+ * The real `readPhotoVariant` answers `null` for a withdrawn asset's photo, so
+ * the fake has to be told which photos those are: `withdraw` stands in for
+ * setting `deletedAt` on the asset, and `removePhoto` for the cascade that
+ * deleting a photo row triggers.
  */
-
-const FAKE_ORIGIN = "https://storage.test.invalid";
 
 /** Code-unit order, stated explicitly. `toSorted()` with no comparator is
  * SonarQube S2871, and `localeCompare` would make an assertion depend on the
  * ICU data of whatever machine ran the test. */
-function byPath(left: string, right: string): number {
+function byId(left: string, right: string): number {
   if (left === right) {
     return 0;
   }
   return left < right ? -1 : 1;
 }
 
-export interface InMemoryObjectStorage extends ObjectStorage {
-  /** Simulates the browser's upload having landed. The real upload is a PUT
-   * from the browser to a signed URL, so nothing on the server side ever
-   * writes bytes; a test that wants an object present has to say so. */
-  putObject(objectPath: string, object: StoredObject): void;
-  /** Every path currently held, sorted, so an assertion does not depend on
-   * insertion order. */
-  storedPaths(): readonly string[];
-  /** The paths `createSignedUploadTarget` has been asked for, in order. */
-  readonly signedPaths: readonly string[];
+interface StoredEntry {
+  readonly content: PhotoContent;
+  readonly isWithdrawn: boolean;
 }
 
-export function createInMemoryObjectStorage(): InMemoryObjectStorage {
-  const objects = new Map<string, StoredObject>();
-  const signedPaths: string[] = [];
+export interface InMemoryPhotoStorage extends PhotoStorage {
+  /** Simulates withdrawing the asset the photo belongs to. */
+  withdraw(photoId: string): void;
+  /** Simulates the cascade from deleting the photo row. */
+  removePhoto(photoId: string): void;
+  /** What was written for one photo, or `undefined`. */
+  contentOf(photoId: string): PhotoContent | undefined;
+  /** Every photo id holding content, sorted, so an assertion does not depend
+   * on insertion order. */
+  storedPhotoIds(): readonly string[];
+  /** The transaction client each write was handed, in order — so a test can
+   * prove the bytes were written inside the caller's transaction. */
+  readonly writeTransactions: readonly TransactionClient[];
+}
 
-  function createSignedUploadTarget(
-    objectPath: string,
-  ): Promise<SignedUploadTarget> {
-    signedPaths.push(objectPath);
-    return Promise.resolve({
-      objectPath,
-      signedUrl: `${FAKE_ORIGIN}/upload/${objectPath}`,
-    });
-  }
+function toVariant(
+  content: PhotoContent,
+  variant: PhotoVariant,
+): StoredPhotoVariant {
+  return variant === "full"
+    ? { bytes: content.fullBytes, contentType: content.fullContentType }
+    : { bytes: content.thumbBytes, contentType: content.thumbContentType };
+}
 
-  function getPublicUrl(objectPath: string): string {
-    return `${FAKE_ORIGIN}/public/${objectPath}`;
-  }
-
-  function statObject(objectPath: string): Promise<StoredObject | null> {
-    return Promise.resolve(objects.get(objectPath) ?? null);
-  }
-
-  function listObjectPaths(prefix: string): Promise<readonly string[]> {
-    const matching = [...objects.keys()].filter((path) =>
-      path.startsWith(prefix),
-    );
-    return Promise.resolve(matching.toSorted(byPath));
-  }
-
-  function deleteObjects(objectPaths: readonly string[]): Promise<void> {
-    for (const objectPath of objectPaths) {
-      objects.delete(objectPath);
-    }
-    return Promise.resolve();
-  }
+export function createInMemoryPhotoStorage(): InMemoryPhotoStorage {
+  const entries = new Map<string, StoredEntry>();
+  const writeTransactions: TransactionClient[] = [];
 
   return {
-    createSignedUploadTarget,
-    getPublicUrl,
-    statObject,
-    listObjectPaths,
-    deleteObjects,
-    putObject(objectPath, object) {
-      objects.set(objectPath, object);
+    writePhotoContent(tx, photoId, content) {
+      writeTransactions.push(tx);
+      entries.set(photoId, { content, isWithdrawn: false });
+      return Promise.resolve();
     },
-    storedPaths() {
-      return [...objects.keys()].toSorted(byPath);
+    readPhotoVariant(photoId, variant) {
+      const entry = entries.get(photoId);
+      if (!entry || entry.isWithdrawn) {
+        return Promise.resolve(null);
+      }
+      return Promise.resolve(toVariant(entry.content, variant));
     },
-    signedPaths,
+    withdraw(photoId) {
+      const entry = entries.get(photoId);
+      if (entry) {
+        entries.set(photoId, { ...entry, isWithdrawn: true });
+      }
+    },
+    removePhoto(photoId) {
+      entries.delete(photoId);
+    },
+    contentOf(photoId) {
+      return entries.get(photoId)?.content;
+    },
+    storedPhotoIds() {
+      return [...entries.keys()].toSorted(byId);
+    },
+    writeTransactions,
   };
 }

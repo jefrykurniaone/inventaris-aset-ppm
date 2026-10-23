@@ -24,11 +24,11 @@ import {
  * The create form's own submit handler: create the asset, then — if the user
  * picked one — attach its first photo before navigating (issue #85).
  *
- * The photo never enters the `FormData` the server action receives. It is
+ * The photo never enters the `FormData` the create action receives. It is
  * held here as a `File` and handed to the same `runPhotoUpload` the edit page
- * uses, which compresses in the browser, asks the server for signed targets,
- * and uploads straight to storage. No image byte passes through a server
- * function, and the object path is still built server-side from the asset id.
+ * uses, which compresses in the browser and sends both derivatives to the
+ * upload route for the asset id the create action returned (ADR 0009). The
+ * create action's body limit therefore never has to fit an image.
  *
  * The branching lives in `create-flow.ts`; this owns `next-intl`, the router
  * and the abort controller.
@@ -83,6 +83,7 @@ export function useCreateWithPhoto(): CreateWithPhotoController {
           messages: {
             heicNotSupported: t("heicNotSupported"),
             unsupportedFormat: t("unsupportedFormat"),
+            tooLarge: t("tooLarge"),
             uploadFailed: t("uploadFailed"),
           },
         });

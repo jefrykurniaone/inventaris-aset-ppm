@@ -7,14 +7,15 @@ import type { AssetFormState } from "../schemas";
  *
  * Creating an asset that carries its first photo is two writes, not one: the
  * row goes in through a server action, and only then can the browser upload,
- * because a photo object path is keyed by the asset id. The rule that matters
- * is that the second write failing never undoes the first — a photo that does
- * not reach storage leaves a perfectly good asset behind, and the user is
- * told so and pointed at its edit page.
+ * because a photo is added to an asset by its id
+ * (`/api/assets/<id>/photos`). The rule that matters is that the second write
+ * failing never undoes the first — a photo that is not stored leaves a
+ * perfectly good asset behind, and the user is told so and pointed at its
+ * edit page.
  *
  * Kept as plain functions, apart from the hook that calls them, so that rule
  * is stated in one place and can be tested without React, a network, or a
- * bucket.
+ * database.
  */
 
 /** The branch taken once the create action has answered. */
@@ -43,8 +44,8 @@ export type PhotoStep =
  * Reads the create action's answer.
  *
  * A state that claims success without an id is treated as a rejection rather
- * than followed: there would be nothing to key an object path on, and
- * uploading against a guessed id is exactly what `attachStoredPhoto` refuses.
+ * than followed: there would be no asset to add the photo to, and uploading
+ * against a guessed id would only be refused by the upload route.
  */
 export function nextCreateStep(
   state: AssetFormState,

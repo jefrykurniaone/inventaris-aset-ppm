@@ -80,7 +80,13 @@ const OPEN_LOAN_LIMIT = 1;
 
 /** Primary first, then the curator's order, then oldest first — the same order
  * `src/app/(app)/assets/photos/queries.ts` uses, so no surface re-sorts what
- * it is handed and the primary photo (FR-4.1) is always `photos[0]`. */
+ * it is handed and the primary photo (FR-4.1) is always `photos[0]`.
+ *
+ * `id` is the whole of what a page needs to show a photo: its address is
+ * built from the id (`src/lib/photo-address.ts`), and the bytes stay in the
+ * side table this selection cannot reach (ADR 0009). The photo id is not a
+ * register key — it opens one image and nothing else, which the public page
+ * already shows. */
 const PHOTO_SELECT = {
   orderBy: [
     { isPrimary: DESCENDING },
@@ -89,8 +95,6 @@ const PHOTO_SELECT = {
   ],
   select: {
     id: true,
-    objectPath: true,
-    thumbObjectPath: true,
     isPrimary: true,
     // Intrinsic dimensions, so `next/image` reserves the right box before the
     // bytes arrive. Layout shift is the cheapest thing to lose on the one

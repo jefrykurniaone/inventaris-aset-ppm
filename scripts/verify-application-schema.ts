@@ -184,13 +184,17 @@ async function createFixtures(db: Db): Promise<void> {
   await db.assetPhoto.create({ data: photoData(FIRST_PHOTO_ID, true) });
 }
 
-/** A photo of the fixture asset, uploaded by the fixture user. */
+/**
+ * A photo row of the fixture asset, uploaded by the fixture user. Metadata
+ * only: since ADR 0009 the bytes live in `asset_photo_content`, which only
+ * `src/lib/storage.ts` writes, and neither constraint under test involves
+ * them — so no content row is created, and the cascade from the photo row
+ * would remove one anyway.
+ */
 function photoData(id: string, isPrimary: boolean) {
   return {
     id,
     assetId: ASSET_ID,
-    objectPath: `assets/${ASSET_ID}/${id}.webp`,
-    thumbObjectPath: `assets/${ASSET_ID}/${id}-thumb.webp`,
     width: PHOTO_WIDTH,
     height: PHOTO_HEIGHT,
     sizeBytes: PHOTO_SIZE_BYTES,

@@ -1,281 +1,109 @@
-import { createClient } from "@supabase/supabase-js";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  assertDevelopmentStorageBucket,
-  DEPLOYMENT_STORAGE_BUCKET,
-  DEVELOPMENT_STORAGE_BUCKET,
-  getObjectStorage,
-  getStorageBucket,
-  StorageConfigurationError,
-  StorageOperationError,
-} from "./storage";
+import { db } from "@/lib/db";
+
+import { getPhotoStorage, type TransactionClient } from "./storage";
 
 /**
- * The seam is exercised against a stubbed `@supabase/supabase-js` rather than
- * against the network: what is worth asserting here is the mapping — which
- * bucket is addressed, what a Supabase `{ data, error }` pair becomes, and
- * that the recursive listing walks folders — none of which a live call would
- * demonstrate more clearly. The live path is proven separately and for real by
- * `scripts/verify-photo-storage.ts`, which runs against `asset-photos-dev`.
+ * The seam is exercised against a stubbed database client: what is worth
+ * asserting here is the mapping — which columns a variant reads, that a
+ * withdrawn asset's photo is filtered out *by the query*, and that a write
+ * goes through the caller's transaction rather than through `db` — none of
+ * which a live database would show more clearly. The real round trip of bytes
+ * through PostgreSQL is the runtime walk's and the smoke path's to prove.
  */
 
-const bucketApi = {
-  createSignedUploadUrl: vi.fn(),
-  getPublicUrl: vi.fn(),
-  info: vi.fn(),
-  list: vi.fn(),
-  remove: vi.fn(),
-};
-
-const from = vi.fn(() => bucketApi);
-
-vi.mock("@supabase/supabase-js", () => ({
-  createClient: vi.fn(() => ({ storage: { from } })),
+vi.mock("@/lib/db", () => ({
+  db: { assetPhotoContent: { findFirst: vi.fn(), create: vi.fn() } },
 }));
 
-const mockedCreateClient = vi.mocked(createClient);
+const mockedFindFirst = vi.mocked(db.assetPhotoContent.findFirst);
+const mockedDbCreate = vi.mocked(db.assetPhotoContent.create);
 
-const PROJECT_URL = "https://project.supabase.test";
-const SERVICE_ROLE_KEY = "service-role-key-placeholder";
-const OBJECT_PATH = "assets/asset-1/abcdefghijklmnop.webp";
-const LIST_PAGE_SIZE = 100;
+const PHOTO_ID = "0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b";
+const FULL_BYTES = Uint8Array.of(0xff, 0xd8, 0xff, 1, 2, 3);
+const THUMB_BYTES = Uint8Array.of(0xff, 0xd8, 0xff, 4);
 
-function storageError(message: string) {
-  return { data: null, error: { message } };
-}
+const LIVE_ASSET_FILTER = {
+  photoId: PHOTO_ID,
+  photo: { asset: { deletedAt: null } },
+};
 
-function folderEntry(name: string) {
-  return { name, id: null };
-}
-
-function fileEntry(name: string) {
-  return { name, id: `id-${name}` };
+function transactionClient() {
+  const create = vi.fn(async () => ({ photoId: PHOTO_ID }));
+  const tx = { assetPhotoContent: { create } } as unknown as TransactionClient;
+  return { tx, create };
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  process.env.SUPABASE_URL = PROJECT_URL;
-  process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_ROLE_KEY;
-  process.env.SUPABASE_STORAGE_BUCKET = DEVELOPMENT_STORAGE_BUCKET;
 });
 
-afterEach(() => {
-  delete process.env.SUPABASE_URL;
-  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-  delete process.env.SUPABASE_STORAGE_BUCKET;
-});
+describe("writePhotoContent", () => {
+  it("writes both derivatives and their types through the caller's transaction", async () => {
+    const { tx, create } = transactionClient();
 
-describe("configuration", () => {
-  it("reads the bucket from the environment", () => {
-    expect(getStorageBucket()).toBe(DEVELOPMENT_STORAGE_BUCKET);
-  });
-
-  it.each([
-    "SUPABASE_URL",
-    "SUPABASE_SERVICE_ROLE_KEY",
-    "SUPABASE_STORAGE_BUCKET",
-  ])("names %s when it is missing, and never a value", async (variable) => {
-    delete process.env[variable];
-
-    await expect(
-      getObjectStorage().createSignedUploadTarget(OBJECT_PATH),
-    ).rejects.toBeInstanceOf(StorageConfigurationError);
-  });
-
-  it("addresses the bucket the environment names, with no branch of its own", () => {
-    process.env.SUPABASE_STORAGE_BUCKET = DEPLOYMENT_STORAGE_BUCKET;
-    bucketApi.getPublicUrl.mockReturnValue({
-      data: { publicUrl: `${PROJECT_URL}/x` },
+    await getPhotoStorage().writePhotoContent(tx, PHOTO_ID, {
+      fullBytes: FULL_BYTES,
+      fullContentType: "image/jpeg",
+      thumbBytes: THUMB_BYTES,
+      thumbContentType: "image/webp",
     });
 
-    getObjectStorage().getPublicUrl(OBJECT_PATH);
-
-    expect(from).toHaveBeenCalledWith(DEPLOYMENT_STORAGE_BUCKET);
-  });
-
-  it("builds a client that keeps no session, because there is no user to keep", () => {
-    bucketApi.getPublicUrl.mockReturnValue({
-      data: { publicUrl: `${PROJECT_URL}/x` },
-    });
-
-    getObjectStorage().getPublicUrl(OBJECT_PATH);
-
-    expect(mockedCreateClient).toHaveBeenCalledWith(
-      PROJECT_URL,
-      SERVICE_ROLE_KEY,
+    expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
-        auth: expect.objectContaining({ persistSession: false }),
+        data: {
+          photoId: PHOTO_ID,
+          fullBytes: FULL_BYTES,
+          fullContentType: "image/jpeg",
+          thumbBytes: THUMB_BYTES,
+          thumbContentType: "image/webp",
+        },
       }),
     );
+    expect(mockedDbCreate).not.toHaveBeenCalled();
   });
 });
 
-describe("assertDevelopmentStorageBucket", () => {
-  it("allows the development bucket", () => {
-    expect(() =>
-      assertDevelopmentStorageBucket(DEVELOPMENT_STORAGE_BUCKET),
-    ).not.toThrow();
+describe("readPhotoVariant", () => {
+  it("reads the full image and only the full image's columns", async () => {
+    mockedFindFirst.mockResolvedValue({
+      fullBytes: FULL_BYTES,
+      fullContentType: "image/jpeg",
+    } as never);
+
+    const stored = await getPhotoStorage().readPhotoVariant(PHOTO_ID, "full");
+
+    expect(stored).toEqual({ bytes: FULL_BYTES, contentType: "image/jpeg" });
+    expect(mockedFindFirst).toHaveBeenCalledWith({
+      where: LIVE_ASSET_FILTER,
+      select: { fullBytes: true, fullContentType: true },
+    });
   });
 
-  it.each([DEPLOYMENT_STORAGE_BUCKET, "", "asset-photos-staging"])(
-    "refuses %s and names the bucket it refused",
-    (bucket) => {
-      expect(() => assertDevelopmentStorageBucket(bucket)).toThrow(
-        DEVELOPMENT_STORAGE_BUCKET,
-      );
+  it("reads the thumbnail without naming the full image's column", async () => {
+    mockedFindFirst.mockResolvedValue({
+      thumbBytes: THUMB_BYTES,
+      thumbContentType: "image/webp",
+    } as never);
+
+    const stored = await getPhotoStorage().readPhotoVariant(PHOTO_ID, "thumb");
+
+    expect(stored).toEqual({ bytes: THUMB_BYTES, contentType: "image/webp" });
+    expect(mockedFindFirst).toHaveBeenCalledWith({
+      where: LIVE_ASSET_FILTER,
+      select: { thumbBytes: true, thumbContentType: true },
+    });
+  });
+
+  it.each(["full", "thumb"] as const)(
+    "answers null for the %s variant of an unknown photo or a withdrawn asset's, which the query cannot tell apart",
+    async (variant) => {
+      mockedFindFirst.mockResolvedValue(null);
+
+      await expect(
+        getPhotoStorage().readPhotoVariant(PHOTO_ID, variant),
+      ).resolves.toBeNull();
     },
   );
-});
-
-describe("createSignedUploadTarget", () => {
-  it("returns the signed URL alongside the path it was minted for", async () => {
-    bucketApi.createSignedUploadUrl.mockResolvedValue({
-      data: {
-        signedUrl: `${PROJECT_URL}/upload?token=t`,
-        token: "t",
-        path: OBJECT_PATH,
-      },
-      error: null,
-    });
-
-    const target =
-      await getObjectStorage().createSignedUploadTarget(OBJECT_PATH);
-
-    expect(target).toEqual({
-      objectPath: OBJECT_PATH,
-      signedUrl: `${PROJECT_URL}/upload?token=t`,
-    });
-    expect(bucketApi.createSignedUploadUrl).toHaveBeenCalledWith(OBJECT_PATH);
-  });
-
-  it("raises a StorageOperationError naming the operation and the path", async () => {
-    bucketApi.createSignedUploadUrl.mockResolvedValue(
-      storageError("bucket not found"),
-    );
-
-    await expect(
-      getObjectStorage().createSignedUploadTarget(OBJECT_PATH),
-    ).rejects.toThrow(StorageOperationError);
-  });
-
-  it("raises rather than returning an empty target when no data comes back", async () => {
-    bucketApi.createSignedUploadUrl.mockResolvedValue({
-      data: null,
-      error: null,
-    });
-
-    await expect(
-      getObjectStorage().createSignedUploadTarget(OBJECT_PATH),
-    ).rejects.toThrow("no signed URL was returned");
-  });
-});
-
-describe("getPublicUrl", () => {
-  it("builds the URL from the configured bucket at read time (FR-4.9)", () => {
-    const publicUrl = `${PROJECT_URL}/storage/v1/object/public/${DEVELOPMENT_STORAGE_BUCKET}/${OBJECT_PATH}`;
-    bucketApi.getPublicUrl.mockReturnValue({ data: { publicUrl } });
-
-    expect(getObjectStorage().getPublicUrl(OBJECT_PATH)).toBe(publicUrl);
-  });
-});
-
-describe("statObject", () => {
-  it("reports what the bucket holds, not what a caller claimed", async () => {
-    bucketApi.info.mockResolvedValue({
-      data: { contentType: "image/webp", size: 123_456 },
-      error: null,
-    });
-
-    await expect(getObjectStorage().statObject(OBJECT_PATH)).resolves.toEqual({
-      contentType: "image/webp",
-      sizeBytes: 123_456,
-    });
-  });
-
-  it("returns null for an object that is not there", async () => {
-    bucketApi.info.mockResolvedValue(storageError("Object not found"));
-
-    await expect(
-      getObjectStorage().statObject(OBJECT_PATH),
-    ).resolves.toBeNull();
-  });
-
-  it("reports an unknown type as empty and an unknown size as zero, so neither passes a check by omission", async () => {
-    bucketApi.info.mockResolvedValue({ data: { id: "x" }, error: null });
-
-    await expect(getObjectStorage().statObject(OBJECT_PATH)).resolves.toEqual({
-      contentType: "",
-      sizeBytes: 0,
-    });
-  });
-});
-
-describe("listObjectPaths", () => {
-  it("walks folders so a nested object is reached", async () => {
-    bucketApi.list
-      .mockResolvedValueOnce({ data: [folderEntry("assets")], error: null })
-      .mockResolvedValueOnce({ data: [folderEntry("asset-1")], error: null })
-      .mockResolvedValueOnce({
-        data: [fileEntry("a.webp"), fileEntry("b.webp")],
-        error: null,
-      });
-
-    await expect(getObjectStorage().listObjectPaths("")).resolves.toEqual([
-      "assets/asset-1/a.webp",
-      "assets/asset-1/b.webp",
-    ]);
-  });
-
-  it("pages until a short page comes back", async () => {
-    const firstPage = Array.from({ length: LIST_PAGE_SIZE }, (_, index) =>
-      fileEntry(`file-${index}.webp`),
-    );
-    bucketApi.list
-      .mockResolvedValueOnce({ data: firstPage, error: null })
-      .mockResolvedValueOnce({ data: [fileEntry("last.webp")], error: null });
-
-    const paths = await getObjectStorage().listObjectPaths("assets/asset-1");
-
-    expect(paths).toHaveLength(LIST_PAGE_SIZE + 1);
-    expect(bucketApi.list).toHaveBeenCalledWith("assets/asset-1", {
-      limit: LIST_PAGE_SIZE,
-      offset: LIST_PAGE_SIZE,
-    });
-  });
-
-  it("raises rather than reporting an empty bucket when the listing fails", async () => {
-    bucketApi.list.mockResolvedValue(storageError("permission denied"));
-
-    await expect(getObjectStorage().listObjectPaths("")).rejects.toThrow(
-      StorageOperationError,
-    );
-  });
-});
-
-describe("deleteObjects", () => {
-  it("removes the paths it is given", async () => {
-    bucketApi.remove.mockResolvedValue({ data: [], error: null });
-
-    await getObjectStorage().deleteObjects([OBJECT_PATH]);
-
-    expect(bucketApi.remove).toHaveBeenCalledWith([OBJECT_PATH]);
-  });
-
-  it("does not call storage at all for an empty list", async () => {
-    await getObjectStorage().deleteObjects([]);
-
-    expect(bucketApi.remove).not.toHaveBeenCalled();
-  });
-
-  it("raises when the delete is refused, so a caller cannot orphan an object silently", async () => {
-    bucketApi.remove.mockResolvedValue({
-      data: null,
-      error: { message: "no" },
-    });
-
-    await expect(
-      getObjectStorage().deleteObjects([OBJECT_PATH]),
-    ).rejects.toThrow(StorageOperationError);
-  });
 });

@@ -127,6 +127,16 @@ describe("the anonymous scan selection", () => {
       "dueAt",
     ]);
   });
+
+  it("reads each photo by its id and dimensions, and never names its bytes", () => {
+    expect(Object.keys(ANONYMOUS_ASSET_SCAN_SELECT.photos.select)).toEqual([
+      "id",
+      "isPrimary",
+      "width",
+      "height",
+    ]);
+    expect(anonymousKeys.has("content")).toBe(false);
+  });
 });
 
 describe("the signed-in scan selection", () => {

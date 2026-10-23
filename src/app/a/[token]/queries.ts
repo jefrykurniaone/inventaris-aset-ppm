@@ -6,7 +6,7 @@ import {
   type ScanAudience,
 } from "@/lib/asset-visibility";
 import { db } from "@/lib/db";
-import { getObjectStorage } from "@/lib/storage";
+import { photoAddress } from "@/lib/photo-address";
 
 import {
   PRICE_DECIMAL_PLACES,
@@ -165,14 +165,13 @@ function toRestricted(row: SignedInRow): ScanRestrictedRecord {
   };
 }
 
-/** Object paths become URLs here, at read time, through the storage seam
- * (FR-4.9) — the database never holds a URL. */
+/** A photo's two addresses are built here, at read time, from its id — the
+ * application's own serving route (ADR 0009). The database holds no URL. */
 function toPhotos(row: ScanRow): readonly ScanPhoto[] {
-  const storage = getObjectStorage();
   return row.photos.map((photo) => ({
     id: photo.id,
-    url: storage.getPublicUrl(photo.objectPath),
-    thumbnailUrl: storage.getPublicUrl(photo.thumbObjectPath),
+    url: photoAddress(photo.id, "full"),
+    thumbnailUrl: photoAddress(photo.id, "thumb"),
     width: photo.width,
     height: photo.height,
   }));

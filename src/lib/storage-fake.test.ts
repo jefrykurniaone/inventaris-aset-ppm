@@ -1,65 +1,81 @@
 import { describe, expect, it } from "vitest";
 
-import { createInMemoryObjectStorage } from "./storage-fake";
+import type { PhotoContent, TransactionClient } from "./storage";
+import { createInMemoryPhotoStorage } from "./storage-fake";
 
-const FULL_PATH = "assets/asset-1/aaaaaaaaaaaaaaaa.webp";
-const THUMB_PATH = "assets/asset-1/bbbbbbbbbbbbbbbb.webp";
-const OTHER_ASSET_PATH = "assets/asset-2/cccccccccccccccc.webp";
-const STORED = { contentType: "image/webp", sizeBytes: 1_024 };
+const PHOTO_ID = "photo-1";
+const OTHER_PHOTO_ID = "photo-0";
+const TX = { marker: "transaction" } as unknown as TransactionClient;
 
-describe("the in-memory object storage", () => {
-  it("holds nothing until an upload is simulated, matching the real seam", async () => {
-    const storage = createInMemoryObjectStorage();
+const CONTENT: PhotoContent = {
+  fullBytes: Uint8Array.of(0xff, 0xd8, 0xff, 1),
+  fullContentType: "image/jpeg",
+  thumbBytes: Uint8Array.of(0xff, 0xd8, 0xff, 2),
+  thumbContentType: "image/jpeg",
+};
 
-    await storage.createSignedUploadTarget(FULL_PATH);
+describe("the in-memory photo storage", () => {
+  it("holds nothing until content is written, matching the real seam", async () => {
+    const storage = createInMemoryPhotoStorage();
 
-    expect(storage.signedPaths).toEqual([FULL_PATH]);
-    await expect(storage.statObject(FULL_PATH)).resolves.toBeNull();
+    await expect(
+      storage.readPhotoVariant(PHOTO_ID, "full"),
+    ).resolves.toBeNull();
+    expect(storage.storedPhotoIds()).toEqual([]);
   });
 
-  it("reports a simulated upload once it has landed", async () => {
-    const storage = createInMemoryObjectStorage();
-    storage.putObject(FULL_PATH, STORED);
+  it("returns each variant's own bytes and type once written", async () => {
+    const storage = createInMemoryPhotoStorage();
+    await storage.writePhotoContent(TX, PHOTO_ID, CONTENT);
 
-    await expect(storage.statObject(FULL_PATH)).resolves.toEqual(STORED);
+    await expect(storage.readPhotoVariant(PHOTO_ID, "full")).resolves.toEqual({
+      bytes: CONTENT.fullBytes,
+      contentType: "image/jpeg",
+    });
+    await expect(storage.readPhotoVariant(PHOTO_ID, "thumb")).resolves.toEqual({
+      bytes: CONTENT.thumbBytes,
+      contentType: "image/jpeg",
+    });
   });
 
-  it("builds a distinct public URL per object path", () => {
-    const storage = createInMemoryObjectStorage();
+  it("records the transaction each write was handed", async () => {
+    const storage = createInMemoryPhotoStorage();
+    await storage.writePhotoContent(TX, PHOTO_ID, CONTENT);
 
-    expect(storage.getPublicUrl(FULL_PATH)).toContain(FULL_PATH);
-    expect(storage.getPublicUrl(FULL_PATH)).not.toBe(
-      storage.getPublicUrl(THUMB_PATH),
-    );
+    expect(storage.writeTransactions).toEqual([TX]);
+    expect(storage.contentOf(PHOTO_ID)).toBe(CONTENT);
   });
 
-  it("lists only the paths under the prefix it is asked for", async () => {
-    const storage = createInMemoryObjectStorage();
-    storage.putObject(FULL_PATH, STORED);
-    storage.putObject(THUMB_PATH, STORED);
-    storage.putObject(OTHER_ASSET_PATH, STORED);
+  it("answers null for a withdrawn asset's photo, as the real query does", async () => {
+    const storage = createInMemoryPhotoStorage();
+    await storage.writePhotoContent(TX, PHOTO_ID, CONTENT);
 
-    await expect(storage.listObjectPaths("assets/asset-1/")).resolves.toEqual([
-      FULL_PATH,
-      THUMB_PATH,
-    ]);
-    await expect(storage.listObjectPaths("")).resolves.toHaveLength(3);
+    storage.withdraw(PHOTO_ID);
+    storage.withdraw("never-written");
+
+    await expect(
+      storage.readPhotoVariant(PHOTO_ID, "thumb"),
+    ).resolves.toBeNull();
+    expect(storage.storedPhotoIds()).toEqual([PHOTO_ID]);
   });
 
-  it("deletes the paths it is given and tolerates one that is already gone", async () => {
-    const storage = createInMemoryObjectStorage();
-    storage.putObject(FULL_PATH, STORED);
+  it("forgets a photo's content when its row is removed, like the cascade", async () => {
+    const storage = createInMemoryPhotoStorage();
+    await storage.writePhotoContent(TX, PHOTO_ID, CONTENT);
 
-    await storage.deleteObjects([FULL_PATH, THUMB_PATH]);
+    storage.removePhoto(PHOTO_ID);
 
-    expect(storage.storedPaths()).toEqual([]);
+    await expect(
+      storage.readPhotoVariant(PHOTO_ID, "full"),
+    ).resolves.toBeNull();
+    expect(storage.contentOf(PHOTO_ID)).toBeUndefined();
   });
 
-  it("sorts stored paths, so an assertion does not depend on insertion order", () => {
-    const storage = createInMemoryObjectStorage();
-    storage.putObject(THUMB_PATH, STORED);
-    storage.putObject(FULL_PATH, STORED);
+  it("sorts stored ids, so an assertion does not depend on insertion order", async () => {
+    const storage = createInMemoryPhotoStorage();
+    await storage.writePhotoContent(TX, PHOTO_ID, CONTENT);
+    await storage.writePhotoContent(TX, OTHER_PHOTO_ID, CONTENT);
 
-    expect(storage.storedPaths()).toEqual([FULL_PATH, THUMB_PATH]);
+    expect(storage.storedPhotoIds()).toEqual([OTHER_PHOTO_ID, PHOTO_ID]);
   });
 });

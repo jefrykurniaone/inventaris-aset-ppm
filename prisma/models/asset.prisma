@@ -66,31 +66,51 @@ model Asset {
 // which Prisma cannot express, so it is written by hand into the migration and
 // enforced by Postgres rather than by application code.
 //
-// `objectPath` and `thumbObjectPath` hold the storage object path, never a full
-// URL (FR-4.9). The bucket differs per environment — `asset-photos-dev` locally,
-// `asset-photos` in deployment — so a stored URL would pin the row to one
-// bucket and force a data rewrite at the cutover. Signed URLs are minted at
-// read time from these paths by `src/lib/storage.ts`. See
-// `docs/supabase-storage-provisioning.md`.
+// The photo row holds metadata only: dimensions, size, primary flag, order and
+// uploader. Its bytes live in `AssetPhotoContent` below (ADR 0009), so the list,
+// detail and scan queries that read this row can never pull an image by
+// accident. The address a photo is served from is built from `id` at render
+// time (`src/lib/photo-address.ts`); nothing stores a URL or a path.
 
 model AssetPhoto {
-  id              String   @id @default(uuid(7))
-  assetId         String
-  asset           Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  objectPath      String
-  thumbObjectPath String
-  width           Int
-  height          Int
-  sizeBytes       Int
-  isPrimary       Boolean  @default(false)
-  sortOrder       Int      @default(0)
-  uploadedById    String
-  uploadedBy      User     @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
-  createdAt       DateTime @default(now())
+  id           String             @id @default(uuid(7))
+  assetId      String
+  asset        Asset              @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  content      AssetPhotoContent?
+  width        Int
+  height       Int
+  sizeBytes    Int
+  isPrimary    Boolean            @default(false)
+  sortOrder    Int                @default(0)
+  uploadedById String
+  uploadedBy   User               @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  createdAt    DateTime           @default(now())
 
   @@index([assetId, sortOrder])
   @@index([uploadedById])
   @@map("asset_photo")
+}
+
+// The bytes of one photo, in a side table with exactly one row per
+// `AssetPhoto` (ADR 0009). The primary key is the foreign key, so a photo has
+// at most one content row, and it cascades, so deleting the photo row deletes
+// its bytes in the same statement: there is no delete operation in
+// `src/lib/storage.ts` because the cascade is the delete.
+//
+// All four columns are NOT NULL, so the schema itself guarantees that every
+// stored photo has both a full image and a thumbnail. PostgreSQL stores large
+// `bytea` values out of line, so reading the thumbnail never reads the full
+// image. Only `src/lib/storage.ts` reads or writes this model.
+
+model AssetPhotoContent {
+  photoId          String     @id
+  photo            AssetPhoto @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  fullContentType  String
+  fullBytes        Bytes
+  thumbContentType String
+  thumbBytes       Bytes
+
+  @@map("asset_photo_content")
 }
 
 // The loan register (FR-6). An open loan is one with `returnedAt` null; overdue
