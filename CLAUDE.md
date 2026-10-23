@@ -19,18 +19,14 @@ resolves to a public page describing that item. Signed-in staff see the full rec
   sit at the schema root *and* requires `migrations` to sit beside it, so going deeper would move
   the migration history. The datasource URL lives in `prisma.config.ts`, not in `schema.prisma`.
   `prisma-client-js` is legacy — do not use it.
-- Postgres through `@prisma/adapter-pg` — the **same adapter in both environments**. Local
-  PostgreSQL 17 in development, Supabase Postgres in deployment. `DATABASE_URL` is used by Prisma
-  Client at runtime; `DIRECT_URL` is used by migrations. On Supabase these differ: transaction
-  pooler on port 6543 with `?pgbouncer=true&connection_limit=1` for the former, session mode on
-  port 5432 for the latter. Locally they are the same string.
-- Better Auth: `emailAndPassword`, `admin()` plugin, `nextCookies()`. Supabase is used as Postgres
-  and object storage only — **not** as the auth provider. Do not reach for Supabase Auth.
-- Object storage is **Supabase Storage in every environment** (`createSignedUploadUrl` /
-  `uploadToSignedUrl`), behind one interface. Browser uploads directly; image bytes never pass
-  through a serverless function. Buckets differ per environment — `asset-photos-dev` locally,
-  `asset-photos` in deployment — selected by `SUPABASE_STORAGE_BUCKET`. There is no local-filesystem
-  driver; see ADR 0005.
+- Postgres through `@prisma/adapter-pg`: local PostgreSQL 17. There is no deployment target and no
+  hosted database (ADR 0009). `DATABASE_URL` is used by Prisma Client at runtime; `DIRECT_URL` is
+  used by migrations, because `prisma.config.ts` reads it. Locally both hold the same string.
+- Better Auth: `emailAndPassword`, `admin()` plugin, `nextCookies()`.
+- Photos are stored in PostgreSQL, in a side table with one row per photo, behind
+  `src/lib/storage.ts` (ADR 0009). There is no object storage. The browser uploads each photo to one
+  route handler, `POST /api/assets/[id]/photos`, and a public route,
+  `GET /api/photos/[photoId]/[variant]`, serves it from the application's own origin.
 - Tailwind CSS v4 + shadcn/ui
 - `next-intl`, default locale `id`
 - Vitest + Playwright
@@ -45,12 +41,16 @@ Three seams exist specifically so that a dependency or environment swap stays ch
 - `src/lib/db.ts` — the only place the generated Prisma client is imported. Everything else
   imports `db` from here.
 - `src/lib/auth.ts` and `src/lib/auth-client.ts` — the only places Better Auth is configured.
-- `src/lib/storage.ts` — the only place object storage is touched. One interface, **one**
-  implementation: Supabase Storage, in every environment. The interface exists so the module stays
-  the single seam and so tests can inject an in-memory fake — it is not an environment switch, and
-  there is no `STORAGE_DRIVER`. Calling code must never import a Supabase client directly.
+- `src/lib/storage.ts` — the only place photo bytes are read or written (ADR 0009). One interface,
+  **one** implementation, with two operations: write a photo's content inside a transaction the
+  caller supplies, so the photo row and its bytes commit or roll back together; and read one variant
+  (full or thumbnail) of one photo, which answers nothing when the photo does not exist or its asset
+  is withdrawn, so the visibility rule is enforced where the data is fetched. There is no delete
+  operation, because the content row cascades from the photo row. The interface exists so the module
+  stays the single seam and so tests can inject an in-memory fake; it is not an environment switch.
+  Nothing else touches photo bytes.
 
-Do not import `@/generated/prisma`, `better-auth`, or a Supabase client anywhere else.
+Do not import `@/generated/prisma` or `better-auth` anywhere else.
 
 `prisma`, `@prisma/client`, and `better-auth` are pinned to exact versions. Do not widen the
 version range and do not upgrade them without an ADR.

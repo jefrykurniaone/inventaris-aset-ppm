@@ -17,14 +17,14 @@ scope boundaries, and delivery plan.
 | Concern | Choice |
 |---|---|
 | Framework | Next.js 15 (App Router), TypeScript |
-| Database | Local PostgreSQL 17 in development, Supabase Postgres in deployment — one adapter, `@prisma/adapter-pg` |
+| Database | Local PostgreSQL 17 through `@prisma/adapter-pg` |
 | ORM | Prisma 7 (`prisma-client` generator) |
 | Auth | Better Auth (email/password, `admin()` plugin) |
-| Photos | Supabase Storage in **every** environment, client-direct signed upload — see ADR 0005 |
+| Photos | Stored in PostgreSQL, uploaded through one route handler and served from the application's own origin — see ADR 0009 |
 | UI | Tailwind CSS v4 + shadcn/ui |
 | i18n | `next-intl` — Indonesian (default) and English |
 | Tests | Vitest (unit), Playwright (smoke) |
-| Hosting | Vercel |
+| Hosting | None. There is no deployment target — see ADR 0009 |
 
 ## Getting started
 
@@ -51,14 +51,10 @@ would survive into whatever environment the seed ran in next. Generate one with
 existing account's password. It also refuses any `DATABASE_URL` that is not local unless
 `SEED_ALLOW_REMOTE=true` is set deliberately.
 
-Development runs the database locally, but **photos need a Supabase project**: object storage is
-Supabase Storage in every environment, writing to an `asset-photos-dev` bucket locally and
-`asset-photos` in deployment. There is no local-filesystem fallback, so photo upload requires
-network access. Everything else works offline. See
-[`docs/adr/0003-local-postgres-development-supabase-deployment.md`](docs/adr/0003-local-postgres-development-supabase-deployment.md)
-for the database split and
-[`docs/adr/0005-supabase-storage-in-all-environments.md`](docs/adr/0005-supabase-storage-in-all-environments.md)
-for storage.
+**Photos need nothing beyond the local database.** They are stored in PostgreSQL, so uploading,
+showing and deleting them works offline. See
+[`docs/adr/0009-photos-stored-in-postgresql.md`](docs/adr/0009-photos-stored-in-postgresql.md).
+There is no deployment target: the project runs locally and in CI only.
 
 The `overrides` block in `package.json` pins `postcss` and `sharp` past advisories that
 `next@15.5.23` still depends on. It is not decoration — do not drop it during a dependency bump.
@@ -70,7 +66,7 @@ The reason, and the condition for removing it, are in
 | Command | Purpose |
 |---|---|
 | `npm run dev` | Development server |
-| `npm run build` | `prisma generate` then `next build`. The generate half is not optional — `src/generated/prisma` is git-ignored, so a fresh clone has no client to import. See [`docs/deployment.md`](docs/deployment.md) §1 |
+| `npm run build` | `prisma generate` then `next build`. The generate half is not optional — `src/generated/prisma` is git-ignored, so a fresh clone has no client to import |
 | `npm run start` | Serve the production build |
 | `npm run lint` | ESLint, zero warnings tolerated |
 | `npm run typecheck` | `tsc --noEmit` |
@@ -87,48 +83,31 @@ lint or type error cannot be committed.
 
 | Variable | Purpose |
 |---|---|
-| `DATABASE_URL` | Used by Prisma Client at runtime. Local instance in development; Supabase **transaction pooler** (port 6543, `?pgbouncer=true&connection_limit=1`) in deployment |
-| `DIRECT_URL` | Used by `prisma migrate`. Same as above locally; Supabase **session mode** (port 5432) in deployment. Migrations must not run through the transaction pooler |
+| `DATABASE_URL` | Used by Prisma Client at runtime. The local PostgreSQL instance |
+| `DIRECT_URL` | Used by `prisma migrate`, through `prisma.config.ts`. The same string as `DATABASE_URL` |
 | `BETTER_AUTH_SECRET` | Session signing secret |
-| `BETTER_AUTH_URL` | Absolute base URL of this deployment |
+| `BETTER_AUTH_URL` | Absolute base URL of the running application |
 | `NEXT_PUBLIC_APP_URL` | Absolute base URL, used to build QR payload URLs |
-| `SUPABASE_URL` | Required in every environment. One project serves both |
-| `SUPABASE_SERVICE_ROLE_KEY` | Required in every environment. Server-side only, used to issue signed upload URLs after the Better Auth session check. Never exposed to the browser |
-| `SUPABASE_STORAGE_BUCKET` | Required in every environment. `asset-photos-dev` in development, `asset-photos` in deployment |
-
-`?pgbouncer=true` and `connection_limit=1` are inert under Prisma 7's driver adapter — they were
-Prisma engine flags, and `pg` drops query parameters it does not recognise. They stay because every
-Prisma and Supabase guide says to add them. The **port** difference is the part that matters.
-[`docs/deployment.md`](docs/deployment.md) §7 has the verification and the error shapes.
 
 ## Before a demonstration
 
-Run this the **day before**, not on the morning. A free Supabase project pauses after a week without
-API requests, and the failure it produces is a scan page erroring in front of the client. A daily
-cron against `/api/health` is meant to prevent that (PRD risk R4); this checklist is what confirms
-the prevention worked.
+There is no deployed environment, so a demonstration runs from a local checkout. Check the day
+before, not on the morning.
 
-1. **The project is awake.** Open `<production URL>/api/health`. It must answer `{"status":"ok"}`.
-   That endpoint runs a real query against Supabase, so a good answer means the database replied —
-   not merely that Vercel is up. Anything else: resume the project in the Supabase dashboard and
-   check again.
+1. **The database answers.** Open `/api/health` on the running application. It must answer
+   `{"status":"ok"}`. That endpoint runs a real query, so a good answer means the database replied,
+   not merely that the server is up.
 2. **The seed data is present.** Sign in and open the dashboard. The asset count and the status
-   breakdown must be the seeded figures, not zeros.
-3. **One label scans.** Point a phone camera at a printed label — on mobile data, not on the office
-   network — and confirm the public page opens with its photos.
-
-[`docs/deployment.md`](docs/deployment.md) has the long version, including what to do when step 1
-fails.
+   breakdown must be the seeded figures, not zeros, and the seeded assets must show their photos.
+   `npm run db:seed` restores both on a reset database.
+3. **One label scans.** Point a phone camera at a printed label and confirm the public page opens
+   with its photos. A label encodes `NEXT_PUBLIC_APP_URL`, so the phone must be able to reach that
+   address.
 
 ## Documentation
 
 - [`docs/prd.md`](docs/prd.md) — product requirements
 - [`docs/adr/`](docs/adr/) — architecture decision records
-- [`docs/deployment.md`](docs/deployment.md) — the Vercel and Supabase Postgres cutover: environment
-  variables, migrations through session mode, the verification checklist, and what a
-  prepared-statement error against the transaction pooler actually means
-- [`docs/supabase-storage-provisioning.md`](docs/supabase-storage-provisioning.md) — how the storage
-  buckets and their access policies were created, and how to recreate them
 - [`docs/sonarcloud-analysis.md`](docs/sonarcloud-analysis.md) — how static analysis runs, why
   Automatic Analysis must stay off, and why the coverage exclusions have to track `vitest.config.mts`
 - [`CLAUDE.md`](CLAUDE.md) — coding standards and conventions binding on all contributors
