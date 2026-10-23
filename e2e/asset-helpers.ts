@@ -293,16 +293,36 @@ export async function readScanUrl(page: Page): Promise<string> {
   return href;
 }
 
-/** Deletes a photo through the interface, confirmation dialog and all, so the
- * run leaves no photo row behind. */
+/**
+ * Deletes a photo through the interface, confirmation dialog and all, so the
+ * run leaves no photo row behind. Resolves only once the delete has committed.
+ *
+ * Two things stand between the confirm click and "the photo is gone", and
+ * neither can be left to `toHaveCount(0)` alone:
+ *
+ * - While the alert dialog is open, Radix marks everything behind it
+ *   `aria-hidden`, and Playwright's role queries skip hidden elements. The
+ *   photos region is then not found at all, so a count of its list items is
+ *   `0` straight away — before the delete has even been sent. The server
+ *   action's own response is awaited instead (it is the page's only `POST`, and
+ *   it answers after the transaction commits), then the dialog is waited out,
+ *   and only then is the card's absence read.
+ * - The card is removed by the refresh that follows the action, so its absence
+ *   is a plain assertion once the region is visible again.
+ */
 export async function deletePhotoCard(
   page: Page,
   photoCard: Locator,
 ): Promise<void> {
   await photoCard.getByRole("button", { name: DELETE_PHOTO_BUTTON }).click();
-  await page
-    .getByRole("alertdialog")
-    .getByRole("button", { name: CONFIRM_DELETE_BUTTON })
-    .click();
+
+  const dialog = page.getByRole("alertdialog");
+  const actionResponse = page.waitForResponse(
+    (response) => response.request().method() === "POST",
+  );
+  await dialog.getByRole("button", { name: CONFIRM_DELETE_BUTTON }).click();
+
+  await actionResponse;
+  await expect(dialog).toBeHidden();
   await expect(photoCard).toHaveCount(0);
 }
