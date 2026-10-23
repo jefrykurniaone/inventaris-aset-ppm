@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
+import { PHOTO_ROUTE_PREFIX } from "./src/lib/photo-address";
 import { STATIC_SECURITY_HEADERS } from "./src/lib/security-headers";
 
 /** Every path, so build chunks and optimised images are covered too. */
@@ -33,32 +34,22 @@ const nextConfig: NextConfig = {
 
   images: {
     /**
-     * Asset photos are read from a public Supabase Storage bucket
-     * (ADR 0005), so `next/image` has to be told the host is allowed.
+     * No `remotePatterns`: photos are stored in PostgreSQL and served from
+     * this application's own `/api/photos/<id>/<variant>` route (ADR 0009), so
+     * the optimiser has no remote host to fetch from and a `/_next/image?url=`
+     * pointing at someone else's server answers 400.
      *
-     * A wildcard host rather than `SUPABASE_URL`: the value is server-side
-     * configuration that CI does not hold, and a build whose image policy
-     * depends on an absent variable silently produces a deployment that
-     * refuses its own images. The path is narrowed instead — only the public
-     * object route of a Supabase project can match.
+     * `localPatterns` narrows the optimiser to that route. The only
+     * optimised image is the public scan page's full-size photo, which is its
+     * Largest Contentful Paint element (issue #110); every other `next/image`
+     * is `unoptimized` and never reaches `/_next/image`, and `public/` holds
+     * no image. `search: ""` because photo addresses carry no query string
+     * (`photoAddress` in `src/lib/photo-address.ts`).
      *
-     * Every photo surface but one renders these with `unoptimized`, because a
-     * 400 px thumbnail drawn at 64 px gains nothing from a second encoding.
-     * The exception is the public scan page's full-size photo: it is that
-     * route's Largest Contentful Paint element, and 125,866 bytes fetched
-     * cross-origin for a 380 CSS px slot is what made the route miss its
-     * 2500 ms LCP budget (issue #110), so that one goes through the
-     * optimiser. This entry is what makes that a per-surface rendering choice
-     * rather than the only thing standing between the page and a blocked
-     * image.
+     * The prefix is imported by relative path because this file is evaluated
+     * before the `@/` alias exists.
      */
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "*.supabase.co",
-        pathname: "/storage/v1/object/public/**",
-      },
-    ],
+    localPatterns: [{ pathname: `${PHOTO_ROUTE_PREFIX}/**`, search: "" }],
   },
 };
 

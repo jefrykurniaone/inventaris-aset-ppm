@@ -41,22 +41,6 @@ export function createCspNonce(): string {
 const SELF = "'self'";
 const NONE = "'none'";
 
-/**
- * The host asset photos are served from, matching the `images.remotePatterns`
- * entry in `next.config.ts` — a wildcard for the same reason given there: the
- * Supabase project URL is server-side configuration, and a policy that
- * depended on a variable CI does not hold would ship a deployment that blocks
- * its own images. CSP cannot narrow a host source by path, so the narrowing
- * `remotePatterns` does is not reproducible here.
- *
- * It is needed twice. `img-src`, because the scan page and the application
- * shell render photos straight from the public object route; and
- * `connect-src`, because the browser uploads to a signed URL on that same
- * host itself (ADR 0005 — image bytes never pass through a function), so
- * blocking it would break photo upload rather than merely a thumbnail.
- */
-const SUPABASE_HOST = "https://*.supabase.co";
-
 /** Development-only websocket scheme, for the Next.js hot-reload socket. */
 const DEV_WEBSOCKET = "ws:";
 
@@ -79,9 +63,13 @@ const DEV_WEBSOCKET = "ws:";
  * `importScripts()` the vendored `browser-image-compression` build back from
  * this origin (`src/lib/photo-compression.ts`), so `'strict-dynamic'` would
  * trade a working upload path for a stricter policy. `'self'` is kept
- * instead: this application serves no user-supplied content from its own
- * origin — photos live in the Supabase bucket — so there is nothing
- * same-origin for an injected `<script src>` to point at.
+ * instead. The one same-origin route that serves user-supplied bytes is the
+ * photo route (`/api/photos/<id>/<variant>`, ADR 0009), and it is fenced on
+ * its own: it answers with the stored image type, `X-Content-Type-Options:
+ * nosniff` and `Content-Security-Policy: default-src 'none'; sandbox`, so an
+ * injected `<script src>` pointed at it is refused as a non-script type and a
+ * response rendered as a document runs nothing. This policy never reaches it,
+ * because the middleware matcher skips `/api`.
  *
  * `'unsafe-eval'` in development only. The Next.js development bundler and
  * React Fast Refresh evaluate module code, and a production bundle does not.
@@ -95,12 +83,12 @@ function scriptSrc(nonce: string, isDevelopment: boolean): string {
 }
 
 /**
- * `connect-src`. `SUPABASE_HOST` for the direct browser upload; the websocket
- * scheme for the development hot-reload channel, which a production build
- * never opens.
+ * `connect-src`. The browser uploads photos to this application's own origin
+ * (ADR 0009), so `'self'` covers it; the websocket scheme is for the
+ * development hot-reload channel, which a production build never opens.
  */
 function connectSrc(isDevelopment: boolean): string {
-  const sources = [SELF, SUPABASE_HOST];
+  const sources = [SELF];
   if (isDevelopment) {
     sources.push(DEV_WEBSOCKET);
   }
@@ -146,7 +134,7 @@ export function buildContentSecurityPolicy({
     `default-src ${SELF}`,
     scriptSrc(nonce, isDevelopment),
     STYLE_SRC,
-    `img-src ${SELF} data: blob: ${SUPABASE_HOST}`,
+    `img-src ${SELF} data: blob:`,
     `font-src ${SELF}`,
     connectSrc(isDevelopment),
     `worker-src ${SELF} blob:`,

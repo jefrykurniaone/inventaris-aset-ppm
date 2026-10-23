@@ -70,16 +70,16 @@ describe("buildContentSecurityPolicy", () => {
     );
   });
 
-  it("allows the Supabase public object host, so asset photos still render", () => {
-    expect(directive(productionPolicy(), "img-src")).toContain(
-      "https://*.supabase.co",
-    );
+  it.each([
+    ["production", productionPolicy],
+    ["development", developmentPolicy],
+  ])("names no Supabase host in a %s policy", (_environment, build) => {
+    expect(build().toLowerCase()).not.toContain("supabase");
   });
 
-  it("allows the Supabase host for connections too, so the direct browser upload still works", () => {
-    expect(directive(productionPolicy(), "connect-src")).toContain(
-      "https://*.supabase.co",
-    );
+  it("serves photos and takes uploads from the application's own origin only", () => {
+    expect(directive(productionPolicy(), "img-src")).toBe("'self' data: blob:");
+    expect(directive(productionPolicy(), "connect-src")).toBe("'self'");
   });
 
   it("allows a blob worker, which is how photo compression runs off the main thread", () => {
