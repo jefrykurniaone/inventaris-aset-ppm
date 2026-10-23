@@ -13,9 +13,11 @@ import {
  * (PRD FR-4.3): the full image at 1600 px and its 400 px thumbnail.
  *
  * This runs in the browser and is a usability measure, not a control — the
- * numbers it targets keep a 12-megapixel phone photo inside the egress budget
- * in risk R2 and inside the server's 1.5 MB ceiling, but the server re-checks
- * what actually arrived regardless of whether any of this happened.
+ * numbers it targets keep a 12-megapixel phone photo inside the server's 1.5 MB
+ * ceiling and small on mobile data and in the database (risk R2, closed,
+ * motivated them while photos lived in a bucket with an egress allowance), but
+ * the server re-checks what actually arrived regardless of whether any of this
+ * happened.
  */
 
 /** Why a picked file cannot be prepared. Each maps to its own message: HEIC

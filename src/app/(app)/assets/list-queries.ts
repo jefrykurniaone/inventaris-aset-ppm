@@ -98,9 +98,10 @@ function toAssetListRow(asset: AssetListRowSource): AssetListRow {
  * Only the primary photo's `id` is read off `photos`, one row per asset at
  * most (`take: 1` against the partial unique index on
  * `("assetId") WHERE "isPrimary"`), and the list addresses its `thumb`
- * variant — never `full`. Serving the full-size image in a list is exactly
- * what PRD risk R2 exists to prevent. An asset with no primary photo renders
- * the existing placeholder (`AssetThumbnailPlaceholder.tsx`).
+ * variant — never `full`. A list of full-size images would cost page weight,
+ * mobile data and database reads for a 40 px cell (PRD FR-4.7 reserves `full`
+ * for the detail and scan pages). An asset with no primary photo renders the
+ * existing placeholder (`AssetThumbnailPlaceholder.tsx`).
  */
 export async function listAssetsPage(
   query: AssetListQueryInput,

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Scripted perf measurement against production (issue #89). Single-user,
+    Scripted perf measurement against a running instance (issue #89). Single-user,
     sequential, no load generation. Full method notes live in
     docs/performance-evidence.md; this header covers only what that doc
     does not already record.
@@ -90,7 +90,7 @@ function Get-RequiredEnvValue([string]$name) {
     return $value
 }
 
-# --- Retry wrapper: DNS to *.vercel.app flaps intermittently on this machine ---
+# --- Retry wrapper: kept from when DNS to the hosted deployment flapped intermittently on this machine ---
 function Invoke-WithRetry([scriptblock]$action, [string]$label) {
     $attempt = 0
     while ($true) {

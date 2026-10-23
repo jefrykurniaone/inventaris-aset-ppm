@@ -13,7 +13,7 @@
  * client that skipped this step entirely.
  *
  * The file is pure so that the numbers below — which are the difference
- * between an upload that fits the egress budget in PRD risk R2 and one that
+ * between an upload that fits the server's per-derivative ceiling and one that
  * does not — are assertable in a unit test rather than only observable by
  * watching a real upload.
  */

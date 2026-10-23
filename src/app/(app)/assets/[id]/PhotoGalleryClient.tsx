@@ -13,8 +13,9 @@ import { PhotoLightbox } from "./PhotoLightbox";
  * detail page and the public scan page (#11) are the only two surfaces PRD
  * FR-4.7 allows that on. `unoptimized` for the same reason `PhotoCard`
  * carries it: the browser already produced an optimal WebP before upload
- * (FR-4.3), so Next's optimiser would only re-encode it and spend the exact
- * egress risk R2 asks the pipeline to avoid.
+ * (FR-4.3), so Next's optimiser would only re-encode it and add a
+ * transformation per render for nothing. (PRD risk R2, closed, was the egress
+ * allowance this once also protected.)
  */
 
 const GRID_IMAGE_SIZES =
