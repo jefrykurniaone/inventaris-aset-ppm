@@ -1,7 +1,10 @@
 # 0003 — Local Postgres for development, Supabase for deployment
 
 - **Status**: Accepted; the *Photo storage* section is superseded by
-  [0005](0005-supabase-storage-in-all-environments.md). The database decision stands.
+  [0005](0005-supabase-storage-in-all-environments.md), itself superseded by
+  [0009](0009-photos-stored-in-postgresql.md). The deployment half (Supabase Postgres, Vercel
+  hosting) lapsed on 2026-10-23, when the Supabase project was switched off and the Vercel
+  deployment retired; there is no deployment target. The local-database decision stands.
 - **Date**: 2026-08-21
 - **Deciders**: Jefry Kurniawan
 - **Supersedes**: the database, photo storage, and driver adapter rows of
