@@ -2,20 +2,51 @@ import { describe, expect, it } from "vitest";
 
 import {
   acceptPhoto,
-  buildPhotoObjectPath,
+  detectPhotoContentType,
+  inspectPhotoPart,
   isHeicFile,
   isPhotoContentType,
-  isPhotoObjectPathFor,
   MAX_PHOTO_BYTES,
   MAX_PHOTOS_PER_ASSET,
-  photoExtensionFor,
-  photoObjectPrefix,
+  MAX_UPLOAD_BODY_BYTES,
   PHOTO_CONTENT_TYPES,
-  PHOTO_OBJECT_ID_LENGTH,
 } from "./photo-upload";
 
-const ASSET_ID = "0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b";
-const OTHER_ASSET_ID = "0199ffff-c3d4-7e5f-8a9b-0c1d2e3f4a5b";
+/** The smallest headers each detector has to recognise, padded with a few
+ * arbitrary bytes so that a match is not an accident of length. */
+const JPEG_BYTES = Uint8Array.of(0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10);
+const PNG_BYTES = Uint8Array.of(
+  0x89,
+  0x50,
+  0x4e,
+  0x47,
+  0x0d,
+  0x0a,
+  0x1a,
+  0x0a,
+  0x00,
+  0x00,
+);
+function ascii(text: string): number[] {
+  return [...new TextEncoder().encode(text)];
+}
+
+/** A RIFF chunk size, little-endian. Its value is irrelevant to detection. */
+const RIFF_SIZE = [0x24, 0x00, 0x00, 0x00];
+const WEBP_BYTES = Uint8Array.from([
+  ...ascii("RIFF"),
+  ...RIFF_SIZE,
+  ...ascii("WEBPVP8 "),
+]);
+const WAV_BYTES = Uint8Array.from([
+  ...ascii("RIFF"),
+  ...RIFF_SIZE,
+  ...ascii("WAVEfmt "),
+]);
+const GIF_BYTES = Uint8Array.from([...ascii("GIF89a"), 0x01, 0x00]);
+const TEXT_BYTES = new TextEncoder().encode(
+  "this is a text file, not an image",
+);
 
 describe("the photo content-type allowlist", () => {
   it.each(PHOTO_CONTENT_TYPES)("accepts %s", (contentType) => {
@@ -34,13 +65,102 @@ describe("the photo content-type allowlist", () => {
   ])("refuses %s", (contentType) => {
     expect(isPhotoContentType(contentType)).toBe(false);
   });
+});
 
-  it("maps each allowed type to one file extension", () => {
-    expect(PHOTO_CONTENT_TYPES.map(photoExtensionFor)).toEqual([
-      "jpg",
-      "png",
-      "webp",
-    ]);
+describe("detectPhotoContentType", () => {
+  it.each([
+    [JPEG_BYTES, "image/jpeg"],
+    [PNG_BYTES, "image/png"],
+    [WEBP_BYTES, "image/webp"],
+  ] as const)("recognises an allowed signature as %s", (bytes, expected) => {
+    expect(detectPhotoContentType(bytes)).toBe(expected);
+  });
+
+  it.each([
+    ["two bytes of a JPEG marker", Uint8Array.of(0xff, 0xd8)],
+    ["the first half of a PNG signature", PNG_BYTES.slice(0, 4)],
+    ["RIFF and a size, cut before the form type", WEBP_BYTES.slice(0, 10)],
+    ["nothing at all", new Uint8Array(0)],
+  ])("returns null for a truncated header: %s", (_label, bytes) => {
+    expect(detectPhotoContentType(bytes)).toBeNull();
+  });
+
+  it.each([
+    ["plain text", TEXT_BYTES],
+    ["a WAV file, which is RIFF but not WebP", WAV_BYTES],
+    ["a GIF", GIF_BYTES],
+    [
+      "a JPEG signature that starts one byte late",
+      Uint8Array.of(0, 0xff, 0xd8, 0xff),
+    ],
+  ])("returns null for %s", (_label, bytes) => {
+    expect(detectPhotoContentType(bytes)).toBeNull();
+  });
+});
+
+describe("inspectPhotoPart", () => {
+  it.each([
+    [JPEG_BYTES, "image/jpeg"],
+    [PNG_BYTES, "image/png"],
+    [WEBP_BYTES, "image/webp"],
+  ] as const)(
+    "accepts bytes that are what they say they are (%#)",
+    (bytes, declaredType) => {
+      expect(inspectPhotoPart({ declaredType, bytes })).toEqual({
+        isAccepted: true,
+        contentType: declaredType,
+        sizeBytes: bytes.length,
+      });
+    },
+  );
+
+  it("refuses text declared as image/webp as an unsupported format", () => {
+    expect(
+      inspectPhotoPart({ declaredType: "image/webp", bytes: TEXT_BYTES }),
+    ).toEqual({ isAccepted: false, rejection: "UNSUPPORTED_TYPE" });
+  });
+
+  it.each([
+    ["a JPEG declared as WebP", JPEG_BYTES, "image/webp"],
+    ["a WebP declared as PNG", WEBP_BYTES, "image/png"],
+    ["a PNG declared as nothing", PNG_BYTES, ""],
+    ["a JPEG declared in capitals", JPEG_BYTES, "IMAGE/JPEG"],
+  ])(
+    "refuses a lie in the declared type: %s",
+    (_label, bytes, declaredType) => {
+      expect(inspectPhotoPart({ declaredType, bytes })).toEqual({
+        isAccepted: false,
+        rejection: "UNSUPPORTED_TYPE",
+      });
+    },
+  );
+
+  it("refuses an empty part as an incomplete upload, before any type check", () => {
+    expect(
+      inspectPhotoPart({
+        declaredType: "image/webp",
+        bytes: new Uint8Array(0),
+      }),
+    ).toEqual({ isAccepted: false, rejection: "EMPTY" });
+  });
+
+  it("measures the size itself and refuses one byte over the ceiling", () => {
+    const bytes = new Uint8Array(MAX_PHOTO_BYTES + 1);
+    bytes.set(JPEG_BYTES);
+
+    expect(inspectPhotoPart({ declaredType: "image/jpeg", bytes })).toEqual({
+      isAccepted: false,
+      rejection: "TOO_LARGE",
+    });
+  });
+
+  it("accepts a part of exactly the ceiling, so the cap is inclusive", () => {
+    const bytes = new Uint8Array(MAX_PHOTO_BYTES);
+    bytes.set(JPEG_BYTES);
+
+    expect(
+      inspectPhotoPart({ declaredType: "image/jpeg", bytes }).isAccepted,
+    ).toBe(true);
   });
 });
 
@@ -68,12 +188,6 @@ describe("acceptPhoto", () => {
         contentType: "image/webp",
         sizeBytes: MAX_PHOTO_BYTES + 1,
       }),
-    ).toEqual({ isAccepted: false, rejection: "TOO_LARGE" });
-  });
-
-  it("refuses a raw phone photo that skipped compression entirely", () => {
-    expect(
-      acceptPhoto({ contentType: "image/jpeg", sizeBytes: 5_200_000 }),
     ).toEqual({ isAccepted: false, rejection: "TOO_LARGE" });
   });
 
@@ -128,67 +242,17 @@ describe("isHeicFile", () => {
   });
 });
 
-describe("buildPhotoObjectPath", () => {
-  it("puts the object at assets/<assetId>/<nanoid>.<ext>", () => {
-    const objectPath = buildPhotoObjectPath(ASSET_ID, "image/webp");
-
-    expect(objectPath.startsWith(`assets/${ASSET_ID}/`)).toBe(true);
-    expect(objectPath.endsWith(".webp")).toBe(true);
-    expect(isPhotoObjectPathFor(ASSET_ID, objectPath)).toBe(true);
+describe("the upload body cap", () => {
+  it("is 3.2 MB: two derivatives at the per-photo ceiling plus framing", () => {
+    expect(MAX_UPLOAD_BODY_BYTES).toBe(3_200_000);
   });
 
-  it("takes the extension from the allowlist, not from any file name", () => {
-    expect(buildPhotoObjectPath(ASSET_ID, "image/jpeg").endsWith(".jpg")).toBe(
-      true,
-    );
+  it("fits two full-size derivatives, so an honest upload is never refused for its size", () => {
+    expect(MAX_UPLOAD_BODY_BYTES).toBeGreaterThan(2 * MAX_PHOTO_BYTES);
   });
 
-  it("mints a distinct object name every time, so two uploads never collide", () => {
-    const paths = new Set(
-      Array.from({ length: 50 }, () =>
-        buildPhotoObjectPath(ASSET_ID, "image/webp"),
-      ),
-    );
-
-    expect(paths.size).toBe(50);
-  });
-
-  it("uses an object name of the declared length", () => {
-    const objectPath = buildPhotoObjectPath(ASSET_ID, "image/png");
-    const objectName = objectPath.slice(photoObjectPrefix(ASSET_ID).length);
-
-    expect(objectName).toHaveLength(PHOTO_OBJECT_ID_LENGTH + ".png".length);
-  });
-});
-
-describe("isPhotoObjectPathFor", () => {
-  const validPath = buildPhotoObjectPath(ASSET_ID, "image/webp");
-
-  it("accepts a path this application minted for the same asset", () => {
-    expect(isPhotoObjectPathFor(ASSET_ID, validPath)).toBe(true);
-  });
-
-  it("refuses another asset's photo, so a caller cannot reach across assets", () => {
-    expect(isPhotoObjectPathFor(OTHER_ASSET_ID, validPath)).toBe(false);
-  });
-
-  it.each([
-    ["assets/../secrets.webp", "a traversal out of the asset folder"],
-    ["assets/0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b/../x.webp", "a traversal"],
-    ["assets/0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b/short.webp", "a short name"],
-    ["assets/0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b/abcdefghijklmnop", "no dot"],
-    [
-      "assets/0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b/abcdefghijklmnop.svg",
-      "an extension outside the allowlist",
-    ],
-    [
-      "assets/0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b/abcdefghijklmno/.webp",
-      "a slash inside the object name",
-    ],
-    ["other/0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b/abcdefghijklmnop.webp", "a"],
-    ["", "an empty path"],
-  ])("refuses %s — %s", (objectPath) => {
-    expect(isPhotoObjectPathFor(ASSET_ID, objectPath)).toBe(false);
+  it("stays under the 4.5 MB request limit of serverless hosts", () => {
+    expect(MAX_UPLOAD_BODY_BYTES).toBeLessThan(4_500_000);
   });
 });
 

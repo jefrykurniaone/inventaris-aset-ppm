@@ -1,21 +1,20 @@
 import { db } from "@/lib/db";
 import { MAX_PHOTOS_PER_ASSET } from "@/lib/photo-upload";
+import { getPhotoStorage, type PhotoContent } from "@/lib/storage";
 
 import type { TransactionClient } from "../activity-writes";
 
 /**
- * Plain database logic for asset photos (PRD FR-4.1, FR-4.9), kept apart from
- * `actions.ts` so nothing here touches `next/headers` — the same split
- * `src/app/(app)/assets/mutations.ts` makes, and for the same reason: these
- * functions are callable from a plain script, which is what
- * `scripts/verify-photo-storage.ts` relies on. The `requireUser()`
- * authorisation boundary lives one layer up.
+ * Plain database logic for asset photos (PRD FR-4.1, FR-4.9; ADR 0009), kept
+ * apart from `actions.ts` and from the upload route so nothing here touches
+ * `next/headers` — the same split `src/app/(app)/assets/mutations.ts` makes,
+ * and for the same reason: these functions are callable from a plain script,
+ * which is what the seed relies on. The session check lives one layer up, in
+ * the server actions and in `src/app/api/assets/[id]/photos/route.ts`.
  *
- * Nothing in this file touches object storage. A row and its objects are
- * coordinated by the server action, which deletes objects only after the
- * transaction that removed their rows has committed — an orphaned object is
- * recoverable by the purge script, whereas a row pointing at an object that
- * was deleted before the commit rolled back is a broken image forever.
+ * A photo's bytes are written through `src/lib/storage.ts` inside the same
+ * transaction as its row, and removed by the cascade when the row is deleted,
+ * so there is no moment at which one exists without the other.
  */
 
 export type PhotoFailureReason = "NOT_FOUND" | "LIMIT_REACHED";
@@ -27,17 +26,10 @@ export type PhotoMutationResult<Value> =
 export interface InsertPhotoInput {
   readonly assetId: string;
   readonly actorId: string;
-  readonly objectPath: string;
-  readonly thumbObjectPath: string;
   readonly width: number;
   readonly height: number;
-  readonly sizeBytes: number;
-}
-
-/** The object paths a caller still has to remove from the bucket once the
- * row is gone. */
-export interface RemovedPhotoObjects {
-  readonly objectPaths: readonly string[];
+  /** Both derivatives, already identified from their bytes by the caller. */
+  readonly content: PhotoContent;
 }
 
 /**
@@ -63,26 +55,14 @@ async function lockLiveAsset(
 }
 
 /**
- * How many photos a live asset already has, or `null` when there is no such
- * asset. This is the courtesy check the signed-URL action makes so a user is
- * not asked to upload bytes that will be refused; the enforcement is the
- * locked count inside `insertPhoto`.
- */
-export async function countLivePhotos(assetId: string): Promise<number | null> {
-  const asset = await db.asset.findFirst({
-    where: { id: assetId, deletedAt: null },
-    select: { _count: { select: { photos: true } } },
-  });
-  return asset?._count.photos ?? null;
-}
-
-/**
- * Inserts one photo row and its `photo_added` activity entry in one
- * transaction (FR-4.1, FR-8.3).
+ * Inserts one photo row, its bytes and its `photo_added` activity entry in one
+ * transaction (FR-4.1, FR-8.3; ADR 0009).
  *
- * The first photo of an asset becomes the primary, because FR-4.1 says
- * *exactly* one is primary and an asset with photos and no primary would
- * render no image in any list.
+ * `sizeBytes` is measured here from the bytes being stored, never taken from a
+ * caller's claim. The first photo of an asset becomes the primary, because
+ * FR-4.1 says *exactly* one is primary and an asset with photos and no primary
+ * would render no image in any list. The activity payload records the photo
+ * id and nothing else.
  */
 export async function insertPhoto(
   input: InsertPhotoInput,
@@ -102,24 +82,23 @@ export async function insertPhoto(
     const photo = await tx.assetPhoto.create({
       data: {
         assetId: input.assetId,
-        objectPath: input.objectPath,
-        thumbObjectPath: input.thumbObjectPath,
         width: input.width,
         height: input.height,
-        sizeBytes: input.sizeBytes,
+        sizeBytes: input.content.fullBytes.length,
         isPrimary: existingCount === 0,
         sortOrder: existingCount,
         uploadedById: input.actorId,
       },
       select: { id: true },
     });
+    await getPhotoStorage().writePhotoContent(tx, photo.id, input.content);
 
     await tx.assetActivity.create({
       data: {
         assetId: input.assetId,
         actorId: input.actorId,
         type: "photo_added",
-        payload: { photoId: photo.id, objectPath: input.objectPath },
+        payload: { photoId: photo.id },
       },
     });
 
@@ -147,8 +126,11 @@ async function promoteFallbackPrimary(
 }
 
 /**
- * Deletes one photo row and writes `photo_removed`, returning the object
- * paths the caller must then remove from the bucket (FR-4.9).
+ * Deletes one photo row and writes `photo_removed` (FR-4.9).
+ *
+ * The photo's bytes go with the row: `asset_photo_content` cascades from it
+ * (ADR 0009), so the delete is one statement and leaves nothing to clean up,
+ * and the serving route answers 404 for the photo as soon as this commits.
  *
  * `assetId` is a parameter as well as `photoId` so the delete is scoped to the
  * asset the caller claims to be editing; a photo id belonging to a different
@@ -158,16 +140,11 @@ export async function removePhoto(
   assetId: string,
   photoId: string,
   actorId: string,
-): Promise<PhotoMutationResult<RemovedPhotoObjects>> {
+): Promise<PhotoMutationResult<undefined>> {
   return db.$transaction(async (tx) => {
     const photo = await tx.assetPhoto.findFirst({
       where: { id: photoId, assetId },
-      select: {
-        id: true,
-        objectPath: true,
-        thumbObjectPath: true,
-        isPrimary: true,
-      },
+      select: { id: true, isPrimary: true },
     });
     if (!photo) {
       return { ok: false, reason: "NOT_FOUND" };
@@ -183,14 +160,11 @@ export async function removePhoto(
         assetId,
         actorId,
         type: "photo_removed",
-        payload: { photoId: photo.id, objectPath: photo.objectPath },
+        payload: { photoId: photo.id },
       },
     });
 
-    return {
-      ok: true,
-      value: { objectPaths: [photo.objectPath, photo.thumbObjectPath] },
-    };
+    return { ok: true, value: undefined };
   });
 }
 

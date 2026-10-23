@@ -1,7 +1,7 @@
 import { getLocale } from "next-intl/server";
 
 import { db } from "@/lib/db";
-import { getObjectStorage } from "@/lib/storage";
+import { photoAddress } from "@/lib/photo-address";
 
 /**
  * Reads for the photo surfaces (PRD FR-4.7, FR-4.9).
@@ -11,10 +11,10 @@ import { getObjectStorage } from "@/lib/storage";
  * no pricing column is fetched here at all, so this query is already safe to
  * reuse from the public scan page (#11) without a second review.
  *
- * The URL is built here, at read time, from the object path in the database
- * and the bucket the process is configured with (FR-4.9). Nothing stores a
- * URL, so moving to another bucket or another project is a configuration
- * change rather than a data migration.
+ * The two addresses are built here, at read time, from the photo id: both
+ * point at the application's own serving route (ADR 0009). The photo's bytes
+ * are never selected by this query — they stay in the side table only
+ * `src/lib/storage.ts` reads.
  */
 
 export interface AssetPhotoView {
@@ -48,12 +48,7 @@ export async function findAssetPhotoContext(
       category: { select: { name: true, nameEn: true } },
       photos: {
         orderBy: [...PHOTO_ORDER],
-        select: {
-          id: true,
-          objectPath: true,
-          thumbObjectPath: true,
-          isPrimary: true,
-        },
+        select: { id: true, isPrimary: true },
       },
     },
   });
@@ -62,15 +57,14 @@ export async function findAssetPhotoContext(
   }
 
   const locale = await getLocale();
-  const storage = getObjectStorage();
 
   return {
     assetName: asset.name,
     categoryName: locale === "en" ? asset.category.nameEn : asset.category.name,
     photos: asset.photos.map((photo) => ({
       id: photo.id,
-      url: storage.getPublicUrl(photo.objectPath),
-      thumbnailUrl: storage.getPublicUrl(photo.thumbObjectPath),
+      url: photoAddress(photo.id, "full"),
+      thumbnailUrl: photoAddress(photo.id, "thumb"),
       isPrimary: photo.isPrimary,
     })),
   };

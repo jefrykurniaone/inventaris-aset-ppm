@@ -5,7 +5,7 @@ import {
   type AssetListQueryInput,
 } from "@/lib/asset-list-query";
 import { db } from "@/lib/db";
-import { getObjectStorage } from "@/lib/storage";
+import { photoAddress } from "@/lib/photo-address";
 
 import type { AssetCondition, AssetOption, AssetStatus } from "./schemas";
 
@@ -60,18 +60,15 @@ interface AssetListRowSource {
     readonly name: string;
     readonly building: { readonly name: string };
   };
-  readonly photos: readonly { readonly thumbObjectPath: string }[];
+  readonly photos: readonly { readonly id: string }[];
 }
 
-/** The primary photo's `thumbObjectPath`, resolved to a URL through the
- * storage seam at read time (never a full URL stored, never a Supabase
- * client imported here) — `null` when the asset has no primary photo, which
- * the list renders as the existing placeholder. */
+/** The primary photo's thumbnail address, built from its id at read time
+ * (`src/lib/photo-address.ts`) — `null` when the asset has no primary photo,
+ * which the list renders as the existing placeholder. */
 function toThumbnailUrl(photos: AssetListRowSource["photos"]): string | null {
   const primaryPhoto = photos[0];
-  return primaryPhoto
-    ? getObjectStorage().getPublicUrl(primaryPhoto.thumbObjectPath)
-    : null;
+  return primaryPhoto ? photoAddress(primaryPhoto.id, "thumb") : null;
 }
 
 function toAssetListRow(asset: AssetListRowSource): AssetListRow {
@@ -98,12 +95,12 @@ function toAssetListRow(asset: AssetListRowSource): AssetListRow {
  * rendered result" has a query to check. Soft-deleted assets are always
  * excluded (FR-2.5).
  *
- * Only the primary photo's `thumbObjectPath` is read off `photos`, one row
- * per asset at most (`take: 1` against the partial unique index on
- * `("assetId") WHERE "isPrimary"`) — never `objectPath`. Serving the
- * full-size image in a list is exactly what PRD risk R2 exists to prevent.
- * An asset with no primary photo renders the existing placeholder
- * (`AssetThumbnailPlaceholder.tsx`).
+ * Only the primary photo's `id` is read off `photos`, one row per asset at
+ * most (`take: 1` against the partial unique index on
+ * `("assetId") WHERE "isPrimary"`), and the list addresses its `thumb`
+ * variant — never `full`. Serving the full-size image in a list is exactly
+ * what PRD risk R2 exists to prevent. An asset with no primary photo renders
+ * the existing placeholder (`AssetThumbnailPlaceholder.tsx`).
  */
 export async function listAssetsPage(
   query: AssetListQueryInput,
@@ -130,7 +127,7 @@ export async function listAssetsPage(
         room: { select: { name: true, building: { select: { name: true } } } },
         photos: {
           where: { isPrimary: true },
-          select: { thumbObjectPath: true },
+          select: { id: true },
           take: 1,
         },
       },

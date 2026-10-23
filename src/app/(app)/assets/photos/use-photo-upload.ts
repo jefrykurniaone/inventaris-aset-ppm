@@ -73,6 +73,7 @@ export function usePhotoUpload(assetId: string): PhotoUploadController {
         messages: {
           heicNotSupported: t("heicNotSupported"),
           unsupportedFormat: t("unsupportedFormat"),
+          tooLarge: t("tooLarge"),
           uploadFailed: t("uploadFailed"),
         },
       }).then(settle, () => settle({ ok: false, message: t("uploadFailed") }));

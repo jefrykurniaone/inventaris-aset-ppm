@@ -3,39 +3,32 @@ import { fileURLToPath } from "node:url";
 
 import { insertPhoto } from "@/app/(app)/assets/photos/mutations";
 import { db } from "@/lib/db";
-import { acceptPhoto, buildPhotoObjectPath } from "@/lib/photo-upload";
+import { inspectPhotoPart } from "@/lib/photo-upload";
 import type { SeedAssetPlanItem } from "@/lib/seed-asset-mix";
 import { seedPhotoFileNames } from "@/lib/seed-photo-plan";
-import { getObjectStorage } from "@/lib/storage";
+import type { PhotoContent } from "@/lib/storage";
 
 /**
- * Attaching the ~15 demonstration assets' photos (issue #16's amendment).
+ * Attaching the ~15 demonstration assets' photos (issue #16's amendment;
+ * ADR 0009).
  *
- * The bytes are already sized to the browser pipeline's output contract —
- * `prisma/seed-assets/CREDITS.md` records how — so what happens here is
- * exactly the server half of a real upload: mint a signed target through
- * `src/lib/storage.ts`, `PUT` the bytes, read back what the bucket actually
- * holds with `statObject`, and run the same `acceptPhoto` check
- * `attach-photo.ts` runs, before `insertPhoto` writes the row. Skipping is
- * only the in-browser compression step the amendment says the committed
- * files already stand in for.
+ * The committed images in `prisma/seed-assets/` are already sized to the
+ * browser pipeline's output contract — `prisma/seed-assets/CREDITS.md`
+ * records how — so what happens here is exactly the server half of a real
+ * upload: identify each image from its bytes with the same `inspectPhotoPart`
+ * the upload route runs, then `insertPhoto`, which writes the row, the bytes
+ * through `src/lib/storage.ts` and the activity in one transaction. Skipping
+ * is only the in-browser compression step the committed files stand in for.
+ *
+ * It needs nothing but the database: no network and no storage credentials.
  *
  * Photo seeding is skipped when `SEED_SKIP_PHOTOS=true` (issue #16 hand-back
- * 1) — an **explicit** flag, not inferred from presence. Presence-sniffing
- * (the `hasStorageConfig` check below) cannot tell a real Supabase project
- * from a placeholder one: `.github/workflows/ci.yml`'s workflow-level `env:`
- * block sets `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` to well-formed
- * placeholder values for every job, including the `e2e` job's `db:seed`
- * step, so `hasStorageConfig` reads "configured" there even with no real
- * bucket to reach — which is exactly what made CI's seed step fail with
- * `fetch failed` against `ci-placeholder.supabase.co`. The workflow sets
- * `SEED_SKIP_PHOTOS=true` on that step; `hasStorageConfig` stays as a second
- * net for a genuinely unconfigured environment, but the flag is the
- * contract, not secret availability.
+ * 1) — an explicit opt-out, for a run that wants the dataset without its
+ * photos.
  */
 
 const SEED_ASSETS_DIR = new URL("../seed-assets/", import.meta.url);
-const PHOTO_CONTENT_TYPE = "image/jpeg";
+const SEED_IMAGE_CONTENT_TYPE = "image/jpeg";
 
 /** The pipeline's own bounds (`src/lib/photo-compression.ts`). The seed
  * images are generated at exactly these dimensions, so they are constants
@@ -43,8 +36,7 @@ const PHOTO_CONTENT_TYPE = "image/jpeg";
 const FULL_IMAGE_WIDTH_PX = 1600;
 const FULL_IMAGE_HEIGHT_PX = 1200;
 
-/** Explicit opt-out, set on CI's `e2e` job seed step. See the module comment
- * above for why presence-sniffing alone cannot replace this. */
+/** Explicit opt-out for a run that wants the dataset without its photos. */
 export const SKIP_PHOTOS_ENV = "SEED_SKIP_PHOTOS";
 const SKIP_PHOTOS_VALUE = "true";
 
@@ -52,23 +44,6 @@ export function isPhotoSeedingSkipped(
   env: Readonly<Record<string, string | undefined>>,
 ): boolean {
   return env[SKIP_PHOTOS_ENV] === SKIP_PHOTOS_VALUE;
-}
-
-const REQUIRED_STORAGE_ENV = [
-  "SUPABASE_URL",
-  "SUPABASE_SERVICE_ROLE_KEY",
-  "SUPABASE_STORAGE_BUCKET",
-] as const;
-
-/** Whether object storage is configured at all. This is the second net, not
- * the contract — it cannot distinguish CI's placeholder values from a real
- * project, which is why `isPhotoSeedingSkipped` is checked first. Exported
- * so `prisma/seed.ts` can decide, before calling `seedPhotos`, whether to
- * print the skip explanation itself or let this module report it. */
-export function hasStorageConfig(
-  env: Readonly<Record<string, string | undefined>>,
-): boolean {
-  return REQUIRED_STORAGE_ENV.every((name) => Boolean(env[name]));
 }
 
 export interface SeedPhotoWriteInput {
@@ -83,54 +58,34 @@ function photographedAssets(
   return [...planBySeedKey.values()].filter((item) => item.photoCount > 0);
 }
 
-async function readSeedImage(fileName: string): Promise<Buffer> {
-  return readFile(fileURLToPath(new URL(fileName, SEED_ASSETS_DIR)));
+interface SeedImage {
+  readonly bytes: Uint8Array<ArrayBuffer>;
+  readonly contentType: PhotoContent["fullContentType"];
 }
 
-interface UploadedImage {
-  readonly objectPath: string;
-  readonly sizeBytes: number;
-}
-
-/** Uploads one object through the storage seam and verifies what actually
- * landed — the same `statObject` + `acceptPhoto` pair
- * `refuseUnacceptableObjects` in `attach-photo.ts` runs against a real
- * upload. */
-async function uploadSeedImage(
-  assetId: string,
-  fileName: string,
-): Promise<UploadedImage> {
-  const storage = getObjectStorage();
-  const bytes = await readSeedImage(fileName);
-  const objectPath = buildPhotoObjectPath(assetId, PHOTO_CONTENT_TYPE);
-  const target = await storage.createSignedUploadTarget(objectPath);
-
-  // `fetch`'s DOM typings accept `Uint8Array` but not Node's `Buffer`
-  // subtype directly; `Uint8Array.from` copies the bytes into a plain one.
-  const response = await fetch(target.signedUrl, {
-    method: "PUT",
-    headers: { "content-type": PHOTO_CONTENT_TYPE },
-    body: Uint8Array.from(bytes),
+/**
+ * Reads one committed image and identifies it from its bytes, exactly as the
+ * upload route identifies an uploaded part. A committed file that is not what
+ * its name says, or has grown past the ceiling, fails the seed loudly rather
+ * than being stored.
+ */
+async function readSeedImage(fileName: string): Promise<SeedImage> {
+  const buffer = await readFile(
+    fileURLToPath(new URL(fileName, SEED_ASSETS_DIR)),
+  );
+  // A plain `Uint8Array` copy: Prisma's `Bytes` input is typed over an
+  // `ArrayBuffer`, and Node's `Buffer` may sit on a shared pool.
+  const bytes = new Uint8Array(buffer);
+  const acceptance = inspectPhotoPart({
+    declaredType: SEED_IMAGE_CONTENT_TYPE,
+    bytes,
   });
-  if (!response.ok) {
-    throw new Error(
-      `prisma/seed-data/photo-writer: upload to "${objectPath}" failed with status ${response.status}.`,
-    );
-  }
-
-  const stored = await storage.statObject(objectPath);
-  if (!stored) {
-    throw new Error(
-      `prisma/seed-data/photo-writer: "${objectPath}" was not found in storage after upload.`,
-    );
-  }
-  const acceptance = acceptPhoto(stored);
   if (!acceptance.isAccepted) {
     throw new Error(
-      `prisma/seed-data/photo-writer: "${objectPath}" was rejected: ${acceptance.rejection}.`,
+      `prisma/seed-data/photo-writer: "${fileName}" was rejected: ${acceptance.rejection}.`,
     );
   }
-  return { objectPath, sizeBytes: acceptance.sizeBytes };
+  return { bytes, contentType: acceptance.contentType };
 }
 
 async function attachOnePhoto(
@@ -140,17 +95,20 @@ async function attachOnePhoto(
   photoIndex: number,
 ): Promise<void> {
   const fileNames = seedPhotoFileNames(categoryCode, photoIndex);
-  const full = await uploadSeedImage(assetId, fileNames.full);
-  const thumb = await uploadSeedImage(assetId, fileNames.thumb);
+  const full = await readSeedImage(fileNames.full);
+  const thumb = await readSeedImage(fileNames.thumb);
 
   const result = await insertPhoto({
     assetId,
     actorId,
-    objectPath: full.objectPath,
-    thumbObjectPath: thumb.objectPath,
     width: FULL_IMAGE_WIDTH_PX,
     height: FULL_IMAGE_HEIGHT_PX,
-    sizeBytes: full.sizeBytes,
+    content: {
+      fullBytes: full.bytes,
+      fullContentType: full.contentType,
+      thumbBytes: thumb.bytes,
+      thumbContentType: thumb.contentType,
+    },
   });
   if (!result.ok) {
     throw new Error(
@@ -186,11 +144,6 @@ export async function seedPhotos(
   if (isPhotoSeedingSkipped(env)) {
     return [
       `skipped: ${SKIP_PHOTOS_ENV}=true is set. No photos were attached.`,
-    ];
-  }
-  if (!hasStorageConfig(env)) {
-    return [
-      "skipped: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY or SUPABASE_STORAGE_BUCKET is not set. No photos were attached.",
     ];
   }
 

@@ -3,15 +3,18 @@ import { z } from "zod";
 import { MAX_PHOTOS_PER_ASSET } from "@/lib/photo-upload";
 
 /**
- * The wire contract between the browser and the photo server actions
- * (PRD FR-4.4, FR-4.6).
+ * The wire contract between the browser and the photo endpoints (PRD FR-4.4,
+ * FR-4.6; ADR 0009): the upload route's multipart fields and its response,
+ * and the three management server actions' inputs.
  *
- * Shared rather than duplicated: the same schema that shapes the request in
- * the browser parses it again inside the action. Bypassing the browser
- * therefore changes nothing about what is accepted — and the schema is not the
- * whole control either. `attachPhotoAction` re-reads the object's real size
- * and content type out of the bucket afterwards, because everything here is
- * still a client's account of a file the server has never seen.
+ * Shared rather than duplicated: the browser builds its upload from
+ * `PHOTO_UPLOAD_FIELD` and reads the answer with `photoUploadResponseSchema`,
+ * and the route parses the same fields with `photoUploadFormSchema` and
+ * answers in the same shape. Bypassing the browser therefore changes nothing
+ * about what is accepted — and these schemas are not the whole control
+ * either. They check that the fields exist and are of the right kind; the
+ * size and type rules are `inspectPhotoPart`'s, in `src/lib/photo-upload.ts`,
+ * which reads the bytes rather than any claim about them.
  *
  * Declared outside `actions.ts` because a `"use server"` module may export
  * only async functions.
@@ -27,42 +30,39 @@ const idSchema = z.string().trim().min(1);
  */
 export const MAX_REPORTED_EDGE_PX = 20_000;
 
-const photoEdgeSchema = z.number().int().positive().max(MAX_REPORTED_EDGE_PX);
+/** The names of the four multipart parts one upload carries. */
+export const PHOTO_UPLOAD_FIELD = {
+  full: "full",
+  thumbnail: "thumbnail",
+  width: "width",
+  height: "height",
+} as const;
+
+/** A multipart field arrives as text, so the dimensions are coerced first and
+ * then held to the same bounds a number would be. */
+const photoEdgeFieldSchema = z.coerce
+  .number()
+  .int()
+  .positive()
+  .max(MAX_REPORTED_EDGE_PX);
 
 /**
- * What the browser asks for before it uploads: two objects, the full image and
- * its thumbnail, each declared with the type and size it is about to send.
- *
- * The content type is a plain string here and the size carries no ceiling, on
- * purpose. Both are checked immediately afterwards by `acceptPhoto`, which is
- * the one definition of the allowlist and the cap — putting a `z.enum` and a
- * `.max()` here as well would be a second definition that has to be kept in
- * step, and it would flatten "that format cannot be used" and "that photo is
- * too large" into one shapeless "invalid request". This schema's job is that
- * the fields exist and are of the right kind; the rules are `acceptPhoto`'s.
+ * The upload's fields once the multipart body has been parsed. The two images
+ * have to be file parts; their type and size are deliberately not checked
+ * here (no `.mime()`, no `.max()`), because `inspectPhotoPart` is the one
+ * definition of those rules and it reads the bytes — a second definition here
+ * would also flatten "that format cannot be used" and "that photo is too
+ * large" into one shapeless "invalid request".
  */
-export const photoUploadRequestSchema = z.object({
-  assetId: idSchema,
-  contentType: z.string().trim().min(1),
-  sizeBytes: z.number().int().positive(),
-  thumbnailContentType: z.string().trim().min(1),
-  thumbnailSizeBytes: z.number().int().positive(),
+export const photoUploadFormSchema = z.object({
+  assetId: z.uuid(),
+  full: z.file(),
+  thumbnail: z.file(),
+  width: photoEdgeFieldSchema,
+  height: photoEdgeFieldSchema,
 });
 
-export type PhotoUploadRequest = z.infer<typeof photoUploadRequestSchema>;
-
-/** What the browser reports once both objects are in the bucket. The paths
- * are checked against `isPhotoObjectPathFor` before anything is done with
- * them, so naming another asset's object here reaches nothing. */
-export const photoAttachRequestSchema = z.object({
-  assetId: idSchema,
-  objectPath: idSchema,
-  thumbnailObjectPath: idSchema,
-  width: photoEdgeSchema,
-  height: photoEdgeSchema,
-});
-
-export type PhotoAttachRequest = z.infer<typeof photoAttachRequestSchema>;
+export type PhotoUploadForm = z.infer<typeof photoUploadFormSchema>;
 
 export const photoIdRequestSchema = z.object({
   assetId: idSchema,
@@ -74,20 +74,8 @@ export const photoReorderRequestSchema = z.object({
   photoIds: z.array(idSchema).min(1).max(MAX_PHOTOS_PER_ASSET),
 });
 
-/** One signed upload target as the browser receives it. The token is already
- * inside `signedUrl`; nothing on the client ever handles it separately. */
-export interface PhotoUploadTarget {
-  readonly objectPath: string;
-  readonly signedUrl: string;
-}
-
-export interface PhotoUploadTargets {
-  readonly full: PhotoUploadTarget;
-  readonly thumbnail: PhotoUploadTarget;
-}
-
 /**
- * Every photo action answers in this shape. A refusal carries an already
+ * Every photo endpoint answers in this shape. A refusal carries an already
  * localised message rather than a code, so no caller can render an
  * unlocalised fallback and no internal error text can escape (`CLAUDE.md`).
  */
@@ -95,4 +83,17 @@ export type PhotoActionResult<Value = undefined> =
   | { readonly ok: true; readonly value: Value }
   | { readonly ok: false; readonly message: string };
 
-export type PhotoUploadRequestResult = PhotoActionResult<PhotoUploadTargets>;
+/** The upload route's JSON body, for success and refusal alike. The browser
+ * parses what it receives with this schema rather than trusting a cast, so a
+ * proxy's error page or a truncated body is a failed upload, not a crash. */
+export const photoUploadResponseSchema = z.discriminatedUnion("ok", [
+  z.object({
+    ok: z.literal(true),
+    value: z.object({ photoId: z.string().min(1) }),
+  }),
+  z.object({ ok: z.literal(false), message: z.string().min(1) }),
+]);
+
+export type PhotoUploadResponse = PhotoActionResult<{
+  readonly photoId: string;
+}>;

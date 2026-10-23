@@ -9,8 +9,8 @@ import { seedPhotos } from "./photo-writer";
 /**
  * Orchestrates the whole demonstration dataset (issue #16), on top of the
  * administrator issue #41 already seeds: two `staff` accounts, master data,
- * sixty assets, five loans, and — when object storage is configured —
- * their photos.
+ * sixty assets, five loans, and — unless `SEED_SKIP_PHOTOS=true` — their
+ * photos, bytes included (ADR 0009).
  *
  * Kept as one function so `prisma/seed.ts`'s `main` stays a short list of
  * stages. Imported with a dynamic `import("./seed-data")` from there, never

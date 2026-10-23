@@ -20,15 +20,13 @@
  * reseed a development database: it drops and recreates the schema, replays
  * every migration, and then runs this script automatically.
  *
- * ## Object storage and CI
+ * ## Photos
  *
- * The CI `e2e` job's `db:seed` step holds no Supabase secrets — only
- * `scripts/seed-e2e-master-data.ts` runs after it, and neither is a photo
- * upload. `prisma/seed-data/photo-writer.ts` detects a missing
- * `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`/`SUPABASE_STORAGE_BUCKET` and
- * reports the skip rather than failing the run, so users, master data,
- * assets, loans and activity are still seeded there; only the ~15 assets'
- * photos are not.
+ * Photo bytes live in PostgreSQL (ADR 0009), so the ~15 demonstration
+ * assets' photos are written into the same database as everything else, from
+ * the committed images in `prisma/seed-assets/`, with no network and no
+ * storage credentials. `SEED_SKIP_PHOTOS=true` leaves them out; see
+ * `prisma/seed-data/photo-writer.ts`.
  *
  * ## How the administrator is created
  *
