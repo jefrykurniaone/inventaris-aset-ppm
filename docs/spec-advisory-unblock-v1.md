@@ -1,6 +1,6 @@
 # Spec v1 - Advisory unblock: upgrade Better Auth past its advisories, merge the waiting Dependabot PRs, make security alerts raise a PR
 
-> Tracker: Spec [#186](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/186) · Execution map: added when the map is published · Run label `run:advisory-unblock`.
+> Tracker: Spec [#186](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/186) · Execution map [#191](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/191) · Run label `run:advisory-unblock`.
 > Point-in-time copy of the spec item as of 2026-11-14, against `main` at `c04b4f3`. The spec item is the one written copy.
 
 ## Problem statement
