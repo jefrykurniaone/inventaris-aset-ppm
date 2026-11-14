@@ -2,7 +2,8 @@
 
 - **Status**: Accepted
 - **Date**: 2026-08-21; amended 2026-08-21 for `deepmerge-ts` (issue #30); amended 2026-10-23 for
-  the override re-check and the `braces` chain (issue #150)
+  the override re-check and the `braces` chain (issue #150); amended 2026-11-14 for the accepted
+  `minimatch` and `deepmerge` advisories (issue #200)
 - **Deciders**: Jefry Kurniawan
 
 ## Context
@@ -253,3 +254,75 @@ zero, and this section is closed.
 
 **The alerts stay open on purpose** (decided 2026-10-23). Dismissing a Dependabot alert also stops
 the security update pull request for it, and that pull request is exactly the removal path above.
+
+## Amendment — 2026-11-14: accepted `minimatch` and `deepmerge` advisories (issue #200)
+
+### Context
+
+Two Dependabot alerts were still open after run `advisory-unblock` (map #191). Both are
+development scope, and neither can be fixed by an upgrade today. Every version, range and path
+below was read on 2026-11-14 from `package-lock.json` at `89abe1a`, from `npm view`, and from
+`gh api repos/jefrykurniaone/inventaris-aset-ppm/dependabot/alerts/<n>`. `npm explain minimatch`
+fails in this checkout with `Invalid string length`, and `npm explain deepmerge` marks the
+package `extraneous`, because `node_modules` here is shared with another tree. So the paths are
+read from the lockfile instead.
+
+### Accepted: `minimatch`
+
+[GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249) (alert #23) is a medium
+advisory: denial of service through globparts amplification. It covers `minimatch >=7.0.0
+<11.0.1`, and the first patched release is `11.0.1`, a major version. Two copies in the lockfile
+are in range, both `10.2.6` and both marked `dev`:
+
+- `eslint-config-next@15.5.29 → @typescript-eslint/parser@8.67.0 →
+  @typescript-eslint/typescript-estree@8.67.0 → minimatch@10.2.6` (declared `^10.2.2`; the same
+  `typescript-estree` is also reached through `@typescript-eslint/eslint-plugin`)
+- `shadcn@3.8.5 → ts-morph@26.0.0 → @ts-morph/common@0.27.0 → minimatch@10.2.6` (declared
+  `^10.0.1`)
+
+The copy at `minimatch@3.1.5`, used by `eslint`, `@eslint/eslintrc` and the ESLint plugins, is
+outside the range.
+
+The newest parents still declare `^10`. On 2026-11-14 `@typescript-eslint/typescript-estree@8.72.2`
+declares `^10.2.2` and `@ts-morph/common@0.29.0` declares `^10.0.1`, and both are `latest` on npm.
+`minimatch` itself is at `11.0.8`. Dependabot's security update failed on 2026-11-14 (run
+`43569995227`): "The latest possible version that can be installed is 10.2.6 because of the
+following conflicting dependency".
+
+It does not reach the application. Both paths are dev tooling, ESLint's TypeScript parser and the
+shadcn CLI, and `npm audit --omit=dev` reports 0 (read 2026-11-14). The globs those copies match
+come from this repository's configuration and from a developer's own CLI invocations, never from a
+request to the application.
+
+There is no override. `minimatch` 11 is a major version placed under parents that declare `^10`,
+so an override would break the parents' declared range. That is unlike the `sharp` floor, which
+stayed inside its parent's range.
+
+**Removal condition**: a release of each parent accepts `^11.0.1`, and Dependabot's security
+update pull request brings it into the lockfile.
+
+### Accepted: `deepmerge`
+
+[GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4) (alert #18) is a low
+advisory: `mergeObject()` allows prototype poisoning of the returned objects. It covers
+`deepmerge >=4.2.0 <=4.3.1`. It has no patched release: the advisory's `first_patched_version` is
+`null`, and `4.3.1` is the newest `deepmerge` on npm.
+
+The lockfile has one copy, `deepmerge@4.3.1`, marked `dev`, and one path:
+`shadcn@3.8.5 → deepmerge@4.3.1` (declared `^4.3.1`). The newest `shadcn` on 2026-11-14 is
+`4.23.0`, and it still declares `^4.3.1`. This is not the `deepmerge-ts` package of the 2026-08-21
+amendment.
+
+It does not reach the application. The only path is the shadcn CLI, `npm audit --omit=dev` reports
+0, and the objects it merges come from this repository's configuration and from a developer's own
+CLI invocations, never from a request to the application.
+
+There is no override, because no fixed version exists to override to.
+
+**Removal condition**: a patched `deepmerge` is published, or `shadcn` stops depending on it.
+
+### Alerts stay open
+
+**Alerts #18 and #23 stay open on purpose** (decided 2026-11-14), for the same reason as the
+`braces` chain. Dismissing a Dependabot alert also stops the security update pull request for it,
+and that pull request is the removal path for both advisories.
