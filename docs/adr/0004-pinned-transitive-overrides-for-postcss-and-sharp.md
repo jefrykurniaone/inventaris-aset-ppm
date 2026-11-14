@@ -350,8 +350,21 @@ The `shadcn@3.8.5 → ts-morph@26.0.0 → @ts-morph/common@0.27.0 → minimatch@
 `shadcn`. The `@typescript-eslint/typescript-estree` path is still open, and the `minimatch` ticket
 of spec #206 closes it. That ticket completes this amendment. Alert #23 stays open until then.
 
+### The braces chain
+
+[GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) was withdrawn on
+2026-10-23 (GitHub's `withdrawn_at` reads 2026-10-23T12:53:02Z), so `npm audit` no longer reports
+the chain. Two of its three paths, `shadcn → fast-glob` and
+`shadcn → ts-morph → @ts-morph/common → fast-glob`, left with `shadcn`. The third,
+`eslint-config-next → @next/eslint-plugin-next → fast-glob@3.3.1 → micromatch@4.0.8 →
+braces@3.0.3`, stays and carries no open advisory. The 2026-10-23 "Accepted: the `braces` chain"
+section above describes the advisory as it stood then, and it is not deleted.
+
 ### The audit gate
 
 Spec #206 widens the CI audit to the whole tree through ADR 0008's amendment. So the `--omit=dev`
-passages of this ADR describe the gate as it was, and the "Alerts stay open" passages above
-describe the decision of the morning of 2026-11-14, which the owner reversed that day.
+passages of this ADR describe the gate as it was.
+
+The owner reversed the 2026-11-14 acceptance of alerts #18 and #23, which was to live with them
+until an upstream fix, in favour of removing them. They are fixed rather than accepted. They were
+never dismissed, so they close as fixed when the lockfile reaches `main`.
