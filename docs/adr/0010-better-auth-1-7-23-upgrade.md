@@ -38,21 +38,36 @@ affected?" section limits it to applications that do all of the following:
 - enable rate limiting;
 - store rate-limit records in a PostgreSQL database through one of those adapters.
 
-`better-auth` is listed because it pins the Drizzle adapter. This application does store rate-limit
-records in PostgreSQL (`rateLimit.storage: "database"` in `src/lib/auth.ts`), and rate limiting is
-on whenever `NODE_ENV` is `production` (`enabled: options.rateLimit?.enabled ?? isProduction` in
+The advisory also lists `better-auth`, without saying why. `better-auth@1.7.1` pins
+`@better-auth/drizzle-adapter` exactly, and the advisory gives both packages the same range, which
+would account for the listing. This application does store rate-limit records in PostgreSQL
+(`rateLimit.storage: "database"` in `src/lib/auth.ts`), and rate limiting is on whenever
+`NODE_ENV` is `production` (`enabled: options.rateLimit?.enabled ?? isProduction` in
 `dist/context/create-context.mjs`). It does so through the Prisma adapter. The advisory names
 neither the Prisma adapter nor any other adapter beyond those two, so it does not say whether
 the Prisma path has the same race.
 
-What the shipped code shows is this. The database rate limiter in `dist/api/rate-limiter/index.mjs`
-is the same in 1.7.1 and 1.7.23, apart from one line that converts `lastRequest` to a number. In
-both versions it admits a request only if `incrementOne` succeeds, and the `where` of that call
-includes `count < max`. In both versions the Prisma adapter's `incrementOne` repeats every one of
-those conditions in the `where` of the `update` it issues, inside a transaction. Whether Prisma 7
-sends that as one conditional SQL `UPDATE` was not verified, because that needs a database. The
-Prisma path is therefore not shown to be safe here. 1.7.23 carries the advisory's fix either way.
-The Drizzle adapter is installed as a dependency of `better-auth`, but nothing loads it.
+What the shipped code shows is this. In `dist/api/rate-limiter/index.mjs`, the database storage
+wrapper (`createDatabaseStorageWrapper`, `:76` in 1.7.1 and `:79` in 1.7.23) is the same in both
+versions, apart from one line that converts `lastRequest` to a number (`:88` and `:91`). Elsewhere
+in the file, 1.7.23 adds a `Content-Type: application/json` header to the 429 response
+(`rateLimitResponse`, `:68-71`). The wrapper admits a request on one of three paths, the same in
+both versions (line numbers are 1.7.1, then 1.7.23):
+
+- **No row for the key** (`:97`, `:100`): the `create` of a new row succeeds. No `incrementOne` is
+  involved.
+- **Window expired** (`:114`, `:117`): `incrementOne` resets the row, with a `where` of `key` and
+  `lastRequest <=` the value just read. There is no `count < max` condition.
+- **Inside the window** (`:139`, `:142`): `incrementOne` increments the count, with a `where` of
+  `key`, `lastRequest >` the start of the window, and `count < max`.
+
+In both versions the Prisma adapter's `incrementOne` (`@better-auth/prisma-adapter`'s
+`dist/index.mjs`, `:361` in 1.7.1 and `:418` in 1.7.23) finds the row, then issues an `update`
+whose `where` repeats the call's conditions plus the row's id (`:393`, `:450`). It runs both inside
+`db.$transaction`, unless it is already running in one (`:409`, `:466`). Whether Prisma 7 sends
+that as one conditional SQL `UPDATE` was not verified, because that needs a database. The Prisma
+path is therefore not shown to be safe here. 1.7.23 carries the advisory's fix either way. The
+Drizzle adapter is installed as a dependency of `better-auth`, but nothing loads it.
 
 The audit fails all the same, because it judges the installed versions and not the configuration.
 
