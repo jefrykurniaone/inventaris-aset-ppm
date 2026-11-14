@@ -18,16 +18,24 @@
 // `Schema was overwritten successfully!` while doing it, so nothing reports the
 // damage until `prisma validate` runs.
 //
-// `--no` makes npx run the pinned local `auth@1.7.1` from `devDependencies` and
+// `--no` makes npx run the pinned local `auth@1.7.23` from `devDependencies` and
 // fail loudly rather than quietly fetching a different version, which would
 // void the zero-diff property the rest of this comment depends on.
 //
 // Because the generator only ever adds, hand-written additions survive a run.
-// That is what makes the four reverse relation fields on `User` safe, and they
+// That is what makes the six reverse relation fields on `User` safe, and they
 // have to live here: a Prisma model block exists in exactly one file and cannot
 // be reopened from another, and a Prisma relation must be declared from both
-// sides, so `Asset.createdBy` has no other field to point at. Everything else
-// in this file is the CLI's. Do not hand-edit a column — regenerate.
+// sides, so `Asset.createdBy` has no other field to point at. Each of the six
+// carries `@relation`, for the reason given beside them. Everything else in
+// this file is the CLI's. Do not hand-edit a column — regenerate.
+//
+// The same append-only behaviour means the generator never removes a column
+// that Better Auth stops writing upstream. Such a column is removed by hand,
+// only under an ADR, after which `npm run auth:generate` must again report the
+// schema up to date with no warning. ADR 0010 did this once: `Account.issuer`
+// and its `(issuer, accountId)` unique index, which Better Auth 1.7.3 stopped
+// writing.
 //
 // The blank line before each documented declaration is the formatting the CLI
 // emits, so a rerun changes nothing and `prisma format` agrees with it.
@@ -47,13 +55,16 @@ model User {
   sessions      Session[]
   accounts      Account[]
 
-  // Reverse sides of the application relations. Relation fields only.
+  // Reverse sides of the application relations. Relation fields only, and each
+  // carries `@relation`: the generator's required-column check (since
+  // `auth@1.7.23`) reads only this file, so a field typed as a model defined in
+  // another file counts as a required column unless it has the attribute.
   // `UserActivity` points at this model twice — the account acted on and the
-  // admin who acted — so both sides carry an explicit relation name.
-  createdAssets     Asset[]
-  uploadedPhotos    AssetPhoto[]
-  handledLoans      Loan[]
-  activities        AssetActivity[]
+  // admin who acted — so both of its sides carry an explicit relation name.
+  createdAssets     Asset[]         @relation
+  uploadedPhotos    AssetPhoto[]    @relation
+  handledLoans      Loan[]          @relation
+  activities        AssetActivity[] @relation
   activityAsSubject UserActivity[]  @relation("UserActivitySubject")
   activityAsActor   UserActivity[]  @relation("UserActivityActor")
 
@@ -80,7 +91,6 @@ model Session {
 
 model Account {
   id                    String    @id
-  issuer                String
   accountId             String
   providerId            String
   userId                String
@@ -95,7 +105,6 @@ model Account {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  @@unique([issuer, accountId], map: "account_issuer_accountId_uidx")
   @@index([userId])
   @@map("account")
 }
