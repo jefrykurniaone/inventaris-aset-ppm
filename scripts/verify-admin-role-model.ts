@@ -115,7 +115,7 @@ async function removeFixtures(db: Db): Promise<void> {
 
 /**
  * Creates the admin fixture through `auth.api.createUser` with no `headers`
- * and no explicit role. Per `better-auth@1.7.1`'s admin route, a call with
+ * and no explicit role. Per `better-auth@1.7.23`'s admin route (`dist/plugins/admin/routes.mjs:154-155`), a call with
  * neither `headers` nor `request` skips the permission check entirely — the
  * documented "trusted server context" path a bootstrap script relies on —
  * so this is the same shape of call a first-admin seed would make. The role
@@ -286,7 +286,7 @@ async function main(): Promise<void> {
 
     if (hasPassed) {
       console.info(
-        "PASS: the role model in src/lib/auth.ts behaves as documented against better-auth@1.7.1.",
+        "PASS: the role model in src/lib/auth.ts behaves as documented against the installed better-auth.",
       );
     } else {
       process.exitCode = 1;

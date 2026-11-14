@@ -12,7 +12,7 @@ import { SignInForm } from "./SignInForm";
  *
  * `POST /api/auth/sign-in/email` returns 403 with an empty body when the
  * request already carries a valid session cookie (confirmed at runtime
- * against `better-auth@1.7.1`), so an already-authenticated visitor must
+ * against the installed better-auth), so an already-authenticated visitor must
  * never be allowed to post the form — they would see a bare, unexplained
  * failure. Checking the session here and redirecting away, before the form
  * ever renders, is what avoids that: this is a plain session read via
