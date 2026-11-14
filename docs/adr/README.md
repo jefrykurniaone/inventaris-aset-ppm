@@ -18,3 +18,4 @@ would otherwise reasonably ask "why on earth was it done this way".
 | [0008](0008-dependency-vulnerability-checks.md) | Dependency vulnerability checks | Accepted |
 | [0009](0009-photos-stored-in-postgresql.md) | Photos stored in PostgreSQL | Accepted |
 | [0010](0010-better-auth-1-7-23-upgrade.md) | Upgrade Better Auth from 1.7.1 to 1.7.23 and drop `account.issuer` | Accepted |
+| [0011](0011-shadcn-cli-out-of-the-dependency-tree.md) | The shadcn CLI leaves the dependency tree | Accepted |

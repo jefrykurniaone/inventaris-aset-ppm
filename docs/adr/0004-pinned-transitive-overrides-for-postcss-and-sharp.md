@@ -3,7 +3,8 @@
 - **Status**: Accepted
 - **Date**: 2026-08-21; amended 2026-08-21 for `deepmerge-ts` (issue #30); amended 2026-10-23 for
   the override re-check and the `braces` chain (issue #150); amended 2026-11-14 for the accepted
-  `minimatch` and `deepmerge` advisories (issue #200)
+  `minimatch` and `deepmerge` advisories (issue #200); amended 2026-11-14 again, for the `shadcn`
+  eject that resolves `deepmerge` and the ts-morph path of `minimatch` (issue #208)
 - **Deciders**: Jefry Kurniawan
 
 ## Context
@@ -326,3 +327,31 @@ There is no override, because no fixed version exists to override to.
 **Alerts #18 and #23 stay open on purpose** (decided 2026-11-14), for the same reason as the
 `braces` chain. Dismissing a Dependabot alert also stops the security update pull request for it,
 and that pull request is the removal path for both advisories.
+
+## Amendment — 2026-11-14: the `shadcn` eject resolves `deepmerge` (issue #208)
+
+### Context
+
+The 2026-11-14 amendment above accepted alerts #18 (`deepmerge`) and #23 (`minimatch`) because no
+upgrade could fix them. The same day the owner decided to close every alert instead (spec #206).
+ADR 0011 takes the `shadcn` package out of the dependency tree, and both advisories ran through it.
+Nothing in the acceptance text above is deleted: it records what was decided and why on the day it
+was written.
+
+### Resolved: `deepmerge`
+
+The removal condition of the `deepmerge` section above, "`shadcn` stops depending on it", is met.
+`shadcn` left the tree under ADR 0011, and with it `deepmerge@4.3.1`, which had no other parent.
+`npm ls deepmerge` lists nothing. Alert #18 closes as fixed when the lockfile reaches `main`.
+
+### Partly resolved: `minimatch`
+
+The `shadcn@3.8.5 → ts-morph@26.0.0 → @ts-morph/common@0.27.0 → minimatch@10.2.6` path is gone with
+`shadcn`. The `@typescript-eslint/typescript-estree` path is still open, and the `minimatch` ticket
+of spec #206 closes it. That ticket completes this amendment. Alert #23 stays open until then.
+
+### The audit gate
+
+Spec #206 widens the CI audit to the whole tree through ADR 0008's amendment. So the `--omit=dev`
+passages of this ADR describe the gate as it was, and the "Alerts stay open" passages above
+describe the decision of the morning of 2026-11-14, which the owner reversed that day.

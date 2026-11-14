@@ -28,6 +28,11 @@ resolves to a public page describing that item. Signed-in staff see the full rec
   route handler, `POST /api/assets/[id]/photos`, and a public route,
   `GET /api/photos/[photoId]/[variant]`, serves it from the application's own origin.
 - Tailwind CSS v4 + shadcn/ui
+- `shadcn` is not a dependency (ADR 0011). The global stylesheet imports a vendored copy of its
+  stylesheet, `src/app/shadcn-tailwind.css`. Run the CLI as `npx shadcn@<exact version> add
+  <component>`, never as a package script. After it runs, check that neither `package.json` nor
+  `src/app/globals.css` has regained `shadcn` or the `shadcn/tailwind.css` import, and revert
+  either if it has. There is no npm script for it.
 - `next-intl`, default locale `id`
 - Vitest + Playwright
 - npm. pnpm is not available.
