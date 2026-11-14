@@ -24,7 +24,7 @@ permissions:
 
 jobs:
   audit:
-    name: Audit production dependencies
+    name: Audit dependencies
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -33,24 +33,24 @@ jobs:
         with:
           node-version: 24
 
-      # Scoped to production dependencies on purpose. The `overrides` block in
-      # `package.json` exists to keep this at zero (ADR 0004), and `--omit=dev`
-      # decides which future advisory is allowed to break the build: anything
-      # reaching a user should, while a CLI-only path should not fail a pull
-      # request that did not cause it. Dev tooling is watched by Dependabot
-      # instead (ADR 0008).
+      # The whole dependency tree, development tooling included, at `high`. A
+      # high advisory with no patch in any package fails every pull request
+      # until it is resolved, and the emergency path is the administrator
+      # exemption. Moderate and low advisories appear only as Dependabot
+      # alerts. The reasoning is in ADR 0008's 2026-11-14 amendment (issue
+      # #209), which supersedes the earlier `--omit=dev` scope.
       #
       # There is no install step. `npm audit` reads `package-lock.json`
       # directly, so no dependency's `preinstall`/`postinstall` runs in this job
       # at all (githubactions:S6505), which is stronger than `verify`'s
       # `npm ci --ignore-scripts`. Verified from a directory holding only
       # `package.json` and `package-lock.json`: exit 0 on `main`, and the same
-      # directory reports the eight `braces` advisories once `--omit=dev` is
-      # dropped, so the audit does read the lockfile. See the pull request for
-      # #151. If a lockfile-only audit ever stops working on the runner, fall
+      # directory reports the same six moderate `minimatch` findings as a full
+      # install, so the audit does read the lockfile. See the pull request for
+      # #209. If a lockfile-only audit ever stops working on the runner, fall
       # back to `npm ci --ignore-scripts` and write the reason here.
-      - name: Audit production dependencies
-        run: npm audit --audit-level=high --omit=dev
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
 
   dependency-review:
     name: Review dependency changes
@@ -64,8 +64,8 @@ jobs:
 
       # GitHub's own action, so a major tag rather than a commit SHA, like the
       # other `actions/*` references in this repository. It judges only the
-      # dependencies a pull request adds or changes, which is why the accepted
-      # `braces` chain (ADR 0004) does not trip it.
+      # dependencies a pull request adds or changes, so an advisory already in the
+      # tree does not trip it.
       #
       # `high` across both scopes: the action's default scope is `runtime`
       # alone, which would let a vulnerable dev tool in unreviewed. No licence
