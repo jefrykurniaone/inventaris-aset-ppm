@@ -194,8 +194,8 @@ databases are local development ones (ADR 0009).
 The migration, `prisma/migrations/<timestamp>_drop_account_issuer/migration.sql`, was produced
 without a database. `npx --no prisma migrate diff --from-schema <main's prisma/> --to-schema prisma
 --script` compared the schema folder on `main` with the edited one. It drops
-`account_issuer_accountId_uidx` and then the `issuer` column, and nothing else. That is the order the
-upstream 1.7 upgrade guide prescribes: "Drop the index before the column."
+`account_issuer_accountId_uidx` and then the `issuer` column, and nothing else. That is the order
+the upstream 1.7 upgrade guide prescribes: "Drop the index before the column."
 (`docs/content/docs/guides/1-7-upgrade-guide.mdx`, v1.7.15, read through Context7 on 2026-11-14.)
 
 ### Give every reverse relation field on `User` a `@relation`
@@ -260,9 +260,9 @@ The upstream blog post *The account change in Better Auth 1.7*
 rollback." This repository makes that concrete. After the migration the column and its index are
 gone. 1.7.1, by contrast, defines `issuer` as a required field with a unique index on
 `(issuer, accountId)`, in `@better-auth/core@1.7.1`'s `dist/db/get-tables.mjs`, read from the
-packed tarball. A rollback is therefore a forward migration that re-adds the column and backfills it for every
-account created since, followed by the package downgrade. Reverting this change alone would leave a
-migration history that no longer matches the schema.
+packed tarball. A rollback is therefore a forward migration that re-adds the column and backfills
+it for every account created since, followed by the package downgrade. Reverting this change alone
+would leave a migration history that no longer matches the schema.
 
 ## Running the generator in a fresh checkout
 
