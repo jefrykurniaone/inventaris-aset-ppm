@@ -257,10 +257,10 @@ Auth this project uses. Apart from the points above, it found these:
 The upstream blog post *The account change in Better Auth 1.7*
 (`docs/content/blogs/1-7-account-schema.mdx`, v1.7.15, read through Context7 on 2026-11-14) warns:
 "once 1.7.3 creates accounts without issuer values, downgrading packages alone is not a safe
-rollback." This repository makes that concrete. After the migration the column and its index are gone. 1.7.1, by contrast, defines
-`issuer` as a required field with a unique index on `(issuer, accountId)`, in
-`@better-auth/core@1.7.1`'s `dist/db/get-tables.mjs`, read from the packed tarball. A
-rollback is therefore a forward migration that re-adds the column and backfills it for every
+rollback." This repository makes that concrete. After the migration the column and its index are
+gone. 1.7.1, by contrast, defines `issuer` as a required field with a unique index on
+`(issuer, accountId)`, in `@better-auth/core@1.7.1`'s `dist/db/get-tables.mjs`, read from the
+packed tarball. A rollback is therefore a forward migration that re-adds the column and backfills it for every
 account created since, followed by the package downgrade. Reverting this change alone would leave a
 migration history that no longer matches the schema.
 
