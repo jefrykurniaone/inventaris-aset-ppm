@@ -45,6 +45,7 @@ const accessControlStatements = {
     "delete",
     "set-password",
     "set-email",
+    "set-phone",
     "get",
     "update",
   ],
@@ -63,6 +64,7 @@ const adminAccess = accessControl.newRole({
     "delete",
     "set-password",
     "set-email",
+    "set-phone",
     "get",
     "update",
   ],
@@ -111,9 +113,10 @@ const RATE_LIMIT_MAX_REQUESTS = 100;
  * starts as `STAFF_ROLE`. Because `STAFF_ROLE` carries no permissions in the
  * `roles` map above, every permission check the plugin runs against it
  * fails closed — a staff caller is refused by the library itself, before
- * `src/lib/require-user.ts`'s own check ever runs. See
- * `scripts/verify-admin-role-model.ts` for the empirical proof against the
- * installed `better-auth@1.7.1`.
+ * `src/lib/require-user.ts`'s own check ever runs: in `better-auth@1.7.23`,
+ * `dist/plugins/admin/has-permission.mjs` grants a permission only when one of
+ * the caller's roles authorises it. `scripts/verify-admin-role-model.ts` is
+ * the empirical proof; ADR 0010 records its run against 1.7.23.
  *
  * `rateLimit.storage: "database"` (ticket #111) moves the request counter
  * off the in-process `Map` that is `better-auth`'s own "memory" default
@@ -179,9 +182,11 @@ const CREDENTIALS_REJECTED = {
  * Refuses a sign-in against an address that is currently locked out (issue
  * #112, and section 6 / F-02 of `docs/security-review-2026-08-27.md`).
  *
- * **Why `hooks.before` is the interception point.** Better Auth 1.7.1 has no
- * lockout primitive, and of the three places a lockout could attach this is the
- * only one that can refuse an attempt *before* the password is checked.
+ * **Why `hooks.before` is the interception point.** Better Auth 1.7.23 has no
+ * lockout primitive for email sign-in — its only one, the two-factor plugin's
+ * `accountLockout`, guards second-factor codes, and that plugin is not used
+ * here — and of the three places a lockout could attach this is the only one
+ * that can refuse an attempt *before* the password is checked.
  * `databaseHooks.session.create.before` — where the admin plugin's `banned`
  * gate sits — runs only after the credential verified, which is too late to
  * bound guessing. A plugin would work but buys nothing here: `hooks.before` is
