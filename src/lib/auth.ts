@@ -116,7 +116,8 @@ const RATE_LIMIT_MAX_REQUESTS = 100;
  * `src/lib/require-user.ts`'s own check ever runs: in `better-auth@1.7.23`,
  * `dist/plugins/admin/has-permission.mjs` grants a permission only when one of
  * the caller's roles authorises it. `scripts/verify-admin-role-model.ts` is
- * the empirical proof; ADR 0010 records its run against 1.7.23.
+ * the empirical proof; its run against 1.7.23 is recorded on issue #188, which
+ * ADR 0010's verification table points to.
  *
  * `rateLimit.storage: "database"` (ticket #111) moves the request counter
  * off the in-process `Map` that is `better-auth`'s own "memory" default

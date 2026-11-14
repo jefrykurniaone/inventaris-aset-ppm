@@ -20,14 +20,41 @@ fixed from 1.7.7:
 |---|---|---|---|
 | [GHSA-965c-763c-88jm](https://github.com/advisories/GHSA-965c-763c-88jm) | critical | `better-auth >=1.4.0-beta.18 <1.7.7` | An OAuth `state` value can be used as a magic-link token to sign in as another user. |
 | [GHSA-r4xp-prcw-77qf](https://github.com/advisories/GHSA-r4xp-prcw-77qf) | high | `better-auth >=1.5.0-beta.12 <1.7.7` | The OAuth proxy lets an attacker sign in as another user. |
-| [GHSA-44jh-23m7-hpcf](https://github.com/advisories/GHSA-44jh-23m7-hpcf) | low | `@better-auth/drizzle-adapter >=1.6.17 <1.7.7` | Concurrent requests can exceed rate limits on PostgreSQL. |
+| [GHSA-44jh-23m7-hpcf](https://github.com/advisories/GHSA-44jh-23m7-hpcf) | low | `@better-auth/drizzle-adapter >=1.6.17 <1.7.7`, `better-auth >=1.6.17 <1.7.7`, `@better-auth/kysely-adapter >=1.6.17 <1.7.0` | Concurrent requests can exceed rate limits on PostgreSQL. |
 
-None of them reaches this configuration. `src/lib/auth.ts` configures `emailAndPassword`, the
-`admin()` plugin and `nextCookies()`, and nothing else. `src/lib/auth-client.ts` adds only
-`adminClient()`. There is no magic-link plugin, no OAuth or social provider, no OAuth proxy, and
-the database adapter is `prismaAdapter` from `better-auth/adapters/prisma`. The Drizzle adapter is
-installed as a dependency of `better-auth`, but nothing loads it. The audit fails all the same,
-because it judges the installed versions and not the configuration.
+`src/lib/auth.ts` configures `emailAndPassword`, the `admin()` plugin and `nextCookies()`, and
+nothing else. `src/lib/auth-client.ts` adds only `adminClient()`. The database adapter is
+`prismaAdapter` from `better-auth/adapters/prisma`.
+
+**The first two advisories do not reach this configuration.** There is no magic-link plugin, no
+OAuth or social provider and no OAuth proxy.
+
+**The third advisory is narrower than its package list, and its text does not name this path.**
+GHSA-44jh-23m7-hpcf was read with `gh api /advisories/GHSA-44jh-23m7-hpcf` on 2026-11-14. Its "Am I
+affected?" section limits it to applications that do all of the following:
+
+- use `@better-auth/drizzle-adapter` from 1.6.17 up to 1.7.7, or `@better-auth/kysely-adapter` from
+  1.6.17 through 1.6.31;
+- enable rate limiting;
+- store rate-limit records in a PostgreSQL database through one of those adapters.
+
+`better-auth` is listed because it pins the Drizzle adapter. This application does store rate-limit
+records in PostgreSQL (`rateLimit.storage: "database"` in `src/lib/auth.ts`), and rate limiting is
+on whenever `NODE_ENV` is `production` (`enabled: options.rateLimit?.enabled ?? isProduction` in
+`dist/context/create-context.mjs`). It does so through the Prisma adapter. The advisory names
+neither the Prisma adapter nor any other adapter beyond those two, so it does not say whether
+the Prisma path has the same race.
+
+What the shipped code shows is this. The database rate limiter in `dist/api/rate-limiter/index.mjs`
+is the same in 1.7.1 and 1.7.23, apart from one line that converts `lastRequest` to a number. In
+both versions it admits a request only if `incrementOne` succeeds, and the `where` of that call
+includes `count < max`. In both versions the Prisma adapter's `incrementOne` repeats every one of
+those conditions in the `where` of the `update` it issues, inside a transaction. Whether Prisma 7
+sends that as one conditional SQL `UPDATE` was not verified, because that needs a database. The
+Prisma path is therefore not shown to be safe here. 1.7.23 carries the advisory's fix either way.
+The Drizzle adapter is installed as a dependency of `better-auth`, but nothing loads it.
+
+The audit fails all the same, because it judges the installed versions and not the configuration.
 
 ### Why 1.7.23 and not 1.7.7
 
@@ -37,7 +64,7 @@ because it judges the installed versions and not the configuration.
 - Eleven further Better Auth advisories were published on 2026-11-03 and are patched only from
   1.7.16. As of 2026-11-14 they are not yet in the global advisory database, so `npm audit` does
   not report them.
-- None of those eleven reaches this configuration either.
+- None of those eleven reaches this configuration.
 
 Stopping at 1.7.7 would pass the check today and fail it again on the day those eleven are imported.
 
@@ -57,7 +84,7 @@ data model is compact and carries no nullability (upstream database docs, v1.7.1
 source agrees: `introspectPrismaDataModel` in `@better-auth/prisma-adapter`'s `dist/index.mjs` says
 a compact model "reports missing tables and columns but never a required column". This was also
 checked in this repository: the `runtimeDataModel` in `src/generated/prisma/internal/class.ts`
-lists only `name`, `kind` and `type` for each field, and `isRequired` does not occur in the file.
+carries no nullability for any field, and `isRequired` occurs 0 times in the file.
 The failure would therefore surface only at the first account insert.
 
 ### The CLI cannot remove a column
@@ -65,9 +92,21 @@ The failure would therefore surface only at the first account insert.
 `npm run auth:generate` runs the generator with `--output prisma/models/auth.prisma`, and that file
 is also the schema it reads. Its Prisma generator, `generatePrismaSchema` in
 `node_modules/auth/dist/api.mjs` of `auth@1.7.23`, was read on 2026-11-14. It walks the tables that
-Better Auth defines and adds each model or field it cannot find. For a field that already exists it
-moves on (`continue`). Nothing in it deletes a property. A column that Better Auth stops writing
-therefore stays in the schema until someone removes it by hand.
+Better Auth defines and adds each model, field or index it cannot find. It does change some things
+that already exist:
+
+- it renames a `prisma-client-js` generator provider (`api.mjs:477`) and removes the datasource
+  `url` (`api.mjs:482`);
+- for a field that already exists, it can retype `Int`/`BigInt` (`api.mjs:597-601`) and, on
+  MySQL, replace `@db.*` attributes (`api.mjs:611`), before it moves on (`continue`);
+- it adds a `map:` name to a matching unmapped index (`api.mjs:703`).
+
+It never removes a model, a model field or an index. A column that Better Auth stops writing
+therefore stays in the schema until someone removes it by hand. The upstream 1.7 upgrade guide
+(`docs/content/docs/guides/1-7-upgrade-guide.mdx`, v1.7.15, read through Context7 on 2026-11-14)
+says the opposite: "The generated `account` model drops both the field and the compound unique
+index". That holds for a fresh generation, not for a run that reads an existing file through
+`--output`, as `npm run auth:generate` does.
 
 ### The CLI's new required-column check
 
@@ -101,8 +140,9 @@ npm registry on 2026-11-14:
   `@better-auth/core` at exactly `1.7.23`, as well as `better-call` at `1.4.5`,
   `@better-fetch/fetch` at `1.3.3` and `@better-auth/utils` at `0.5.1`.
 
-No other dependency moves. Prisma stays at 7.10.1 (ADR 0007): both 1.7.23 packages still declare
-`prisma` and `@prisma/client` as `^5.0.0 || ^6.0.0 || ^7.0.0`.
+No other dependency moves. Prisma stays at 7.10.1 (ADR 0007). `better-auth@1.7.23` and
+`@better-auth/prisma-adapter@1.7.23` both declare `prisma` and `@prisma/client` as
+`^5.0.0 || ^6.0.0 || ^7.0.0` peer dependencies. `auth@1.7.23` declares no peer dependencies.
 
 ### How the lockfile was produced
 
@@ -141,7 +181,7 @@ level. Before, only the Drizzle adapter sat there. Placement does not change wha
 `issuer` and `@@unique([issuer, accountId], map: "account_issuer_accountId_uidx")` are removed
 from the `Account` model in `prisma/models/auth.prisma`. This is the one hand edit of an auth
 column that this ADR sanctions, and it has to be one, for the reason given in the context: the
-generator only appends.
+generator never removes a model field or an index.
 
 The column is removed rather than made nullable. With it removed, the auth models match what a
 fresh generation by `auth@1.7.23` produces, plus the six hand-written reverse relation fields on
@@ -154,7 +194,9 @@ databases are local development ones (ADR 0009).
 The migration, `prisma/migrations/<timestamp>_drop_account_issuer/migration.sql`, was produced
 without a database. `npx --no prisma migrate diff --from-schema <main's prisma/> --to-schema prisma
 --script` compared the schema folder on `main` with the edited one. It drops
-`account_issuer_accountId_uidx` and then the `issuer` column, and nothing else.
+`account_issuer_accountId_uidx` and then the `issuer` column, and nothing else. That is the order the
+upstream 1.7 upgrade guide prescribes: "Drop the index before the column."
+(`docs/content/docs/guides/1-7-upgrade-guide.mdx`, v1.7.15, read through Context7 on 2026-11-14.)
 
 ### Give every reverse relation field on `User` a `@relation`
 
@@ -192,16 +234,30 @@ Auth this project uses. Apart from the points above, it found these:
   rejected with `400 PASSWORD_TOO_LONG` (`dist/utils/password.mjs:10-14`). The sign-in lockout does
   not count it, because `classifySignInOutcome` in `src/lib/sign-in-lockout.ts` records only a 401
   as a failed attempt. A 400 is not a credential guess, and the check runs before the lookup, so it
-  says nothing about whether an account exists. No code changes.
+  says nothing about whether an account exists. No code changes. Two consequences follow:
+  - **Lock state shows in the status code.** Take a password over 128 characters. An unlocked
+    address now gets `400 PASSWORD_TOO_LONG`. A locked address gets `401` from the lockout's
+    `hooks.before`, which runs before the endpoint. On 1.7.1, whose sign-in had no length check,
+    both got `401`. This discloses lock state, which the before-hook already accepts through timing
+    (see `signInLockoutBefore`'s doc comment in `src/lib/auth.ts`). It does not disclose whether an
+    account exists, because the counter keys on the submitted string, so an address with no account
+    locks the same way. Accepted for that reason. No code change.
+  - **Admin create-user has the same limit.** In 1.7.23, `/admin/create-user` calls
+    `assertPasswordNotTooLong` too (`dist/plugins/admin/routes.mjs:195`). In 1.7.1 it hashed the
+    password without a length check; that version's only admin length check was in
+    `/admin/set-user-password`. The admin form's schema (`src/app/(app)/admin/users/schemas.ts:21`)
+    sets only a minimum length, so a password over 128 characters now fails there with a generic
+    error. That is tracked in #193, outside this ADR.
 - **Cookies follow RFC 6265bis (1.7.8, per spec #186).** This was not verified separately here. The
   *End-to-end smoke test* job covers it: it signs in through a real browser against a database built
   from the full migration history.
 
 ## Rollback
 
-The upstream 1.7 upgrade guide, as read for spec #186, warns that once 1.7.3 or later has created
-accounts without `issuer`, downgrading the packages alone is not safe. This repository makes that
-concrete. After the migration the column and its index are gone. 1.7.1, by contrast, defines
+The upstream blog post *The account change in Better Auth 1.7*
+(`docs/content/blogs/1-7-account-schema.mdx`, v1.7.15, read through Context7 on 2026-11-14) warns:
+"once 1.7.3 creates accounts without issuer values, downgrading packages alone is not a safe
+rollback." This repository makes that concrete. After the migration the column and its index are gone. 1.7.1, by contrast, defines
 `issuer` as a required field with a unique index on `(issuer, accountId)`, in
 `@better-auth/core@1.7.1`'s `dist/db/get-tables.mjs`, read from the packed tarball. A
 rollback is therefore a forward migration that re-adds the column and backfills it for every
