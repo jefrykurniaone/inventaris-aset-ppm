@@ -255,7 +255,7 @@ async function main(): Promise<void> {
     await removeFixtures(db);
     if (await runChecks(auth, db)) {
       console.info(
-        "PASS: the sign-in lockout in src/lib/auth.ts behaves as documented against better-auth@1.7.1.",
+        "PASS: the sign-in lockout in src/lib/auth.ts behaves as documented against the installed better-auth.",
       );
     } else {
       process.exitCode = 1;

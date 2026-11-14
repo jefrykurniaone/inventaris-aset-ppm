@@ -10,12 +10,13 @@ import { SignInForm } from "./SignInForm";
  * The sign-in page (PRD FR-1.1, FR-1.5) — one of the three routes reachable
  * without a session, alongside the public scan page and the auth API route.
  *
- * `POST /api/auth/sign-in/email` returns 403 with an empty body when the
- * request already carries a valid session cookie (confirmed at runtime
- * against `better-auth@1.7.1`), so an already-authenticated visitor must
- * never be allowed to post the form — they would see a bare, unexplained
- * failure. Checking the session here and redirecting away, before the form
- * ever renders, is what avoids that: this is a plain session read via
+ * On the installed better-auth (1.7.23, checked at runtime on 2026-11-14), a
+ * second `POST /api/auth/sign-in/email` from an already-authenticated browser
+ * succeeds with 200 and creates an additional session. Earlier versions
+ * answered 403 with an empty body. The page therefore redirects an
+ * authenticated visitor home before the form renders: showing the form would
+ * at best mint a pointless second session, and on older versions would fail
+ * with a bare, unexplained 403. This is a plain session read via
  * `getSessionUser`, not `requireUser`, because the desired behaviour for "no
  * session" on this page is exactly the opposite of `requireUser`'s — render
  * the form, don't redirect.
