@@ -1,6 +1,6 @@
 # Spec v1 - Advisory zero: eject the shadcn package, take minimatch 11 through typescript-eslint, audit the whole tree
 
-> Tracker: Spec [#206](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/206) · Run label `run:advisory-zero` · Decision records ADR 0011 (new), [ADR 0004](adr/0004-pinned-transitive-overrides-for-postcss-and-sharp.md) (amended), [ADR 0008](adr/0008-dependency-vulnerability-checks.md) (amended).
+> Tracker: Spec [#206](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/206) · Execution map [#211](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/211) · Tickets [#208](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/208), [#209](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/209), [#210](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/210) · Run label `run:advisory-zero` · Decision records ADR 0011 (new), [ADR 0004](adr/0004-pinned-transitive-overrides-for-postcss-and-sharp.md) (amended), [ADR 0008](adr/0008-dependency-vulnerability-checks.md) (amended).
 > Point-in-time copy of the spec item as of 2026-11-14, against `main` at `3720670`. The spec item is the one written copy.
 
 ## Problem statement
