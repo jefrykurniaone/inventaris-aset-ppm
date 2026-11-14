@@ -65,6 +65,11 @@ if it has. `CLAUDE.md` carries the rule.
 beside `public/vendor/**`, which is the same kind of file: a verbatim vendored copy. The finding is
 never silenced with `NOSONAR`, and the vendored content is never edited to satisfy it.
 
+SonarQube Cloud did flag it on the pull request for this ADR: 16 issues, all `css:S8776` ("Missing
+scoping root"), on the `@keyframes` and variant blocks of the vendored content. So
+`src/app/shadcn-tailwind.css` is in `sonar.exclusions`, with a comment beside the `public/vendor`
+one.
+
 ## Consequences
 
 - `shadcn` leaves the lockfile with its subtree, 237 package entries, and no package that stays
