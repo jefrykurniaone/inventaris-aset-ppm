@@ -84,7 +84,9 @@ function describeProblem(
  * Reads one demonstration `staff` account's details from the environment.
  *
  * Email and name fall back to development defaults, same as the
- * administrator's. The password falls back to a generated one instead of
+ * administrator's. An empty string counts as unset for all three variables,
+ * because `process.loadEnvFile` turns `SEED_STAFF1_PASSWORD=""` in
+ * `.env.example` into `""`, not `undefined`. The password falls back to a generated one instead of
  * refusing outright — `wasPasswordGenerated` tells `prisma/seed.ts` whether
  * it has to print that password, since a generated credential nobody sees is
  * useless rather than merely inconvenient.
@@ -93,12 +95,12 @@ export function resolveSeedDemoUser(
   env: Readonly<Record<string, string | undefined>>,
   names: SeedDemoUserEnvNames,
 ): SeedDemoUserResolution {
-  const passwordFromEnv = env[names.passwordEnv];
+  const passwordFromEnv = env[names.passwordEnv] || undefined;
   const wasPasswordGenerated = passwordFromEnv === undefined;
 
   const parsed = demoUserSchema.safeParse({
-    email: env[names.emailEnv] ?? names.defaultEmail,
-    name: env[names.nameEnv] ?? names.defaultName,
+    email: env[names.emailEnv] || names.defaultEmail,
+    name: env[names.nameEnv] || names.defaultName,
     password: passwordFromEnv ?? generatePassword(),
   });
 
