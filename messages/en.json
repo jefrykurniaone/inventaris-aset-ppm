@@ -216,6 +216,7 @@
     "nameLabel": "Name",
     "nameRequired": "Name is required.",
     "passwordLabel": "Password",
+    "passwordTooLong": "Password must be at most 128 characters.",
     "passwordTooShort": "Password must be at least 8 characters.",
     "reactivate": "Reactivate",
     "reactivatePending": "Reactivating…",
@@ -603,6 +604,7 @@
     "invalidCredentials": "Incorrect email or password.",
     "passwordLabel": "Password",
     "passwordRequired": "Password is required.",
+    "passwordTooLong": "Password must be at most 128 characters.",
     "submit": "Sign in",
     "submitPending": "Signing in…",
     "unexpectedError": "Something went wrong. Please try again."

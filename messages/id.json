@@ -216,6 +216,7 @@
     "nameLabel": "Nama",
     "nameRequired": "Nama wajib diisi.",
     "passwordLabel": "Kata sandi",
+    "passwordTooLong": "Kata sandi maksimal 128 karakter.",
     "passwordTooShort": "Kata sandi minimal harus 8 karakter.",
     "reactivate": "Aktifkan kembali",
     "reactivatePending": "Mengaktifkan…",
@@ -603,6 +604,7 @@
     "invalidCredentials": "Email atau kata sandi salah.",
     "passwordLabel": "Kata sandi",
     "passwordRequired": "Kata sandi wajib diisi.",
+    "passwordTooLong": "Kata sandi maksimal 128 karakter.",
     "submit": "Masuk",
     "submitPending": "Memproses…",
     "unexpectedError": "Terjadi kesalahan. Coba lagi."

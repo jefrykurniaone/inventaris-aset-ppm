@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { MAX_PASSWORD_LENGTH } from "@/lib/password-limits";
+
 /**
  * Shared shape for the sign-in form's inline validation. This is a client-
  * side convenience only — the authoritative server-side validation for
@@ -11,7 +13,7 @@ import { z } from "zod";
  */
 export const signInSchema = z.object({
   email: z.email(),
-  password: z.string().min(1),
+  password: z.string().min(1).max(MAX_PASSWORD_LENGTH),
 });
 
 export type SignInInput = z.infer<typeof signInSchema>;

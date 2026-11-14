@@ -47,6 +47,11 @@ const USER_ALREADY_EXISTS_CODES = new Set([
   "USER_ALREADY_EXISTS",
 ]);
 
+/** Better Auth's code for a password over its `maxPasswordLength`. The schema
+ * normally refuses such a password first; this is the backstop for a length
+ * Zod and Better Auth count differently (code points against UTF-16 units). */
+const PASSWORD_TOO_LONG_CODE = "PASSWORD_TOO_LONG";
+
 type Translate = Awaited<ReturnType<typeof getTranslations<"AdminUsersPage">>>;
 
 type CreateUserFieldName = keyof CreateUserState["fieldErrors"];
@@ -61,6 +66,17 @@ const FIELD_ERROR_KEYS: Record<CreateUserFieldName, Parameters<Translate>[0]> =
     password: "passwordTooShort",
   };
 
+/** The password field has two bounds, so its message depends on which one
+ * the issue broke; every other field has a single message. */
+function readFieldErrorKey(
+  field: CreateUserFieldName,
+  code: string,
+): Parameters<Translate>[0] {
+  return field === "password" && code === "too_big"
+    ? "passwordTooLong"
+    : FIELD_ERROR_KEYS[field];
+}
+
 function isCreateUserFieldName(
   value: PropertyKey,
 ): value is CreateUserFieldName {
@@ -72,13 +88,13 @@ function isCreateUserFieldName(
  * function stays inside the project's 40-line limit. */
 function buildCreateUserFieldErrors(
   t: Translate,
-  issues: ReadonlyArray<{ path: PropertyKey[] }>,
+  issues: ReadonlyArray<{ path: PropertyKey[]; code: string }>,
 ): CreateUserState["fieldErrors"] {
   const fieldErrors: CreateUserState["fieldErrors"] = {};
   for (const issue of issues) {
     const field = issue.path[0];
     if (isCreateUserFieldName(field)) {
-      fieldErrors[field] = t(FIELD_ERROR_KEYS[field]);
+      fieldErrors[field] = t(readFieldErrorKey(field, issue.code));
     }
   }
   return fieldErrors;
@@ -121,6 +137,13 @@ export async function createUserAction(
   } catch (error) {
     logActionError("createUserAction", { email: parsed.data.email }, error);
     const code = readErrorCode(error);
+    if (code === PASSWORD_TOO_LONG_CODE) {
+      return {
+        fieldErrors: { password: t("passwordTooLong") },
+        formError: null,
+        isSuccess: false,
+      };
+    }
     const formError = USER_ALREADY_EXISTS_CODES.has(code ?? "")
       ? t("userAlreadyExists")
       : t("unexpectedError");
