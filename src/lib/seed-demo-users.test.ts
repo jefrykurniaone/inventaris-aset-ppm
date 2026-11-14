@@ -59,6 +59,28 @@ describe("resolveSeedDemoUser", () => {
     );
   });
 
+  it("treats an empty password as unset and generates one", () => {
+    const result = resolveSeedDemoUser({ SEED_STAFF1_PASSWORD: "" }, NAMES);
+
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.value.wasPasswordGenerated).toBe(true);
+    expect(result.ok && result.value.password.length).toBeGreaterThanOrEqual(
+      12,
+    );
+  });
+
+  it("treats an empty email as unset and uses the default", () => {
+    const result = resolveSeedDemoUser({ SEED_STAFF1_EMAIL: "" }, NAMES);
+
+    expect(result.ok && result.value.email).toBe(NAMES.defaultEmail);
+  });
+
+  it("treats an empty name as unset and uses the default", () => {
+    const result = resolveSeedDemoUser({ SEED_STAFF1_NAME: "" }, NAMES);
+
+    expect(result.ok && result.value.name).toBe(NAMES.defaultName);
+  });
+
   it("refuses a password from the environment that is too short", () => {
     const result = resolveSeedDemoUser(
       { SEED_STAFF1_PASSWORD: "short" },

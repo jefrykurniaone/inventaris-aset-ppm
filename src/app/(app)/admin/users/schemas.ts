@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { auth } from "@/lib/auth";
+import { MAX_PASSWORD_LENGTH } from "@/lib/password-limits";
 import { roleSchema } from "@/lib/roles";
 
 /**
@@ -18,7 +19,7 @@ const MIN_PASSWORD_LENGTH = 8;
 export const createUserSchema = z.object({
   name: z.string().trim().min(1),
   email: z.email(),
-  password: z.string().min(MIN_PASSWORD_LENGTH),
+  password: z.string().min(MIN_PASSWORD_LENGTH).max(MAX_PASSWORD_LENGTH),
   role: roleSchema,
 });
 

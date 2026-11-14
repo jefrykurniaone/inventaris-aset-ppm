@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { auth } from "@/lib/auth";
+import { MAX_PASSWORD_LENGTH } from "@/lib/password-limits";
 import { requireAdmin } from "@/lib/require-user";
 
 import {
@@ -137,6 +138,41 @@ describe("createUserAction", () => {
     );
 
     expect(result.formError).toBe("userAlreadyExists");
+  });
+
+  it("refuses a password over the maximum with passwordTooLong, without calling auth.api.createUser", async () => {
+    const result = await createUserAction(
+      INITIAL_CREATE_USER_STATE,
+      createUserFormData({ password: "a".repeat(MAX_PASSWORD_LENGTH + 1) }),
+    );
+
+    expect(result.fieldErrors.password).toBe("passwordTooLong");
+    expect(mockedCreateUser).not.toHaveBeenCalled();
+  });
+
+  it("still reports passwordTooShort for a password under the minimum", async () => {
+    const result = await createUserAction(
+      INITIAL_CREATE_USER_STATE,
+      createUserFormData({ password: "short" }),
+    );
+
+    expect(result.fieldErrors.password).toBe("passwordTooShort");
+  });
+
+  it("maps a PASSWORD_TOO_LONG error code to the passwordTooLong field error, never the generic message", async () => {
+    mockedCreateUser.mockRejectedValue({
+      body: { code: "PASSWORD_TOO_LONG" },
+      message: "Password too long",
+    });
+
+    const result = await createUserAction(
+      INITIAL_CREATE_USER_STATE,
+      createUserFormData(),
+    );
+
+    expect(result.fieldErrors.password).toBe("passwordTooLong");
+    expect(result.formError).toBeNull();
+    expect(result.isSuccess).toBe(false);
   });
 
   it("maps an unrecognised failure to the generic message rather than leaking it", async () => {
