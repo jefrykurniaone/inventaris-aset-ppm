@@ -40,11 +40,12 @@ const INVALID_CREDENTIALS_STATUS = 401;
 
 type Translate = ReturnType<typeof useTranslations<"SignInForm">>;
 
-/** Maps zod's issue paths to this form's two fields. A module-level
+/** Maps zod's issue paths to this form's two fields (a `too_big` password
+ * issue is the over-long case, anything else is the empty one). A module-level
  * function, not one nested inside `SignInForm`, so that component stays
  * under the project's 40-line limit. */
 function buildValidationErrorState(
-  issues: ReadonlyArray<{ path: PropertyKey[] }>,
+  issues: ReadonlyArray<{ path: PropertyKey[]; code: string }>,
   t: Translate,
 ): SignInFormState {
   const fieldErrors: SignInFieldErrors = {};
@@ -53,7 +54,8 @@ function buildValidationErrorState(
       fieldErrors.email = t("emailInvalid");
     }
     if (issue.path[0] === "password") {
-      fieldErrors.password = t("passwordRequired");
+      fieldErrors.password =
+        issue.code === "too_big" ? t("passwordTooLong") : t("passwordRequired");
     }
   }
   return { fieldErrors, formError: null, isSuccess: false };
