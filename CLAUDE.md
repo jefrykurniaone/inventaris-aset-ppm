@@ -73,8 +73,8 @@ and do not "simplify" it back to the raw command.
 
 What each part is for:
 
-- The CLI is the `auth` package, pinned exactly at `auth@1.7.1` in `devDependencies` to match
-  `better-auth@1.7.1` — it declares that exact version as a dependency, so npm dedupes rather than
+- The CLI is the `auth` package, pinned exactly at `auth@1.7.23` in `devDependencies` to match
+  `better-auth@1.7.23` — it declares that exact version as a dependency, so npm dedupes rather than
   installing a second copy. `@better-auth/cli` is the old name: it stops at 1.4.21 and npm reports
   it deprecated.
 - `--no` makes npx run that pinned local binary and fail loudly rather than quietly fetching
@@ -87,15 +87,22 @@ What each part is for:
   with `P1012`, `The model "User" cannot be defined because a model with that name already exists`.
 
 Because the generator only ever adds, a hand-written addition to a generated model survives a run.
-That is what keeps the four reverse relation fields on `User` — `createdAssets`, `uploadedPhotos`,
-`handledLoans`, `activities` — alive, and they have to live in `prisma/models/auth.prisma`: a Prisma
-model block exists in exactly one file and cannot be reopened from another, and a Prisma relation
-must be declared from both sides, so `Asset.createdBy` has nothing else to point at. Those four
-lines are the only hand-written ones in that file.
+That is what keeps the six reverse relation fields on `User` — `createdAssets`, `uploadedPhotos`,
+`handledLoans`, `activities`, `activityAsSubject`, `activityAsActor` — alive, and they have to live
+in `prisma/models/auth.prisma`: a Prisma model block exists in exactly one file and cannot be
+reopened from another, and a Prisma relation must be declared from both sides, so
+`Asset.createdBy` has nothing else to point at. All six carry `@relation`, because since
+`auth@1.7.23` the generator's required-column check reads only that file and counts a field typed
+as a model from another file as a required column unless it has the attribute. Those six lines and
+their comments are the only hand-written ones in that file.
 
 Never hand-write or hand-edit an auth column — regenerate instead. A correct run prints
 `Your schema is already up to date.` and touches nothing; `Schema was overwritten successfully!`
 means the CLI wrote somewhere it should not have. `npx auth migrate` does not support Prisma.
+
+The generator never removes anything, so a column that Better Auth drops upstream is removed by
+hand, and only under an ADR (ADR 0010 removed `account.issuer`). Afterwards `npm run auth:generate`
+must again print `Your schema is already up to date.` with no `⚠` line.
 
 ## Code quality — zero SonarQube issues, first write
 
