@@ -4,7 +4,8 @@
 - **Date**: 2026-08-21; amended 2026-08-21 for `deepmerge-ts` (issue #30); amended 2026-10-23 for
   the override re-check and the `braces` chain (issue #150); amended 2026-11-14 for the accepted
   `minimatch` and `deepmerge` advisories (issue #200); amended 2026-11-14 again, for the `shadcn`
-  eject that resolves `deepmerge` and the ts-morph path of `minimatch` (issue #208)
+  eject that resolves `deepmerge` and the ts-morph path of `minimatch` (issue #208); amended
+  2026-11-19 for the `minimatch` resolution (issue #210)
 - **Deciders**: Jefry Kurniawan
 
 ## Context
@@ -368,3 +369,49 @@ passages of this ADR describe the gate as it was.
 The owner reversed the 2026-11-14 acceptance of alerts #18 and #23, which was to live with them
 until an upstream fix, in favour of removing them. They are fixed rather than accepted. They were
 never dismissed, so they close as fixed when the lockfile reaches `main`.
+
+## Amendment — 2026-11-19: `minimatch` resolved (issue #210)
+
+### Resolved: `minimatch`
+
+The removal condition of the 2026-11-14 section, "a release of each parent accepts `^11.0.1`", is
+met. The `@ts-morph/common` parent left the tree with `shadcn` (ADR 0011). On 2026-11-19
+`npm view @typescript-eslint/typescript-estree@latest version dependencies.minimatch` printed
+`version = '8.73.0'` and `dependencies.minimatch = '^11.0.1'`. Nothing in the sections above is
+deleted.
+
+`@typescript-eslint/parser` and `@typescript-eslint/eslint-plugin` moved from `8.67.0` to `8.73.0`
+in `package-lock.json` only, together with the `@typescript-eslint/*` packages that pin each other
+exactly. `eslint-config-next@15.5.29` accepts both at `^8.0.0`, so `package.json` is unchanged and
+there is no override. The command was `npm update @typescript-eslint/parser
+@typescript-eslint/eslint-plugin --ignore-scripts`. `minimatch` moved from `10.2.6` to `11.0.9`,
+`brace-expansion` from `5.0.12` to `5.0.13`, and `@isaacs/nonrecursive-glob-match@1.1.0` is new.
+`npm ls minimatch` lists `11.0.9` and the `3.1.5` copy used by ESLint, which is outside the
+advisory range. `npm audit` reports `found 0 vulnerabilities`. Alert #23 closes as fixed when the
+lockfile reaches `main`.
+
+### Release notes
+
+The GitHub releases of typescript-eslint from `8.68.0` to `8.73.0` (`8.67.0` was the installed
+version) were read on 2026-11-19. They change rule behaviour, mostly as false-positive and autofix
+fixes in `eslint-plugin` rules, and add the rules `no-generated-empty-object-type`,
+`no-unsafe-enum-assignment` and `no-unsafe-class-instance-assignment`, which no shipped preset
+enables. Parsing changes in `typescript-estree`: `8.70.1` adds the missing `<` token before type
+arguments and requires string literal import attribute values, `8.72.0` includes leading and
+trailing comments in the `Program` range and errors on `abstract` before `export`, and `8.73.0`
+adds an experimental `projectService` backend for the TypeScript 7.1 native parser, behind an
+optional peer that is not installed. `8.72.1` makes the project service use one `Program` per
+tsconfig in single-run mode. None of these needed a change in this repository: `npm run lint` passes
+with `--max-warnings=0` on the new parser.
+
+### Package check
+
+`@isaacs/nonrecursive-glob-match@1.1.0` is the only new package. It is maintained by `isaacs`, who
+also maintains `minimatch`; the package was first published on 2026-10-26, has had six releases
+since, and the repository was last pushed on 2026-11-17. Its licence is BlueOak-1.0.0, a permissive
+licence. It is 426,992 bytes unpacked in 36 files, has no dependencies and is a development-only
+package. GitHub's advisory database lists no vulnerability for it, and `npm audit` reports none.
+It is a young package, which is accepted because its author maintains its only consumer.
+`brace-expansion@5.0.13` is MIT, 133,109 bytes unpacked, and an existing package at a patch
+release. `minimatch@11.0.9` is BlueOak-1.0.0, 507,556 bytes unpacked, and a major version above
+the previous copy; it requires Node 20 or later, which CI and this repository already use.
