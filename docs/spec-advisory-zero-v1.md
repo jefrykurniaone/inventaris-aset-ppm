@@ -1,7 +1,7 @@
 # Spec v1 - Advisory zero: eject the shadcn package, take minimatch 11 through typescript-eslint, audit the whole tree
 
 > Tracker: Spec [#206](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/206) · Execution map [#211](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/211) · Tickets [#208](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/208), [#209](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/209), [#210](https://github.com/jefrykurniaone/inventaris-aset-ppm/issues/210) · Run label `run:advisory-zero` · Decision records ADR 0011 (new), [ADR 0004](adr/0004-pinned-transitive-overrides-for-postcss-and-sharp.md) (amended), [ADR 0008](adr/0008-dependency-vulnerability-checks.md) (amended).
-> Point-in-time copy of the spec item as of 2026-11-14, against `main` at `3720670`. The spec item is the one written copy.
+> Point-in-time copy of the spec item as of 2026-11-19, with its delivery notes, on `chore/advisory-zero` at `157327f`. The spec item is the one written copy.
 
 ## Problem statement
 
@@ -27,15 +27,15 @@ None of the four reaches the application, and `npm audit --omit=dev` reports 0. 
   - its own `zod@3.25.76`;
   - `@modelcontextprotocol/sdk` → `express@5.2.1` → `body-parser@2.3.0`;
   - `ts-morph@26.0.0` → `@ts-morph/common@0.27.0` → `minimatch@10.2.6`;
-  - `fast-glob` → `micromatch` → `braces@3.0.3`, whose advisory GHSA-vfj7-8cjw-p6xm was withdrawn on 2026-10-23.
+  - `fast-glob` → `micromatch` → `braces@3.0.3`, whose advisory GHSA-vfj7-8cjw-p6xm was withdrawn on 2026-10-23. *(Corrected 2026-11-14: this chain did not leave with `shadcn`. `braces@3.0.3` stays through `@next/eslint-plugin-next` → `fast-glob@3.3.1` → `micromatch`. Its advisory is withdrawn, so it raises no alert and no audit finding; ADR 0004, "The braces chain".)*
 - **ESLint's TypeScript parser.** `eslint-config-next@15.5.29` → `@typescript-eslint/parser` and `@typescript-eslint/eslint-plugin` → `@typescript-eslint/typescript-estree@8.67.0` → `minimatch@10.2.6`.
 
 So every path but one enters through the shadcn CLI package. It is installed for one reason: the global stylesheet imports `shadcn/tailwind.css`. That file is 1.6 KB, MIT-licensed, and holds custom variants (`data-open`, `data-closed`, `data-checked` and others), the accordion keyframes and a `no-scrollbar` utility. The CLI itself is used rarely, to scaffold a component that is then edited by hand.
 
 ## Solution
 
-1. **Eject the shadcn package.** Copy shadcn 3.8.5's stylesheet into the repository as a vendored file, import it where the package import was, and remove the package. shadcn documents this as `shadcn eject`: the CLI docs at shadcn 4.21, read through Context7 on 2026-11-14, say it "inlines `shadcn/tailwind.css` into your global CSS file and removes the `shadcn` dependency". This closes #2, #3 and #18, removes the ts-morph path of #23, and removes the `braces` chain.
-2. **Take minimatch 11 through typescript-eslint, with no override.** Every `@typescript-eslint/typescript-estree` canary since 8.72.3-alpha.1 (2026-11-10) declares `minimatch ^11.0.1`. Once a stable release with that range is on npm, refreshing the lockfile closes #23. typescript-eslint releases on Mondays, so the expected date is 2026-11-16. That is not guaranteed: no release came out on 2026-11-02.
+1. **Eject the shadcn package.** Copy shadcn 3.8.5's stylesheet into the repository as a vendored file, import it where the package import was, and remove the package. shadcn documents this as `shadcn eject`: the CLI docs at shadcn 4.21, read through Context7 on 2026-11-14, say it "inlines `shadcn/tailwind.css` into your global CSS file and removes the `shadcn` dependency". This closes #2, #3 and #18, removes the ts-morph path of #23, and removes the `braces` chain. *(Corrected 2026-11-14: it did not remove the `braces` chain; see "Where they come from".)*
+2. **Take minimatch 11 through typescript-eslint, with no override.** Every `@typescript-eslint/typescript-estree` canary since 8.72.3-alpha.1 (2026-11-10) declares `minimatch ^11.0.1`. Once a stable release with that range is on npm, refreshing the lockfile closes #23. typescript-eslint releases on Mondays, so the expected date is 2026-11-16. That is not guaranteed: no release came out on 2026-11-02. *(Delivered: 8.73.0 came out on 2026-11-16 at 17:06Z with `minimatch ^11.0.1`, and #210 took it.)*
 3. **Audit the whole tree in CI.** The security check fails on a high advisory anywhere in the tree, not only in production scope. The job is renamed to match, and branch protection moves with it.
 4. **Record it.**
    - A new ADR 0011 for the eject.
@@ -89,10 +89,12 @@ So every path but one enters through the shadcn CLI package. It is installed for
    - ADR 0011 records the exclusion.
 
    Never `// NOSONAR`, and never an edit to the vendored content to satisfy a rule.
+
+   *(Delivered: the check reported 16 `css:S8776` issues in the vendored file, so it joined `sonar.exclusions`, recorded in ADR 0011.)*
 5. **minimatch through typescript-eslint, with no override.**
    - **The gate is external.** A stable `@typescript-eslint/typescript-estree` release must be on npm whose `minimatch` range excludes every version below 11.0.1.
    - **Lockfile only.** The change touches only the lockfile; `package.json` is unchanged. The `@typescript-eslint/*` packages move together, because they pin each other exactly.
-   - **The new transitive package.** minimatch 11 brings `@isaacs/nonrecursive-glob-match` (BlueOak-1.0.0, first published 2026-10-26). It gets the check `CLAUDE.md` asks for before a package is added: size, maintenance, licence and CVEs. The result goes in the ADR 0004 amendment.
+   - **The new transitive package.** minimatch 11 brings `@isaacs/nonrecursive-glob-match` (BlueOak-1.0.0, first published 2026-10-26). It gets the check `CLAUDE.md` asks for before a package is added: size, maintenance, licence and CVEs. The result goes in the ADR 0004 amendment. *(Delivered: the lockfile also moved `brace-expansion` from 5.0.12 to 5.0.13; the check is in ADR 0004's 2026-11-19 amendment.)*
    - **An override was rejected.** On 2026-11-14 it was rejected for the same reason ADR 0004 gives: it would put a major version under parents that declare `^10`.
 6. **Full-tree audit at `high`.**
    - The audit job's command loses `--omit=dev` and keeps `--audit-level=high`.
@@ -112,7 +114,7 @@ So every path but one enters through the shadcn CLI package. It is installed for
      - the rename and the protection change;
      - the owner disabling the preset on 2026-11-14, and the reopening of #2 and #3.
 
-     It marks two earlier passages superseded rather than deleting them: the *Dev tooling is not gated* consequence and the rejected *Audit the full tree* alternative. The reason is that the `braces` chain, which would have kept a full-tree audit permanently red, has left the tree, and the owner wants the tree kept at zero.
+     It marks two earlier passages superseded rather than deleting them: the *Dev tooling is not gated* consequence and the rejected *Audit the full tree* alternative. The reason is that the `braces` chain, which would have kept a full-tree audit permanently red, has left the tree, and the owner wants the tree kept at zero. *(Corrected 2026-11-14: the chain did not leave the tree. Its advisory was withdrawn on 2026-10-23, which is why a full-tree audit is not red; ADR 0008's amendment cites ADR 0004's "The braces chain".)*
 9. **Order.** The eject lands first, because it removes the two high advisories that would turn a full-tree audit red. The gate change and the minimatch refresh both follow it. The minimatch refresh also waits for the upstream release.
 
 ## Testing decisions
@@ -153,4 +155,15 @@ Prior art: ADR 0008 established on 2026-10-23 that `npm audit` reads the lockfil
 - **#23 is not reachable here anyway.** The vulnerable `firstPhasePreProcess()` runs only at `optimizationLevel >= 2`. The default is 1, according to the minimatch v11 README read through Context7 and to the installed source. Both callers call `minimatch(path, pattern)`, with `{ dot: true }` at most, and never set the level. The fix is about the alert and the gate, not about an exposure.
 - **typescript-eslint's release cadence.** Stable releases come out on Mondays at about 17:08 UTC: 8.72.0 on 2026-10-19, 8.72.1 on 2026-10-26 and 8.72.2 on 2026-11-09, with nothing on 2026-11-02.
 - **Context7 sources** read on 2026-11-14: the shadcn docs at 4.21.0 (the `eject` command and `shadcn/tailwind.css`), and the minimatch docs at v11.0.0 (`optimizationLevel` and the main export).
+
+## Delivery notes (2026-11-19)
+
+Run `advisory-zero`, map #211. Delivered through PR #207 (the mirror), #212 (#208), #213 (#209), then the integration branch `chore/advisory-zero` (#210) and its pull request to `main`.
+
+- **#208, eject shadcn.** PR #212, merged as `cf0519b`. Seam 1 held: the compiled CSS hashed `bdbf7b19…62b7` before and after. Alerts #2, #3 and #18 read `fixed` at 2026-11-14T11:44:58Z.
+- **#209, audit the whole tree.** PR #213, merged as `eee324a`. `main`'s protection reads back four required checks, `Audit dependencies` among them, `strict: true` (2026-11-14T11:51:58Z).
+- **#210, minimatch 11.** Merged into `chore/advisory-zero` as `157327f`. typescript-eslint moved from 8.67.0 to 8.73.0 in the lockfile only; `minimatch` is 11.0.9, `npm audit` reports 0, and `package.json` is unchanged. No override.
+- **Seam 2 and seam 4 for #210** are read on `main` once the run's pull request merges: `npm audit` with no flags reporting 0, #23 `fixed`, and 0 open alerts.
+- **Premise corrected.** The `braces` chain stayed in the tree; the claims above are marked in place, and nothing is deleted.
+
 
