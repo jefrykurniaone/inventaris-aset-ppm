@@ -395,8 +395,10 @@ lockfile reaches `main`.
 The GitHub releases of typescript-eslint from `8.68.0` to `8.73.0` (`8.67.0` was the installed
 version) were read on 2026-11-19. They change rule behaviour, mostly as false-positive and autofix
 fixes in `eslint-plugin` rules, and add the rules `no-generated-empty-object-type`,
-`no-unsafe-enum-assignment` and `no-unsafe-class-instance-assignment`, which no shipped preset
-enables. Parsing changes in `typescript-estree`: `8.70.1` adds the missing `<` token before type
+`no-unsafe-enum-assignment` and `no-unsafe-class-instance-assignment`. The `strict-type-checked`
+and `all` presets enable all three in `8.73.0`, and `recommended` does not. This repository
+extends `next/core-web-vitals` and `next/typescript`, which build on the recommended set, so none
+of the three runs here. Parsing changes in `typescript-estree`: `8.70.1` adds the missing `<` token before type
 arguments and requires string literal import attribute values, `8.72.0` includes leading and
 trailing comments in the `Program` range and errors on `abstract` before `export`, and `8.73.0`
 adds an experimental `projectService` backend for the TypeScript 7.1 native parser, behind an
