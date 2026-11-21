@@ -5,7 +5,8 @@
   the override re-check and the `braces` chain (issue #150); amended 2026-11-14 for the accepted
   `minimatch` and `deepmerge` advisories (issue #200); amended 2026-11-14 again, for the `shadcn`
   eject that resolves `deepmerge` and the ts-morph path of `minimatch` (issue #208); amended
-  2026-11-19 for the `minimatch` resolution (issue #210)
+  2026-11-19 for the `minimatch` resolution (issue #210); amended 2026-11-22 for the `effect`
+  override (issue #215)
 - **Deciders**: Jefry Kurniawan
 
 ## Context
@@ -417,3 +418,78 @@ It is a young package, which is accepted because its author maintains its only c
 `brace-expansion@5.0.13` is MIT, 133,109 bytes unpacked, and an existing package at a patch
 release. `minimatch@11.0.9` is BlueOak-1.0.0, 507,556 bytes unpacked, and a major version above
 the previous copy; it requires Node 20 or later, which CI and this repository already use.
+
+## Amendment — 2026-11-22: `effect`, reached through the Prisma CLI (issue #215)
+
+### Context
+
+[GHSA-7589-6fvf-x4pw](https://github.com/advisories/GHSA-7589-6fvf-x4pw) (CVE-2026-121707,
+Dependabot alert #24) is a high advisory: `Schema.TemplateLiteral` compiles each `Schema.String`
+span to a lazy wildcard, so a template with two or more such spans backtracks cubically on a
+non-matching input. It covers `effect <= 3.22.0`, and the first patched release is `3.22.1`.
+
+The lockfile had one copy, `effect@3.20.0`, marked `dev`, on one path:
+`prisma@7.10.1 → @prisma/config@7.10.1 → effect@3.20.0`. `@prisma/config` declares `effect` at
+**exactly** `3.20.0`, so npm cannot resolve past it. Since ADR 0008's whole-tree amendment
+(issue #209) the audit gate covers dev tooling at `high`, so `npm audit` reported 3 high and the
+next pull request to `main` would have failed the required `Audit dependencies` check.
+
+No upgrade fixes it. Read on 2026-11-22 with `npm view`:
+
+- Every stable `@prisma/config` 7.x, from `7.9.0` to `7.10.1`, declares `effect` `3.20.0`.
+  `7.10.1` is the newest stable Prisma and the version installed.
+- `prisma@latest` is `8.0.0-rc.34`, a release candidate of the next major. Its CLI no longer
+  depends on `@prisma/config`, and `@prisma/client` and `@prisma/adapter-pg` have no
+  `8.0.0-rc.34`; their `latest` is still `7.10.1`.
+- `npm audit fix --force` proposes `prisma@6.12.0`, a downgrade, which ADR 0001 and `CLAUDE.md`
+  rule out.
+
+The advisory is not reachable here. `@prisma/config` uses `effect` to decode `prisma.config.ts` for
+the Prisma CLI: its bundle calls `Schema` and `Either`, and `TemplateLiteral` does not occur in it.
+The input is this repository's own configuration, never a request to the application, and the
+package is not in the runtime bundle. The override is about keeping the gate green and closing the
+alert, not about a live exposure.
+
+### Decision
+
+The owner chose on 2026-11-22 to override now and to bump Prisma later, once a stable release
+depends on a patched `effect`. The block is now:
+
+```json
+"overrides": {
+  "effect": "^3.22.1",
+  "postcss": "^8.5.26",
+  "sharp": "^0.35.5"
+}
+```
+
+`effect` resolves to `3.22.5` (MIT, published 2026-11-19). It declares the same dependencies as
+`3.20.0`, `fast-check ^3.23.1` and `@standard-schema/spec ^1.0.0`, so the lockfile diff is the
+`effect` entry alone and no package is new. It stays inside the `3.x` major, but outside
+`@prisma/config`'s exact pin, so this is a deliberate range violation of the kind the original
+Decision describes for `sharp`.
+
+As with `deepmerge-ts`, the risk is that the Prisma CLI silently stops reading its own
+configuration. It does not:
+
+| Check | Result |
+|---|---|
+| `npm ls effect` | one copy, `prisma@7.10.1 → @prisma/config@7.10.1 → effect@3.22.5` |
+| `npm audit` | `found 0 vulnerabilities` |
+| `npx --no prisma validate` | `Prisma schema loaded from prisma.` / `The schemas at prisma are valid` |
+| `npx --no prisma generate` | `Loaded Prisma config from prisma.config.ts.` / `Generated Prisma Client (7.10.1)` |
+| `npx --no prisma migrate status` | read `Datasource "db"` at `127.0.0.1:5432` from the config, then `P1001`: no database on the machine that ran the check |
+| `npm run auth:generate` | `Your schema is already up to date.` |
+| `npm run build` | passes |
+
+`Prisma schema loaded from prisma` is the load-bearing line, for the reason the `deepmerge-ts`
+amendment gives: `schema: "prisma"` exists only in `prisma.config.ts`. `migrate status` resolved
+the datasource URL, which also lives only in that file, before it failed on the connection.
+
+### Removal condition
+
+Delete the entry when a stable Prisma release depends on `effect >= 3.22.1` through
+`@prisma/config` or its successor, or no longer depends on `effect` at all. The Prisma upgrade is
+ADR-gated, so the entry goes in that upgrade's pull request: remove it,
+`npm install --package-lock-only`, `npm audit`, and read the parent's declared range as the
+2026-10-23 amendment requires.
