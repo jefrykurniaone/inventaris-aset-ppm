@@ -478,13 +478,15 @@ configuration. It does not:
 | `npm audit` | `found 0 vulnerabilities` |
 | `npx --no prisma validate` | `Prisma schema loaded from prisma.` / `The schemas at prisma are valid` |
 | `npx --no prisma generate` | `Loaded Prisma config from prisma.config.ts.` / `Generated Prisma Client (7.10.1)` |
-| `npx --no prisma migrate status` | read `Datasource "db"` at `127.0.0.1:5432` from the config, then `P1001`: no database on the machine that ran the check |
+| `npx --no prisma migrate deploy` | on an empty local PostgreSQL 17: `All migrations have been successfully applied.` |
+| `npx --no prisma migrate status` | `9 migrations found in prisma/migrations` / `Database schema is up to date!` |
+| `npm run db:seed` | completes, attaching photos to the seed assets |
 | `npm run auth:generate` | `Your schema is already up to date.` |
 | `npm run build` | passes |
 
 `Prisma schema loaded from prisma` is the load-bearing line, for the reason the `deepmerge-ts`
-amendment gives: `schema: "prisma"` exists only in `prisma.config.ts`. `migrate status` resolved
-the datasource URL, which also lives only in that file, before it failed on the connection.
+amendment gives: `schema: "prisma"` exists only in `prisma.config.ts`. `migrate deploy` also proves
+that the datasource URL, which lives only in that file, reached the migration engine intact.
 
 ### Removal condition
 
